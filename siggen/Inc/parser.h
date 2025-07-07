@@ -1,0 +1,31 @@
+#ifndef __PARSER__H_
+#define __PARSER__H_
+
+
+#include "../lex/lex.h"  // This is somewhat annoying
+
+
+#define CMD_LEN (32)
+
+
+typedef struct {
+	int				line_length;
+	char* 			cmdbuf;
+	int 			cmd_ip; // write pointer
+	int 			cmd_op; // lex read pointer
+	lex_instance_t 	*lex;
+} parser_t;
+
+
+
+parser_t* parser_create (int line_length);
+void parser_destroy (parser_t *parser);
+
+void parser_fill (parser_t *parser, char b);
+void parser_back (parser_t *parser);
+int parser_run (parser_t *parser);
+
+
+int load_config(void);
+
+#endif
