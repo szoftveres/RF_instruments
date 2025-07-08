@@ -1,22 +1,29 @@
 #ifndef __INSTANCES_H__
 #define __INSTANCES_H__
 
+#include <bda4700.h>
 #include "max2871.h"
-#include "attenuator.h"
+#include "blockdevice.h"
+#include "blockfile.h"
 #include "config.h"
+#include "program.h"
 #include "levelcal.h"
 #include "parser.h"
 
-#define EEPROM_CONFIG_ADDRESS (0x00)
 
+extern max2871_t *osc;
 
-extern max2871_instance_t *osc;
+extern bda4700_t *attenuator;
 
-extern attenuator_instance_t *attenuator;
+extern blockdevice_t *eeprom;
 
 extern config_t config;
+extern blockfile_t* configfile;
 
 extern parser_t *online_parser;
+
+extern program_t* program;
+extern blockfile_t* programfile;
 
 extern int	program_ip;
 extern int	program_run;

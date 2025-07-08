@@ -1,17 +1,23 @@
 #include "instances.h"
 #include "functions.h"
 
-max2871_instance_t* osc;
+max2871_t* osc;
 
-attenuator_instance_t *attenuator;
+bda4700_t *attenuator;
+
+blockdevice_t *eeprom;
 
 config_t config;
+blockfile_t* configfile;
 
 parser_t *online_parser;
 
+program_t* program;
+blockfile_t* programfile;
 
 int	program_ip;
 int	program_run;
+
 
 
 double set_rf_frequency (uint32_t khz) {
@@ -38,11 +44,11 @@ void set_rf_output (int on) {
 
 
 int set_rf_level (int dBm) {
-	int freq_range = get_cal_range_index(config.fields.khz);
+	//int freq_range = get_cal_range_index(config.fields.khz);
 	if (!max2871_rfa_power(osc, -1)) {
 		return 0;
 	}
-	if (!attenuator_set(attenuator, dBm * -1)) {
+	if (!bda4700_set(attenuator, dBm * -1)) {
 		return 0;
 	}
 	config.fields.level = dBm;

@@ -24,7 +24,6 @@
 #include <string.h> // memcpy
 #include <unistd.h> // sbrk
 #include <functions.h>
-#include <eeprom.h>
 #include <parser.h>
 #include "instances.h"
 
@@ -81,22 +80,11 @@ void halt_wait (void) {
 }
 
 
-// Architecture-specific part of MAX2871
 void osc_register_write (uint32_t r) {
-
-	uint8_t buf[sizeof(r)];
-
-	/* Converting to big-endian */
-	buf[0] = (r >> 24) & 0xFF;
-	buf[1] = (r >> 16) & 0xFF;
-	buf[2] = (r >> 8) & 0xFF;
-	buf[3] = r & 0xFF;
-
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
-
-	HAL_SPI_Transmit(&hspi2, buf, sizeof(buf), 500);
-
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+	uint32_t n = u32_swap_endian(r); // max2871 needs big-endian
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET); // LE low
+	HAL_SPI_Transmit(&hspi2, (uint8_t*)&n, sizeof(n), 500); // Transmit 32 bits
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET); // LE high
 }
 
 int osc_check_ld (void) {
@@ -106,6 +94,12 @@ int osc_check_ld (void) {
 void osc_idle_wait (void) {
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
 	HAL_Delay(30);
+}
+
+void attenuator_write (bda4700_t* instance, uint8_t n) {
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET); // LE low
+	HAL_SPI_Transmit(&hspi2, &n, sizeof(n), 500); // Transmit 8 bits
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET); // LE high
 }
 
 
@@ -127,6 +121,71 @@ int usartbuf_pop (char *c) {
  	*c = usartbuf[usartbuf_op];
  	usartbuf_op = (usartbuf_op + 1) & (USART_BUF_SIZE - 1);
  	return 1;
+}
+
+
+
+#define AT24CS08_I2CADDR (0xA0)
+#define AT24CS08_PAGE (16)
+#define AT24CS08_MAX_PAGEADDRESS ((1024) / (AT24CS08_PAGE))
+
+int
+at24cs08_read_page (blockdevice_t* blockdevice, int pageaddress) {
+	if (pageaddress >= AT24CS08_MAX_PAGEADDRESS) {
+		return 0;
+	}
+	uint16_t address = pageaddress * AT24CS08_PAGE;
+	uint16_t devaddres = AT24CS08_I2CADDR | ((address / 256) << 1);
+	uint8_t addressword = address & 0xFF;
+
+	HAL_I2C_Master_Transmit(&hi2c1, devaddres, &addressword, 1, 500);
+	HAL_I2C_Master_Receive(&hi2c1, AT24CS08_I2CADDR, (uint8_t*)blockdevice->buffer, AT24CS08_PAGE, 500);
+
+	return AT24CS08_PAGE;
+}
+
+
+int
+at24cs08_write_page (blockdevice_t* blockdevice, int pageaddress) {
+	if (pageaddress >= AT24CS08_MAX_PAGEADDRESS) {
+		return 0;
+	}
+	uint16_t address = pageaddress * AT24CS08_PAGE;
+	uint16_t devaddres = AT24CS08_I2CADDR | ((address / 256) << 1);
+	uint8_t payload[1 + AT24CS08_PAGE];
+
+	payload[0] = address & (~(AT24CS08_PAGE - 1));
+	memcpy(&(payload[1]), blockdevice->buffer, AT24CS08_PAGE);
+
+	HAL_I2C_Master_Transmit(&hi2c1, devaddres, payload, sizeof(payload), 500);
+	HAL_Delay(100);
+
+	return AT24CS08_PAGE;
+}
+
+
+char* eeprom_getbuf (void) {
+	return eeprom->buffer;
+}
+
+int eeprom_getbufsize (void) {
+	return eeprom->blocksize;
+}
+
+int write_program (int block) {
+	return eeprom->write_block(eeprom, 0x10 + block); // Program base address
+}
+
+int read_program (int block) {
+	return eeprom->read_block(eeprom, 0x10 + block); // Program base address
+}
+
+int write_config (int block) {
+	return eeprom->write_block(eeprom, 0x0 + block); // config base address
+}
+
+int read_config (int block) {
+	return eeprom->read_block(eeprom, 0x0 + block); // config base address
 }
 
 /* USER CODE END 0 */
@@ -170,41 +229,62 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 
-
   // Oscillator instance
-  osc = max2871_init(osc_register_write, osc_check_ld, osc_idle_wait);
+  osc = max2871_create(osc_register_write, osc_check_ld, osc_idle_wait);
   if (!osc) {
-	  console_printf("MAX2871 osc init error");
+	  console_printf("MAX2871 init error");
 	  halt_wait();
   }
 
   // Attenuator instance
-  attenuator = attenuator_init (&hspi2, GPIOC,  GPIO_PIN_6);
+  attenuator = bda4700_create(attenuator_write);
   if (!attenuator) {
-  	  console_printf("Attenuator osc init error");
+  	  console_printf("Attenuator init error");
   	  halt_wait();
   }
 
+  // EEPROM instance
+  eeprom = blockdevice_create(AT24CS08_PAGE, at24cs08_read_page, at24cs08_write_page);
+  if (!attenuator) {
+  	  console_printf("EEPROM init error");
+  	  halt_wait();
+  }
 
-  // Establishing a startup config (load from the EEPROM, or use defaults)
-  config.fields.khz = 915000;
+  program = program_create(13, eeprom->blocksize * 2); // 13: trying to stay within 512k
+  if (!program) {
+  	  console_printf("program init error");
+  	  halt_wait();
+  }
+  programfile = blockfile_create(eeprom_getbuf, eeprom_getbufsize, write_program, read_program);
+  if (!programfile) {
+  	  console_printf("programfile init error");
+  	  halt_wait();
+  }
 
-  config.fields.level = -20;
-  config.fields.correction = 0;
-  load_config();
+  configfile = blockfile_create(eeprom_getbuf, eeprom_getbufsize, write_config, read_config);
+  if (!configfile) {
+  	  console_printf("configfile init error");
+  	  halt_wait();
+  }
+
+  if (!config_load(&config, configfile)) {
+	  set_rf_frequency(915000);
+	  set_rf_level(-20);
+	  set_rf_output(1);
+  }
 
   program_ip = 0;
   program_run = 0;
 
   console_printf("levelcal size: %i", sizeof(levelcal_t));
   console_printf("double size: %i", sizeof(double));
+  console_printf("prog bin size: %i", program_binary_size(program));
 
 
   // Online command parser
-  online_parser = parser_create(EEPROM_PAGE_SIZE * 2);  // 1 line: 32 chars
+  online_parser = parser_create(program->saved_fields.fields.linelen); // align to the program line length
 
   /* USER CODE END 2 */
 
@@ -235,7 +315,9 @@ int main(void)
 			parser_back(online_parser);
 			break;
 		default:
-			parser_fill(online_parser, c);
+			if (parser_fill(online_parser, c)) {
+				console_printf_e("\b"); // full line
+			}
 			break;
 		}
 

@@ -47,3 +47,11 @@ void console_printf_e (const char* fmt, ...) {
 	HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
 }
 
+
+uint32_t u32_swap_endian (uint32_t n) {
+	return (((n & 0xFF) << 24) +
+			((n & 0xFF00) << 8) +
+		    ((n & 0xFF0000) >> 8) +
+		    ((n & 0xFF000000) >> 24));
+}
+
