@@ -26,6 +26,7 @@
 #include <functions.h>
 #include <parser.h>
 #include "instances.h"
+#include "resource.h"
 
 /* USER CODE END Includes */
 
@@ -230,6 +231,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+
+
+  resources_setup(); // TODO error handling
 
   // Oscillator instance
   osc = max2871_create(osc_register_write, osc_check_ld, osc_idle_wait);

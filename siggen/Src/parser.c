@@ -4,6 +4,7 @@
 #include <stdlib.h> //malloc
 #include <stdio.h> // EOF
 #include "instances.h"
+#include "resource.h"
 #include "stm32f4xx_hal.h" // HAL_Delay
 
 
@@ -13,32 +14,23 @@ static const char* syntax_error = "Syntax error \'%s\'";
 static const char* not_an_expression = "Not an expression";
 
 
-static int variables['z'-'a' + 1];
 
 
 int parser_expression (parser_t *parser, int *n);
 int parser_primary_expression (parser_t *parser, int *n);
 
 
-int parser_find_variable (parser_t *parser) {
-	char lcl_var_name[] = {'a', '\0'};
 
-	for (int i = 0; i != (sizeof(variables)/sizeof(variables[0])); i++) {
-		lcl_var_name[0] = 'a' + i;
-		if (lex_get(parser->lex, T_IDENTIFIER, lcl_var_name)) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-
-int parser_variable_expression (parser_t *parser, int *n) {
-	int varidx = parser_find_variable(parser);
-	if (varidx < 0) {
+int parser_resource_expression (parser_t *parser, int *n) {
+	if (parser->lex->token != T_IDENTIFIER) {
 		return 0;
 	}
-	*n = variables[varidx];
+	resource_t* resource = locate_resource(parser->lex->lexeme);
+	if (!resource) {
+		return 0;
+	}
+	next_token(parser->lex);
+	*n = resource->get(resource->context);
 	return 1;
 }
 
@@ -108,7 +100,7 @@ int do_operations (int op_type, int *left, int right) {
 
 
 
-int recursive_assignment (parser_t *parser, int varidx, int *right) {
+int recursive_assignment (parser_t *parser, int left, int *right) {
     int op_type = parser->lex->token;
 
     switch (op_type) {
@@ -125,8 +117,6 @@ int recursive_assignment (parser_t *parser, int varidx, int *right) {
         return 0;
     }
 
-    int left = variables[varidx];
-
     if (!parser_expression(parser, right)) {    /* only one expression after assignment */
     	console_printf("expected expression after assignment operator");
     }
@@ -139,17 +129,17 @@ int recursive_assignment (parser_t *parser, int varidx, int *right) {
 
 
 
-int parser_assignment (parser_t *parser, int varidx) {
+int parser_assignment (parser_t *parser, resource_t *resource) {
 	int n;
 
     if (lex_get(parser->lex, T_ASSIGN, NULL)) {
         if (!parser_expression(parser, &n)) {
         	console_printf("expected expression after '='");
         }
-        variables[varidx] = n;
+        resource->set(resource->context, n);
         return 1;
-    } else if (recursive_assignment(parser, varidx, &n)) {
-    	variables[varidx] = n;
+    } else if (recursive_assignment(parser, resource->get(resource->context), &n)) {
+    	resource->set(resource->context, n);
         return 1;
     }
     return 0;
@@ -267,7 +257,7 @@ int parser_primary_expression (parser_t *parser, int *n) {
     if (parser_numeric_const(parser, n)) {
         return 1;
     }
-    if (parser_variable_expression(parser, n)) {
+    if (parser_resource_expression(parser, n)) {
         return 1;
     }
     return 0;
@@ -292,7 +282,7 @@ typedef struct {
 	char* token;
 	char* helpstr;
 	int (*exec) (parser_t*);
-} cmd_t;
+} keyword_t;
 
 
 
@@ -324,40 +314,8 @@ int cmd_eeprom_read (parser_t *parser) {
 
 
 int cmd_show_cfg (parser_t *parser) {
-	console_printf("RF: %i kHz, %i dBm, output %s", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
+	print_cfg();
 	return 1;
-}
-
-
-
-int cmd_set_freq (parser_t *parser) {
-	int set_khz;
-	double khz;
-	if (!parser_expression(parser, &set_khz) ) {
-		console_printf(syntax_error, not_an_expression);
-		return 0;
-	}
-	khz = set_rf_frequency(set_khz);
-	if (khz < 0) {
-		console_printf(invalid_val, set_khz);
-		return 0;
-	}
-	console_printf("actual: %i.%03i kHz", (int)khz, (int)(khz * 1000.0) % 1000);
-	return cmd_show_cfg(parser);
-}
-
-
-int cmd_set_rflevel (parser_t *parser) {
-	int dBm;
-	if (!parser_expression(parser, &dBm) ) {
-		console_printf(syntax_error, not_an_expression);
-		return 0;
-	}
-	if (!set_rf_level(dBm)) {
-		console_printf(invalid_val, dBm);
-		return 0;
-	}
-	return cmd_show_cfg(parser);
 }
 
 
@@ -584,10 +542,8 @@ int cmd_program_goto (parser_t *parser) {
 
 int cmd_help (parser_t *parser);
 
-cmd_t commands[] = {
+keyword_t keywords[] = {
 		{"help", "- print this help", cmd_help},
-		{"freq", "[kHz] - set freq", cmd_set_freq},
-		{"level", "[dBm] - set RF level", cmd_set_rflevel},
 		{"rfon", "- RF on", cmd_rfon},
 		{"rfoff", "- RF off", cmd_rfoff},
 		{"cfg", "- show cfg", cmd_show_cfg},
@@ -602,7 +558,7 @@ cmd_t commands[] = {
 		{"sleep", "[millisecs] - sleep", cmd_sleep},
 		{"print", "[expr] - print the value", cmd_print},
 		{"if", "[expr] \"cmdline\" - execute cmdline if expr is true", cmd_if},
-		{"[0-16]", "\"cmdline\" - edit command line", NULL},
+		{"[0-16]", "\"cmdline\" - enter command line", NULL},
 
 		{"new", "- clear program", cmd_program_new},
 		{"end", "- end program", cmd_program_end},
@@ -612,8 +568,8 @@ cmd_t commands[] = {
 };
 
 int cmd_help (parser_t *parser) {
-	for (int i = 0; i != (sizeof(commands)/sizeof(commands[0])); i++) {
-		console_printf("%s %s", commands[i].token, commands[i].helpstr);
+	for (int i = 0; i != (sizeof(keywords)/sizeof(keywords[0])); i++) {
+		console_printf("%s %s", keywords[i].token, keywords[i].helpstr);
 	}
 	return 1;
 }
@@ -709,7 +665,6 @@ void parser_back (parser_t *parser) {
 // run parser
 int parser_run (parser_t *parser) {
 	int rc = 1;
-	int varidx;
 
 	if (!parser->cmd_ip) {
 		return 1;
@@ -720,23 +675,24 @@ int parser_run (parser_t *parser) {
 		if (parser->lex->token == T_IDENTIFIER) {
 			int i;
 
-			for (i = 0; i != (sizeof(commands)/sizeof(commands[0])); i++) {
-				if (!strcmp(parser->lex->lexeme, commands[i].token)) {
-					if (!commands[i].exec) {
+			for (i = 0; i != (sizeof(keywords)/sizeof(keywords[0])); i++) {
+				if (!strcmp(parser->lex->lexeme, keywords[i].token)) {
+					if (!keywords[i].exec) {
 						continue;
 					}
 					next_token(parser->lex); //
-					rc = commands[i].exec(parser);
+					rc = keywords[i].exec(parser);
 					if (!rc) {
-						console_printf("%s %s", commands[i].token, commands[i].helpstr);
+						console_printf("%s %s", keywords[i].token, keywords[i].helpstr);
 					}
 					break;
 				}
 			}
-			if (i == (sizeof(commands)/sizeof(commands[0]))) {
-				if ((varidx = parser_find_variable(parser)) >= 0) {
-					//next_token(parser->lex); // XXX this shouldn't be needed
-					if (!parser_assignment(parser, varidx)) {
+			if (i == (sizeof(keywords)/sizeof(keywords[0]))) { // keywords exhausted, let's try assignment
+				resource_t* resource = locate_resource(parser->lex->lexeme);
+				if (resource) {
+					next_token(parser->lex);
+					if (!parser_assignment(parser, resource)) {
 						console_printf("assignment expected");
 						rc = 0;
 					}
