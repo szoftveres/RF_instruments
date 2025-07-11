@@ -232,15 +232,17 @@ int main(void)
 
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 
+  console_printf("");
 
   resources_setup(); // TODO error handling
 
-  // Oscillator instance
+  // Main PLL instance
   osc = max2871_create(osc_register_write, osc_check_ld, osc_idle_wait);
   if (!osc) {
 	  console_printf("MAX2871 init error");
 	  halt_wait();
   }
+
 
   // Attenuator instance
   attenuator = bda4700_create(attenuator_write);
@@ -249,6 +251,7 @@ int main(void)
   	  halt_wait();
   }
 
+
   // EEPROM instance
   eeprom = blockdevice_create(AT24CS08_PAGE, at24cs08_read_page, at24cs08_write_page);
   if (!attenuator) {
@@ -256,7 +259,8 @@ int main(void)
   	  halt_wait();
   }
 
-  program = program_create(13, eeprom->blocksize * 2); // 13: trying to stay within 512k
+
+  program = program_create(10, 40); // 10 lines, 40 characters each
   if (!program) {
   	  console_printf("program init error");
   	  halt_wait();
@@ -266,29 +270,33 @@ int main(void)
   	  console_printf("programfile init error");
   	  halt_wait();
   }
+  if(program_load(program, programfile)) { // try to load it if it's in there
+	  console_printf("program loaded");
+  }
 
   configfile = blockfile_create(eeprom_getbuf, eeprom_getbufsize, write_config, read_config);
   if (!configfile) {
   	  console_printf("configfile init error");
   	  halt_wait();
   }
-
-  if (!config_load(&config, configfile)) {
+  if (config_load(&config, configfile)) {
+	  apply_cfg();
+	  console_printf("config loaded");
+  } else {
 	  set_rf_frequency(915000);
 	  set_rf_level(-20);
 	  set_rf_output(1);
   }
+  print_cfg();
 
   program_ip = 0;
   program_run = 0;
 
-  console_printf("levelcal size: %i", sizeof(levelcal_t));
-  console_printf("double size: %i", sizeof(double));
-  console_printf("prog bin size: %i", program_binary_size(program));
-
-
   // Online command parser
   online_parser = parser_create(program->saved_fields.fields.linelen); // align to the program line length
+
+
+  console_printf_e("> "); // initial prompt
 
   /* USER CODE END 2 */
 
@@ -305,10 +313,9 @@ int main(void)
 	  }
 	  HAL_ResumeTick();
 
-	  if (c == '\n' || c == '\r') {
+	  if (c == '\r') {
 		  c = '\n';
 	  }
-
 	  console_printf_e("%c", c);  // echo
 	  switch (c) {
 		case '\n':
@@ -316,8 +323,11 @@ int main(void)
 			console_printf_e("> ");
 			break;
 		case '\b':
-			parser_back(online_parser);
-			break;
+			console_printf_e(" \b"); // delete
+			if (parser_back(online_parser)) {
+				console_printf_e(" "); // cannot move further back
+				break;
+			}
 		default:
 			if (parser_fill(online_parser, c)) {
 				console_printf_e("\b"); // full line

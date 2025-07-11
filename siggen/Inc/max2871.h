@@ -8,7 +8,11 @@
 
 
 typedef struct {
-	uint32_t registers[MAX2871_REGS];
+	uint32_t 	registers[MAX2871_REGS];
+	uint32_t	F;
+	uint32_t	N;
+	uint32_t	M;
+	uint32_t	diva;
 
 	void (*register_write) (uint32_t);  // LE low, write a register, LE high
 	int (*check_ld) (void);   			// ret: 1 = lock

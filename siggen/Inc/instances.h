@@ -33,6 +33,7 @@ double set_rf_frequency (uint32_t khz);
 void set_rf_output (int on);
 int set_rf_level (int dBm);
 
-void print_cfg (void) ;
+void apply_cfg (void);
+void print_cfg (void);
 
 #endif

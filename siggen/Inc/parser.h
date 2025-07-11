@@ -19,7 +19,7 @@ parser_t* parser_create (int line_length);
 void parser_destroy (parser_t *parser);
 
 int parser_fill (parser_t *parser, char b);
-void parser_back (parser_t *parser);
+int parser_back (parser_t *parser);
 int parser_run (parser_t *parser);
 
 

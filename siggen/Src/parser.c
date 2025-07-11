@@ -552,7 +552,7 @@ keyword_t keywords[] = {
 		{"saveprg", "- save program", cmd_saveprg},
 
 		{"loadcfg", "- load config", cmd_loadcfg},
-		{"savecfg", "- save save", cmd_savecfg},
+		{"savecfg", "- save config", cmd_savecfg},
 
 		{"eer", "[page] - peek EEPROM", cmd_eeprom_read},
 		{"sleep", "[millisecs] - sleep", cmd_sleep},
@@ -654,12 +654,15 @@ int parser_fill (parser_t *parser, char b) {
 }
 
 // backspace
-void parser_back (parser_t *parser) {
+int parser_back (parser_t *parser) {
+	int rc = 0;
 	parser->cmd_ip -= 1;
 	if (parser->cmd_ip < 0) {
 		parser->cmd_ip = 0;
+		rc = 1;
 	}
 	parser->cmdbuf[parser->cmd_ip] = EOF;
+	return rc;
 }
 
 // run parser

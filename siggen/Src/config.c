@@ -40,8 +40,8 @@ int config_save (config_t* instance, blockfile_t *file) {
 
 	validate_config(instance);
 
-	for (int i = 0; i != sizeof(instance->fields); i++) {
-		buf[ip++] = instance->fields.byte[i];
+	for (int i = 0; i != sizeof(config_t); i++) {
+		buf[ip++] = instance->byte[i];
 		if (ip >= bufsize) {
 			rc += file->write(block++); // buf is full, flush
 			ip = 0;
@@ -64,8 +64,8 @@ int config_load (config_t* instance, blockfile_t *file) {
 	rc += file->read(block++); // Read the first block
 	int ip = 0;
 
-	for (int i = 0; i != sizeof(instance->fields); i++) {
-		instance->fields.byte[i] = buf[ip++];
+	for (int i = 0; i != sizeof(config_t); i++) {
+		instance->byte[i] = buf[ip++];
 		if (ip >= bufsize) {
 			rc += file->read(block++); // read the next block
 			ip = 0;

@@ -50,11 +50,14 @@ int variable_getter (void * context) {
 
 void frequency_setter (void * context, int khz) {
 	double actual = set_rf_frequency(khz);
+	int khzpart = (int)actual;
+	int hzpart = (actual - (double)khzpart) * 1000.0;
+	int error = (khz - actual) * 1000.0;
 	if (actual < 0) {
 		console_printf(invalid_val, khz);
 		return;
 	}
-	console_printf("actual: %i.%03i kHz", (int)actual, (int)(actual * 1000.0) % 1000);
+	console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
 	print_cfg();
 }
 

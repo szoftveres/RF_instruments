@@ -2,7 +2,6 @@
 #include <math.h> // math functions, double
 #include <stdlib.h> // malloc
 
-
 uint32_t max2871GetRegister (max2871_t* instance, uint8_t reg) {
 	return instance->registers[reg];
 }
@@ -15,12 +14,14 @@ void max2871Set_INT (max2871_t* instance, uint32_t j) {
 
 // Integer Division Value
 void max2871Set_N (max2871_t* instance, uint32_t j) {
+	instance->N = j;
 	instance->registers[0] &= ~(0xFFFF << 15);
 	instance->registers[0] |= j << 15;
 }
 
 // Fractional Division Value
 void max2871Set_FRAC (max2871_t* instance, uint32_t j) {
+	instance->F = j;
 	instance->registers[0] &= ~(0xFFF << 3);
 	instance->registers[0] |= j << 3;
 }
@@ -50,6 +51,7 @@ void max2871Set_P (max2871_t* instance, uint32_t j) {
 
 // Fractional Modulus
 void max2871Set_M (max2871_t* instance, uint32_t j) {
+	instance->M = j;
 	instance->registers[1] &= ~(0xFFF << 3);
 	instance->registers[1] |= j << 3;
 }
@@ -218,6 +220,7 @@ void max2871Set_FB (max2871_t* instance, uint32_t j) {
 
 // RFOUT_ Output Divider Mode
 void max2871Set_DIVA (max2871_t* instance, uint32_t j) {
+	instance->diva = j;
 	instance->registers[4] &= ~(0x7 << 20);
 	instance->registers[4] |= j << 20;
 }
@@ -297,9 +300,6 @@ void max2871WriteRegisters (max2871_t* instance) {
 	}
 }
 
-//#define MOD (4095)
-#define MOD (4000)
-
 
 // Setup of the MAX2871 PLL, 50MHz, output off
 max2871_t* max2871_create (void (*register_write) (uint32_t), int (*check_ld) (void), void (*idle_wait) (void)) {
@@ -339,7 +339,7 @@ max2871_t* max2871_create (void (*register_write) (uint32_t), int (*check_ld) (v
 	max2871Set_CPL(instance, 0);
 	max2871Set_CPT(instance, 0);
 	max2871Set_P(instance, 1);
-	max2871Set_M(instance, MOD);
+	max2871Set_M(instance, 4095);
 	max2871Set_LDS(instance, 1);      // fPFD > 32MHz
 	max2871Set_SDN(instance, 0);
 	max2871Set_MUX(instance, 0xC); 	// Reg 6 Readback 0xC
@@ -403,6 +403,8 @@ double max2871_freq (max2871_t* instance, double khz) {
     double div = 0.0;
     double fPFD_khz = 40000.0; // 2x refosc
 
+    uint32_t mod = 4000;  // 40.0MHz / mod = 10kHz steps
+
 
     if (khz < 23500.0) {
         return -1.0;
@@ -436,13 +438,13 @@ double max2871_freq (max2871_t* instance, double khz) {
 
     double n = khz * div / fPFD_khz;
     uint32_t N = (uint32_t) n;
-    uint32_t F = round((n - N) * MOD);
+    uint32_t F = round((n - N) * mod);
 
 	max2871Set_INT(instance, 0);
 	max2871Set_N(instance, N);
 	max2871Set_FRAC(instance, F);
 	max2871Set_CPL(instance, 1);
-	max2871Set_M(instance, MOD);
+	max2871Set_M(instance, mod);
 	max2871Set_LDF(instance, 0);
 	max2871Set_DIVA(instance, diva);
 	max2871Set_F01(instance, 1);
@@ -453,7 +455,7 @@ double max2871_freq (max2871_t* instance, double khz) {
 		instance->idle_wait();
 	}
 
-    return fPFD_khz * (N + ((double)F / (double)MOD)) / div;
+    return fPFD_khz * ((double)N + ((double)F / (double)mod)) / div;
 }
 
 

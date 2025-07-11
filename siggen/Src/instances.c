@@ -55,6 +55,14 @@ int set_rf_level (int dBm) {
 	return 1;
 }
 
+
+void apply_cfg (void) {
+	set_rf_level(config.fields.level);
+	set_rf_frequency(config.fields.khz);
+	set_rf_output(config.fields.rfon);
+}
+
+
 void print_cfg (void) {
 	console_printf("RF: %i kHz, %i dBm, output %s", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
 }
