@@ -1,9 +1,17 @@
 ## Programmable 6 GHz RF signal generator 
 
+This signal generator is based on the MAX2871 PLL and is intended for portable use.
+
  * Frequency range: 23.5 MHz - 6 GHz
  * Level range: -5 dBm - -35 dBm
 
-# [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/siggen/schematics.pdf)
+![photo](photo.jpg)
+
+** [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/siggen/schematics.pdf) **
+
+Sweep of frequencies, without level calibration:
+
+![sweep](sweep.jpg)
 
 ### Programming
 
