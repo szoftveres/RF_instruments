@@ -40,9 +40,6 @@ Besides single-line commands, the device can store a short program, which can be
  4 "if freq <= 930000 \"goto 2\""
  5 "rfoff"
  6 "end"
- 7 " "
- 8 " "
- 9 " "
 ```
 After issuing the `run` command, the above program will run a frequency sweep from 900 MHz to 930 MHz.
 
@@ -74,10 +71,47 @@ The available keywords and commands can be listed with the `help` command:
  goto [line] - jump
 ```
 
+### Program examples
 
+Exponential frequency sweep, with 1.032x (33/32) increments:
+```
+> list
+ 0 "rfoff"
+ 1 "freq = 900000"
+ 2 "rfon; sleep 200; rfoff"
+ 3 "freq = freq * 33 / 32"
+ 4 "if freq <= 930000 \"goto 2\""
+ 5 "rfoff"
+ 6 "end"
+```
 
+Frequency and power sweep:
+```
+> list
+ 0 "rfoff"
+ 1 "level = -30"
+ 2 "freq = 900000" 
+ 3 "rfon; sleep 200; rfoff"
+ 4 "freq = freq * 33 / 32"
+ 5 "if freq <= 930000 \"goto 3\""
+ 6 "level += 1"
+ 7 "if level < 0 \"goto 2\""
+ 8 "rfoff"
+ 9 "end"
+```
 
-
-
+RF beacon transmitting at two frequencies for 1 second each, every 15 seconds 
+```
+> list
+ 0 "rfoff"
+ 1 "level = -3"
+ 2 "freq = 902000" 
+ 3 "rfon; sleep 1000; rfoff"
+ 4 "freq = 928000" 
+ 5 "rfon; sleep 1000; rfoff"
+ 6 "sleep 13000"
+ 7 "goto 2"
+ 8 "end"
+```
 
 
