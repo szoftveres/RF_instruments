@@ -109,19 +109,19 @@ RF beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 second
  8 "end"
 ```
 
-Calculating and printing prime numbers between 3 and 100, without any RF functionality whatsoever (language Turing-completeness demonstrator):
+Calculating and printing prime numbers between 3 and 1000, without any RF functionality whatsoever (language Turing-completeness demonstrator):
 ```
-> list                                                                          
- 0 "n = 3"                                                                      
- 1 "d = 1"                                                                      
- 2 "d += 1"                                                                     
- 3 "if d >= n \"goto 7\""                                                       
- 4 "r = n * 1000 / d % 1000"                                                    
- 5 "if r==0 \"goto 8\""                                                         
- 6 "goto 2"                                                                     
- 7 "print n"                                                                    
- 8 "n += 1"                                                                     
- 9 "if n < 100 \"goto 1\""  
+> list
+ 0 "n = 3; f = 1000"
+ 1 "d = 1"
+ 2 "d += 1"
+ 3 "if d >= n \"goto 7\""
+ 4 "r = n * (f*10) / d % (f*10)"
+ 5 "if r==0 \"goto 8\""
+ 6 "goto 2"
+ 7 "print n"
+ 8 "n += 1"
+ 9 "if n < f \"goto 1\""
 ```
 
 ![photo](photo.jpg)
