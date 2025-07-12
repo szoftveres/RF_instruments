@@ -19,7 +19,7 @@ Frequency can be programmed by setting the `freq` *resource variable* <sup>[1]</
 
 RF output level can be set (and retrieved) by using the `level` resource variable, the unit is in dBm, the accepted range is between -30 and 0.
 
-Besides the `freq` and `level` resource variables, there are 26 *general purpose variables* (`a` - `z`), each hold a 32-bit signed integer. Parentheses `(` `)` can be used in expressions to emphaseize and/or to override built-in operator-precedence, e.g. `a = (150 + b) * freq`. The parser has a complete, full-blown C-style compound expression evaluator with almost every imaginable arithmetic and logic operations and with pre-defined operion precedence.
+Besides the `freq` and `level` resource variables, there are 26 *general purpose variables* (`a` - `z`), each holding a 32-bit signed integer. Parentheses `(` `)` can be used in expressions to emphaseize and/or to override built-in operator-precedence, e.g. `a = (150 + b) * freq`. The parser has a complete, full-blown C-style compound expression evaluator with almost every imaginable arithmetic and logic operations and with pre-defined operator precedence.
 
 RF output can be turned on or off with the `rfon` and `rfoff` commands.
 
@@ -41,9 +41,9 @@ The device can also store a short program, which can be saved to the EEPROM and 
 After issuing the `run` command, the above program will run a linear frequency sweep from 900 MHz to 930 MHz in 1 MHz increments, stopping at each frequency point for 200 ms.
 
 A program line can be edited by first typing the line number, followed by the program line in a C-string literal format, e.g. `1 "freq = 900000"`.
-If a program line contains nested string literals, the `\` character can be used before the nested double-quote characters, e.g. in lie `4 "if freq <= 930000 \"goto 2\""`, the `if` keyword also expects a program line string literal after the evaluated expression.
+If a program line contains nested string literals, the `\` character can be used before the nested double-quote characters, e.g. `4 "if freq <= 930000 \"goto 2\""`, the `if` keyword expects a program line in the form of a string literal after the evaluated expression.
 
-The `if` statement accepts a compound expression of any complexity and will consider it TRUE as long as its evaluated value is not zero. 
+The `if` statement will execute the supplied command line if the compound expression following it evaluates to non-zero. 
 
 The available keywords and commands can be listed with the `help` command:
 ```
