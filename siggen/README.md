@@ -40,10 +40,8 @@ The device can also store a short program, which can be saved to the EEPROM and 
 ```
 After issuing the `run` command, the above program will run a linear frequency sweep from 900 MHz to 930 MHz in 1 MHz increments, stopping at each frequency point for 200 ms.
 
-A program line can be edited by first typing the line number, followed by the program line in a C-string literal format, e.g. `1 "freq = 900000"`.
-If a program line contains nested string literals, the `\` character can be used before the nested double-quote characters, e.g. `4 "if freq <= 930000 \"goto 2\""`, the `if` keyword expects a program line in the form of a string literal after the evaluated expression.
-
-The `if` statement will execute the supplied command line if the compound expression following it evaluates to non-zero. 
+A program line can be entered by first typing the line number, followed by the program line in a C-string literal format, e.g. `1 "freq = 900000"`.
+If a program line contains nested string literals, the `\` character can be used before the nested double-quote characters, e.g. `4 "if freq <= 930000 \"goto 2\""`, the `if` keyword expects the program line to be executed in the form of a string literal after a TRUE (i.e. non-zero) expression.
 
 The available keywords and commands can be listed with the `help` command:
 ```
@@ -52,8 +50,8 @@ The available keywords and commands can be listed with the `help` command:
  rfon - RF on
  rfoff - RF off
  cfg - show cfg
- loadprg - load program
- saveprg - save program
+ loadprg [n] - load program from [n] (0-7)
+ saveprg [n] - save program to [n] (0-7)
  loadcfg - load config
  savecfg - save config
  eer [page] - peek EEPROM
@@ -115,6 +113,28 @@ AM modulated 25 MHz beacon - the AM frequency is primarily the function of how q
  0 "freq = 25000"                                                               
  1 "rfon"                                                                       
  2 "level=0; level=-20; goto 2"
+```
+
+Self-modifying program. After completion, line #5 will be overwritten.
+```
+> list
+ 0 "rfoff"
+ 1 "freq = 900000"
+ 2 "rfon; sleep 200; rfoff"
+ 3 "freq += 1000"
+ 4 "if freq >= 930000 \"5 \\"end\\"\""
+ 5 "goto 2"
+```
+
+Loading and running another program from within a program. After loading, the original program is overwritten in RAM by the new program and cannot be returned into, however the subsequent program can load it and run it again if it's saved in the EEPROM.
+```
+> list
+ 0 "rfoff"
+ 1 "freq = 900000"
+ 2 "rfon; sleep 200; rfoff"
+ 3 "freq += 1000"
+ 4 "if freq >= 930000 \"loadprg 2; run\""
+ 5 "goto 2"
 ```
 
 Calculating and printing prime numbers between 3 and 1000, without any RF functionality whatsoever (language Turing-completeness demonstrator):
