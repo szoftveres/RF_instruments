@@ -30,4 +30,3 @@ void blockdevice_destroy (blockdevice_t* blockdevice) {
 	free(blockdevice);
 }
 
-

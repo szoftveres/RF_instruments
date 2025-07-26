@@ -109,6 +109,14 @@ RF beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 second
  8 "end"
 ```
 
+AM modulated 25 MHz beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and send SPI commands to the programmable attenuator.
+```
+> list
+ 0 "freq = 25000"                                                               
+ 1 "rfon"                                                                       
+ 2 "level=0; level=-20; goto 2"
+```
+
 Calculating and printing prime numbers between 3 and 1000, without any RF functionality whatsoever (language Turing-completeness demonstrator):
 ```
 > list

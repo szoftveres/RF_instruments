@@ -6,34 +6,33 @@
 #define PROGRAM_SIGNATURE (0x71077345)
 
 
-uint32_t program_checksum (program_t* instance) {
+uint32_t program_checksum (struct program_header_s* header) {
 	uint32_t chksum = 0x00;
 
-	for (int i = 0; i != sizeof(instance->saved_fields.fields); i++) {
-		chksum += instance->saved_fields.fields.chkbyte[i];
-	}
-
-	for (int i = 0; i != instance->saved_fields.fields.nlines; i++) {
-		char* linebyte = instance->line[i];
-		for (int j = 0; j != instance->saved_fields.fields.linelen; j++) {
-			chksum += linebyte[j];
-		}
+	for (int i = 0; i != sizeof(header->fields); i++) {
+		chksum += header->fields.chkbyte[i];
 	}
 	return chksum;
 }
 
 
 void validate_program (program_t* instance) {
-	instance->saved_fields.fields.signature = PROGRAM_SIGNATURE;
-	instance->saved_fields.checksum = program_checksum(instance);
+	instance->header.fields.signature = PROGRAM_SIGNATURE;
+	instance->header.checksum = program_checksum(&(instance->header));
 }
 
 
-int verify_program (program_t* instance) {
-	if (instance->saved_fields.fields.signature != PROGRAM_SIGNATURE) {
+int verify_program (program_t* instance, struct program_header_s* header) {
+	if (header->fields.signature != PROGRAM_SIGNATURE) {
 		return 0;
 	}
-	if (instance->saved_fields.checksum != program_checksum(instance)) {
+	if (header->checksum != program_checksum(header)) {
+		return 0;
+	}
+	if (instance->header.fields.linelen != header->fields.linelen) {
+		return 0;
+	}
+	if (instance->header.fields.nlines != header->fields.nlines) {
 		return 0;
 	}
 	return 1;
@@ -46,19 +45,19 @@ program_t *program_create (int nlines, int linelen) {
 	if (!instance) {
 		return instance;
 	}
-	instance->saved_fields.fields.nlines = nlines;
-	instance->saved_fields.fields.linelen = linelen;
+	instance->header.fields.nlines = nlines;
+	instance->header.fields.linelen = linelen;
 
-	instance->line = (char**)malloc(sizeof(char*) * instance->saved_fields.fields.nlines);  // an array of char*
+	instance->line = (char**)malloc(sizeof(char*) * instance->header.fields.nlines);  // an array of char*
 	if (!instance->line) {
 		free(instance);
 		instance = NULL;
 		return instance;
 	}
-	memset(instance->line, 0x00, sizeof(char*) * instance->saved_fields.fields.nlines);
+	memset(instance->line, 0x00, sizeof(char*) * instance->header.fields.nlines);
 
-	for (int i = 0; i != instance->saved_fields.fields.nlines; i++) {
-		instance->line[i] = (char*)malloc(instance->saved_fields.fields.linelen); // allocating each line
+	for (int i = 0; i != instance->header.fields.nlines; i++) {
+		instance->line[i] = (char*)malloc(instance->header.fields.linelen); // allocating each line
 		if (!instance->line[i]) {
 			bail = 1;
 			break;
@@ -68,7 +67,7 @@ program_t *program_create (int nlines, int linelen) {
 
 
 	if (bail) {
-		for (int i = 0; i != instance->saved_fields.fields.nlines; i++) {
+		for (int i = 0; i != instance->header.fields.nlines; i++) {
 			if (instance->line[i]) {
 				free(instance->line[i]);
 				instance->line[i] = NULL;
@@ -89,7 +88,7 @@ void program_destroy (program_t* instance) {
 	if (!instance) {
 		return;
 	}
-	for (int i = 0; i != instance->saved_fields.fields.nlines; i++) {
+	for (int i = 0; i != instance->header.fields.nlines; i++) {
 		if (instance->line[i]) {
 			free(instance->line[i]);
 			instance->line[i] = NULL;
@@ -103,11 +102,6 @@ void program_destroy (program_t* instance) {
 }
 
 
-int program_binary_size (program_t* instance) {
-	return sizeof(program_t) +  (sizeof(char*) * instance->saved_fields.fields.nlines) + (instance->saved_fields.fields.linelen * instance->saved_fields.fields.nlines);
-}
-
-
 char* program_line (program_t* instance, int line) {
 	return instance->line[line];
 }
@@ -115,34 +109,34 @@ char* program_line (program_t* instance, int line) {
 
 int program_save (program_t* instance, blockfile_t *file) {
 	int rc = 0;
-	int bufsize = file->getbufsize();
-	char* buf = file->getbuf();
+	int bufsize = blockfile_getbufsize(file);
+	char* buf = blockfile_getbuf(file);
 
 	int block = 0;
 	int ip = 0;
 
 	validate_program(instance);
 
-	for (int i = 0; i != sizeof(instance->saved_fields); i++) {
-		buf[ip++] = instance->saved_fields.savebyte[i];
+	for (int i = 0; i != sizeof(instance->header); i++) {
+		buf[ip++] = instance->header.savebyte[i];
 		if (ip >= bufsize) {
-			rc += file->write(block++); // buf is full, flush
+			rc += blockfile_write(file, block++); // buf is full, flush
 			ip = 0;
 		}
 	}
 
-	for (int i = 0; i != instance->saved_fields.fields.nlines; i++) {
+	for (int i = 0; i != instance->header.fields.nlines; i++) {
 		char* linebyte = instance->line[i];
-		for (int j = 0; j != instance->saved_fields.fields.linelen; j++) {
+		for (int j = 0; j != instance->header.fields.linelen; j++) {
 			buf[ip++] = linebyte[j];
 			if (ip >= bufsize) {
-				rc += file->write(block++); // buf is full, flush
+				rc += blockfile_write(file, block++); // buf is full, flush
 				ip = 0;
 			}
 		}
 	}
 	if (ip) {
-		rc += file->write(block++); // flush the rest
+		rc += blockfile_write(file, block++); // flush the rest
 	}
 	return rc;
 }
@@ -151,35 +145,37 @@ int program_save (program_t* instance, blockfile_t *file) {
 
 int program_load (program_t* instance, blockfile_t *file) {
 	int rc = 0;
-	int bufsize = file->getbufsize();
-	char* buf = file->getbuf();
+	int bufsize = blockfile_getbufsize(file);
+	char* buf = blockfile_getbuf(file);
+
+	struct program_header_s lcl_header;
 
 	int block = 0;
 
-	rc += file->read(block++); // Read the first block
+	rc += blockfile_read(file, block++); // Read the first block
 	int ip = 0;
 
-	for (int i = 0; i != sizeof(instance->saved_fields); i++) {
-		instance->saved_fields.savebyte[i] = buf[ip++];
+	for (int i = 0; i != sizeof(instance->header); i++) {
+		lcl_header.savebyte[i] = buf[ip++];
 		if (ip >= bufsize) {
-			rc += file->read(block++); // read the next block
+			rc += blockfile_read(file, block++); // read the next block
 			ip = 0;
 		}
 	}
 
-	for (int i = 0; i != instance->saved_fields.fields.nlines; i++) {
+	if (!verify_program(instance, &lcl_header)) {
+		return 0;
+	}
+
+	for (int i = 0; i != instance->header.fields.nlines; i++) {
 		char* linebyte = instance->line[i];
-		for (int j = 0; j != instance->saved_fields.fields.linelen; j++) {
+		for (int j = 0; j != instance->header.fields.linelen; j++) {
 			linebyte[j] = buf[ip++];
 			if (ip >= bufsize) {
-				rc += file->read(block++); // read the next block
+				rc += blockfile_read(file, block++); // read the next block
 				ip = 0;
 			}
 		}
-	}
-
-	if (!verify_program(instance)) {
-		rc = 0;
 	}
 
 	return rc;

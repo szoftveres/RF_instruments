@@ -2,7 +2,7 @@
 #define __CONFIG_H__
 
 #include <stdint.h>
-#include "blockfile.h"
+#include "blockdev_fs.h"
 
 
 typedef struct config_s {

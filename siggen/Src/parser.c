@@ -407,7 +407,7 @@ int cmd_savecfg (parser_t *parser) {
 	int rfoncfg = config.fields.rfon;
 
 	config.fields.rfon = 1; // always save with RF on
-	int rc = config_save(&config, configfile);
+	int rc = save_devicecfg();
 	config.fields.rfon = rfoncfg;
 
 	if (rc) {
@@ -418,7 +418,7 @@ int cmd_savecfg (parser_t *parser) {
 }
 
 int cmd_loadcfg (parser_t *parser) {
-	int rc = config_load(&config, configfile);
+	int rc = load_devicecfg();
 	if (rc) {
 		console_printf("%i bytes", rc);
 	}
@@ -428,7 +428,16 @@ int cmd_loadcfg (parser_t *parser) {
 
 
 int cmd_saveprg (parser_t *parser) {
-	int rc = program_save(program, programfile);
+	int entry;
+	if (!parser_expression(parser, &entry)) {
+		console_printf(syntax_error, not_an_expression);
+		return 0;
+	}
+	if (entry >= direntries()) {
+		console_printf("'%i' doesn't exist", entry);
+		return 0;
+	}
+	int rc = program_save(program, directory[entry].file);
 	if (rc) {
 		console_printf("%i bytes", rc);
 	}
@@ -437,7 +446,16 @@ int cmd_saveprg (parser_t *parser) {
 }
 
 int cmd_loadprg (parser_t *parser) {
-	int rc = program_load(program, programfile);
+	int entry;
+	if (!parser_expression(parser, &entry)) {
+		console_printf(syntax_error, not_an_expression);
+		return 0;
+	}
+	if (entry >= direntries()) {
+		console_printf("'%i' doesn't exist", entry);
+		return 0;
+	}
+	int rc = program_load(program, directory[entry].file);
 	if (rc) {
 		console_printf("%i bytes", rc);
 	}
@@ -449,7 +467,7 @@ int cmd_program_new (parser_t *parser) {
 	char* endstr = " ";
 	char* line;
 
-	for (int i = 0; i != program->saved_fields.fields.nlines; i++) {
+	for (int i = 0; i != program->header.fields.nlines; i++) {
 		line = program_line(program, i);
 		strcpy(line, endstr);
 	}
@@ -459,10 +477,10 @@ int cmd_program_new (parser_t *parser) {
 
 int cmd_program_list (parser_t *parser) {
 	char *line;
-	for (int i = 0; i != program->saved_fields.fields.nlines; i++) {
+	for (int i = 0; i != program->header.fields.nlines; i++) {
 		line = program_line(program, i);
 		console_printf_e("%2i \"", i);
-		for (int b = 0; b != program->saved_fields.fields.linelen; b++) {
+		for (int b = 0; b != program->header.fields.linelen; b++) {
 			char byte = line[b];
 			if (!byte) {
 				break;
@@ -494,7 +512,7 @@ int cmd_program_run (parser_t *parser) {
 		line = program_line(program, program_ip);
 		program_ip += 1;
 
-		parser_t *lcl_parser = parser_create(program->saved_fields.fields.linelen); // line lenght is of the program's
+		parser_t *lcl_parser = parser_create(program->header.fields.linelen); // line lenght is of the program's
 		if (!lcl_parser) {
 			program_run = 0;
 			rc = 0;
@@ -515,7 +533,7 @@ int cmd_program_run (parser_t *parser) {
 
 		parser_destroy(lcl_parser);
 
-		if (program_ip >= program->saved_fields.fields.nlines) {
+		if (program_ip >= program->header.fields.nlines) {
 			program_run = 0;
 			break;
 		}
@@ -548,8 +566,8 @@ keyword_t keywords[] = {
 		{"rfoff", "- RF off", cmd_rfoff},
 		{"cfg", "- show cfg", cmd_show_cfg},
 
-		{"loadprg", "- load program", cmd_loadprg},
-		{"saveprg", "- save program", cmd_saveprg},
+		{"loadprg", "[n] - load program from file [n]", cmd_loadprg},
+		{"saveprg", "[n] - save program to file [n]", cmd_saveprg},
 
 		{"loadcfg", "- load config", cmd_loadcfg},
 		{"savecfg", "- save config", cmd_savecfg},

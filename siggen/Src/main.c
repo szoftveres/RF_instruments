@@ -81,18 +81,18 @@ void halt_wait (void) {
 }
 
 
-void osc_register_write (uint32_t r) {
+void rf_pll_register_write (uint32_t r) {
 	uint32_t n = u32_swap_endian(r); // max2871 needs big-endian
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET); // LE low
 	HAL_SPI_Transmit(&hspi2, (uint8_t*)&n, sizeof(n), 500); // Transmit 32 bits
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET); // LE high
 }
 
-int osc_check_ld (void) {
+int rf_pll_check_ld (void) {
 	return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
 }
 
-void osc_idle_wait (void) {
+void rf_pll_idle_wait (void) {
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
 	HAL_Delay(30);
 }
@@ -125,69 +125,42 @@ int usartbuf_pop (char *c) {
 }
 
 
-
-#define AT24CS08_I2CADDR (0xA0)
-#define AT24CS08_PAGE (16)
-#define AT24CS08_MAX_PAGEADDRESS ((1024) / (AT24CS08_PAGE))
+#define AT24C256_I2CADDR (0xA0)
+#define AT24C256_PAGE (64)
+#define AT24C256_MAX_PAGEADDRESS ((32768) / (AT24C256_PAGE))
 
 int
-at24cs08_read_page (blockdevice_t* blockdevice, int pageaddress) {
-	if (pageaddress >= AT24CS08_MAX_PAGEADDRESS) {
+at24c256_read_page (blockdevice_t* blockdevice, int pageaddress) {
+	if (pageaddress >= AT24C256_MAX_PAGEADDRESS) {
 		return 0;
 	}
-	uint16_t address = pageaddress * AT24CS08_PAGE;
-	uint16_t devaddres = AT24CS08_I2CADDR | ((address / 256) << 1);
-	uint8_t addressword = address & 0xFF;
+	uint8_t wpayload[2];
 
-	HAL_I2C_Master_Transmit(&hi2c1, devaddres, &addressword, 1, 500);
-	HAL_I2C_Master_Receive(&hi2c1, AT24CS08_I2CADDR, (uint8_t*)blockdevice->buffer, AT24CS08_PAGE, 500);
-
-	return AT24CS08_PAGE;
+	wpayload[0] = ((pageaddress * AT24C256_PAGE) >> 8) & 0xFF; // MSB
+	wpayload[1] = (pageaddress * AT24C256_PAGE) & 0xFF; // LSB
+	HAL_I2C_Master_Transmit(&hi2c1, AT24C256_I2CADDR, wpayload, sizeof(wpayload), 500);
+	HAL_I2C_Master_Receive(&hi2c1, AT24C256_I2CADDR, (uint8_t*)blockdevice->buffer, AT24C256_PAGE, 500);
+	return AT24C256_PAGE;
 }
 
 
 int
-at24cs08_write_page (blockdevice_t* blockdevice, int pageaddress) {
-	if (pageaddress >= AT24CS08_MAX_PAGEADDRESS) {
+at24c256_write_page (blockdevice_t* blockdevice, int pageaddress) {
+	if (pageaddress >= AT24C256_MAX_PAGEADDRESS) {
 		return 0;
 	}
-	uint16_t address = pageaddress * AT24CS08_PAGE;
-	uint16_t devaddres = AT24CS08_I2CADDR | ((address / 256) << 1);
-	uint8_t payload[1 + AT24CS08_PAGE];
+	uint8_t wpayload[2 + AT24C256_PAGE];
 
-	payload[0] = address & (~(AT24CS08_PAGE - 1));
-	memcpy(&(payload[1]), blockdevice->buffer, AT24CS08_PAGE);
+	wpayload[0] = ((pageaddress * AT24C256_PAGE) >> 8) & 0xFF; // MSB
+	wpayload[1] = (pageaddress * AT24C256_PAGE) & 0xFF; // LSB
+	memcpy(&(wpayload[2]), blockdevice->buffer, AT24C256_PAGE);
 
-	HAL_I2C_Master_Transmit(&hi2c1, devaddres, payload, sizeof(payload), 500);
+	HAL_I2C_Master_Transmit(&hi2c1, AT24C256_I2CADDR, wpayload, sizeof(wpayload), 500);
 	HAL_Delay(100);
 
-	return AT24CS08_PAGE;
+	return AT24C256_PAGE;
 }
 
-
-char* eeprom_getbuf (void) {
-	return eeprom->buffer;
-}
-
-int eeprom_getbufsize (void) {
-	return eeprom->blocksize;
-}
-
-int write_program (int block) {
-	return eeprom->write_block(eeprom, 0x10 + block); // Program base address
-}
-
-int read_program (int block) {
-	return eeprom->read_block(eeprom, 0x10 + block); // Program base address
-}
-
-int write_config (int block) {
-	return eeprom->write_block(eeprom, 0x0 + block); // config base address
-}
-
-int read_config (int block) {
-	return eeprom->read_block(eeprom, 0x0 + block); // config base address
-}
 
 /* USER CODE END 0 */
 
@@ -237,8 +210,8 @@ int main(void)
   resources_setup(); // TODO error handling
 
   // Main PLL instance
-  osc = max2871_create(osc_register_write, osc_check_ld, osc_idle_wait);
-  if (!osc) {
+  rf_pll = max2871_create(rf_pll_register_write, rf_pll_check_ld, rf_pll_idle_wait);
+  if (!rf_pll) {
 	  console_printf("MAX2871 init error");
 	  halt_wait();
   }
@@ -250,50 +223,41 @@ int main(void)
   	  console_printf("Attenuator init error");
   	  halt_wait();
   }
-
-
   // EEPROM instance
-  eeprom = blockdevice_create(AT24CS08_PAGE, at24cs08_read_page, at24cs08_write_page);
+  eeprom = blockdevice_create(AT24C256_PAGE, at24c256_read_page, at24c256_write_page);
   if (!attenuator) {
   	  console_printf("EEPROM init error");
   	  halt_wait();
   }
-
-
-  program = program_create(10, 40); // 10 lines, 40 characters each
+  program = program_create(14, AT24C256_PAGE); // 14 lines, 64 characters each
   if (!program) {
   	  console_printf("program init error");
   	  halt_wait();
   }
-  programfile = blockfile_create(eeprom_getbuf, eeprom_getbufsize, write_program, read_program);
-  if (!programfile) {
-  	  console_printf("programfile init error");
-  	  halt_wait();
+  for (int p = 0; p != direntries(); p++) {
+	  directory[p].file = blockfile_create(eeprom, (p+1) * 0x10);
+	  if (!directory[p].file) {
+		  console_printf("programfile init error");
+		  halt_wait();
+	  }
   }
-  if(program_load(program, programfile)) { // try to load it if it's in there
+  if (program_load(program, directory[0].file)) { // try to load the 1st program
 	  console_printf("program loaded");
   }
-
-  configfile = blockfile_create(eeprom_getbuf, eeprom_getbufsize, write_config, read_config);
-  if (!configfile) {
-  	  console_printf("configfile init error");
-  	  halt_wait();
-  }
-  if (config_load(&config, configfile)) {
-	  apply_cfg();
+  if (load_devicecfg()) {
 	  console_printf("config loaded");
   } else {
 	  set_rf_frequency(915000);
 	  set_rf_level(-20);
 	  set_rf_output(1);
+	  print_cfg();
   }
-  print_cfg();
 
   program_ip = 0;
   program_run = 0;
 
   // Online command parser
-  online_parser = parser_create(program->saved_fields.fields.linelen); // align to the program line length
+  online_parser = parser_create(program->header.fields.linelen); // align to the program line length
 
 
   console_printf_e("> "); // initial prompt
