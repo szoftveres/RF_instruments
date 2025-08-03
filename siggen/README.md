@@ -2,11 +2,11 @@
 
 Basic specs:
  * Frequency range: 23.5 MHz - 6 GHz, in 10 kHz steps   (MAX2871 PLL)
- * Level setting synamic range: 30 dB (approx. -35 dBm - -5 dBm)
+ * Level setting dynamic range: 30 dB (approx. -35 dBm - -5 dBm)
  * Executable program size in RAM: 1 kB (16 lines x 64 character)
  * Number of stored programs: 8 (8 x 1 kB in EEPROM)
  * Power: +5V, 110mA (via USB)
- * UART comm interface: 38400 8N1
+ * UART comm interface: 38400 8N1 (FT230x USB UART)
 
 
 
@@ -16,13 +16,13 @@ Basic specs:
 
 ### Programming
 
-The signal generator has a USB UART interface (FTDI FT230x) to issue commands to, and an EEPROM to store level calibration data, configuration and program.
+The instrument has a USB UART communication interface, and a 32 kB EEPROM to store programs, level calibration data and configuration.
 
-Frequency can be programmed by setting the `freq` *resource variable* <sup>[1]</sup>; the unit is kHz, e.g. `freq = 915000` will set the frequency to 915 MHz, `freq += 1000` will increase the current frequency by 1 MHz. The `print <expr>` command can be used to print the value of an expression, e.g. `print freq / 1000` will print the current frequency, in MHz.
+Frequency can be programmed by setting the `freq` *resource variable* <sup>[1]</sup>; the unit is kHz, e.g. `freq = 915000` sets the frequency to 915 MHz, `freq += 1000` increases the current frequency by 1 MHz. The `print <expr>` command prints the value of an *expression*, e.g. `print freq / 1000` prints the current frequency, in MHz.
 
-<sup>[1]: A resource variable is a variable that is accessible within the program namespace, however accessing its value or assigning value to it might result in additonal actions, e.g. assigning a value to `freq` resource variable also configures the frequency of the MAX2871 PLL.</sup>
+<sup>[1]: A resource variable is a special variable that is accessible within the program namespace just like any general purpose variable, however retrieving its value or assigning value to it might result in additonal actions. E.g. assigning a value to `freq` resource variable also sets the output frequency of the MAX2871 PLL.</sup>
 
-RF output level can be set (and retrieved) by using the `level` resource variable, the unit is in dBm, the accepted range is between -30 and 0.
+RF output level can be set (and retrieved) by using the `level` *resource variable*, the unit is in dBm, the accepted range is between -30 and 0.
 
 Besides printing out values of resource variables, the current configuration can also be printed out with the `cfg` command.
 ```
@@ -47,10 +47,10 @@ The device can also store a short program, which can be saved to the EEPROM and 
  4 "if freq <= 930000 \"goto 2\""
  5 "end"
 ```
-After issuing the `run` command, the above program will run a linear frequency sweep from 900 MHz to 930 MHz in 1 MHz increments, stopping at each frequency point for 200 ms.
+After issuing the `run` command, the above program runs a linear frequency sweep from 900 MHz to 930 MHz in 1 MHz increments, stopping at each frequency point for 200 ms.
 
 A program line can be entered by first typing the line number, followed by the program line in a C-string literal format, e.g. `1 "freq = 900000"`.
-If a program line contains nested string literals, the `\` character can be used before the nested double-quote characters, e.g. `4 "if freq <= 930000 \"goto 2\""`, the `if` keyword expects the program line to be executed in the form of a string literal after a TRUE (i.e. non-zero) expression.
+If a program line contains nested string literals, the `\` character must be used before the nested double-quote characters, e.g. `4 "if freq <= 930000 \"goto 2\""`, the `if` keyword expects the program line to be executed in the form of a string literal after a TRUE (i.e. non-zero) expression.
 
 The available keywords and commands can be listed with the `help` command:
 ```
@@ -89,7 +89,7 @@ Exponential frequency sweep between 50 MHz - 5 GHz, with 1.032x (33/32) incremen
  5 "end"
 ```
 
-Linear frequency and power sweep 900 MHz - 930 MHz, -30 dBm - -1 dBm, 1MHz and 1dB steps:
+Linear frequency *and* power sweep; 900 MHz - 930 MHz in 1 MHz steps, -30 dBm - -1 dBm in 1dB steps:
 ```
  0 "rfoff"
  1 "level = -30"
@@ -160,6 +160,6 @@ Calculating and printing prime numbers between 3 and 1000, without any RF functi
 
 ![photo](photo.jpg)
 
-Frequency- and power sweep, without level calibration, 50 MHz - 6 GHz, in 10dB output level increments:
+Frequency- and power sweep (raw output without level calibration), 30 MHz - 6 GHz, in 10dB output level increments:
 
 ![sweep](sweep.jpg)
