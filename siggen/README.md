@@ -115,7 +115,7 @@ RF beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 second
  8 "end"
 ```
 
-Periodic, 300 Hz AM modulated 25 MHz Shortwave beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and send SPI commands to the programmable attenuator.
+Periodic, 300 Hz AM modulated 25 MHz Shortwave beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and program the attenuator through SPI.
 ```
  0 "freq = 25000; echooff" 
  1 "rfon; c = 300"
