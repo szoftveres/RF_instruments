@@ -57,8 +57,10 @@ void frequency_setter (void * context, int khz) {
 		console_printf(invalid_val, khz);
 		return;
 	}
-	console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
-	print_cfg();
+	if (config.fields.echoon) {
+		console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
+		print_cfg();
+	}
 }
 
 int frequency_getter (void * context) {
@@ -70,7 +72,9 @@ void rflevel_setter (void * context, int dBm) {
 		console_printf(invalid_val, dBm);
 		return;
 	}
-	print_cfg();
+	if (config.fields.echoon) {
+		print_cfg();
+	}
 }
 
 int rflevel_getter (void * context) {

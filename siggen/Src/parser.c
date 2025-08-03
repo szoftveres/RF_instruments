@@ -321,13 +321,31 @@ int cmd_show_cfg (parser_t *parser) {
 
 int cmd_rfon (parser_t *parser) {
 	set_rf_output(1);
-	return cmd_show_cfg(parser);
+	if (config.fields.echoon) {
+		print_cfg();
+	}
+	return 1;
 }
 
 
 int cmd_rfoff (parser_t *parser) {
 	set_rf_output(0);
-	return cmd_show_cfg(parser);
+	if (config.fields.echoon) {
+		print_cfg();
+	}
+	return 1;
+}
+
+
+int cmd_echoon (parser_t *parser) {
+	config.fields.echoon = 1;
+	return 1;
+}
+
+
+int cmd_echooff (parser_t *parser) {
+	config.fields.echoon = 0;
+	return 1;
 }
 
 
@@ -404,25 +422,26 @@ int cmd_if (parser_t *parser) {
 
 
 int cmd_savecfg (parser_t *parser) {
-	int rfoncfg = config.fields.rfon;
-
-	config.fields.rfon = 1; // always save with RF on
 	int rc = save_devicecfg();
-	config.fields.rfon = rfoncfg;
 
-	if (rc) {
+	if (rc && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
-	console_printf("cfg save %s", rc ? "success" : "error");
+	if (config.fields.echoon) {
+		console_printf("cfg save %s", rc ? "success" : "error");
+	}
 	return rc;
 }
 
 int cmd_loadcfg (parser_t *parser) {
 	int rc = load_devicecfg();
-	if (rc) {
+
+	if (rc && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
-	console_printf("cfg load %s", rc ? "success" : "error");
+	if (config.fields.echoon) {
+		console_printf("cfg load %s", rc ? "success" : "error");
+	}
 	return rc;
 }
 
@@ -438,10 +457,12 @@ int cmd_saveprg (parser_t *parser) {
 		return 0;
 	}
 	int rc = program_save(program, directory[entry].file);
-	if (rc) {
+	if (rc && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
-	console_printf("prg save %s", rc ? "success" : "error");
+	if (config.fields.echoon) {
+		console_printf("prg save %s", rc ? "success" : "error");
+	}
 	return rc;
 }
 
@@ -456,10 +477,12 @@ int cmd_loadprg (parser_t *parser) {
 		return 0;
 	}
 	int rc = program_load(program, directory[entry].file);
-	if (rc) {
+	if (rc && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
-	console_printf("prg load %s", rc ? "success" : "error");
+	if (config.fields.echoon) {
+		console_printf("prg load %s", rc ? "success" : "error");
+	}
 	return rc;
 }
 
@@ -565,6 +588,9 @@ keyword_t keywords[] = {
 		{"rfon", "- RF on", cmd_rfon},
 		{"rfoff", "- RF off", cmd_rfoff},
 		{"cfg", "- show cfg", cmd_show_cfg},
+
+		{"echoon", "- Echo on", cmd_echoon},
+		{"echooff", "- echo off", cmd_echooff},
 
 		{"loadprg", "[n] - load program from file [n]", cmd_loadprg},
 		{"saveprg", "[n] - save program to file [n]", cmd_saveprg},
@@ -738,8 +764,9 @@ int parser_run (parser_t *parser) {
 			str_value(parser->lex);
 			strcpy(line, parser->lex->lexeme);
 			next_token(parser->lex);
-
-			cmd_program_list(parser);
+			if (config.fields.echoon) {
+				cmd_program_list(parser);
+			}
 		}
 
 	} while (lex_get(parser->lex, T_SEMICOLON, NULL));

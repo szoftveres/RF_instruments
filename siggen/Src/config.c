@@ -30,6 +30,7 @@ int verify_config (config_t* instance) {
 }
 
 
+
 int config_save (config_t* instance, blockfile_t *file) {
 	int rc = 0;
 	int bufsize = blockfile_getbufsize(file);

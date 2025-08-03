@@ -19,11 +19,15 @@ Frequency can be programmed by setting the `freq` *resource variable* <sup>[1]</
 
 RF output level can be set (and retrieved) by using the `level` resource variable, the unit is in dBm, the accepted range is between -30 and 0.
 
+Besides printing out values of resource variables, the current configuration can also be printed out with the `cfg` command.
+```
+> cfg
+RF: 915000 kHz, -20 dBm, output on
+```
+
 Besides the `freq` and `level` resource variables, there are 26 *general purpose variables* (`a` - `z`), each holding a 32-bit signed integer. Parentheses `(` `)` can be used in expressions to emphaseize and/or to override built-in operator-precedence, e.g. `a = (150 + b) * freq`. The parser has a complete, full-blown C-style compound expression evaluator with almost every imaginable arithmetic and logic operations and with pre-defined operator precedence.
 
 RF output can be turned on or off with the `rfon` and `rfoff` commands.
-
-The current configuration can be printed out with the `cfg` command.
 
 A single command line can hold multiple commands, separated by the `;` character; e.g. `rfon; sleep 200; rfoff` commands in a single line will result in the RF output briefly turned on for 200 ms.
 
@@ -50,15 +54,17 @@ The available keywords and commands can be listed with the `help` command:
  rfon - RF on
  rfoff - RF off
  cfg - show cfg
- loadprg [n] - load program from [n] (0-7)
- saveprg [n] - save program to [n] (0-7)
+ echoon - Echo on
+ echooff - Echo off
+ loadprg [n] - load program from file [n]
+ saveprg [n] - save program to file [n]
  loadcfg - load config
  savecfg - save config
  eer [page] - peek EEPROM
  sleep [millisecs] - sleep
  print [expr] - print the value
  if [expr] "cmdline" - execute cmdline if expr is true
- [0-9] "cmdline" - enter command line
+ [0-16] "cmdline" - enter command line
  new - clear program
  end - end program
  list - list program
@@ -70,7 +76,6 @@ The available keywords and commands can be listed with the `help` command:
 
 Exponential frequency sweep between 50 MHz - 5 GHz, with 1.032x (33/32) increments:
 ```
-> list
  0 "rfoff"
  1 "freq = 50000"
  2 "rfon; sleep 200; rfoff"
@@ -81,7 +86,6 @@ Exponential frequency sweep between 50 MHz - 5 GHz, with 1.032x (33/32) incremen
 
 Linear frequency and power sweep 900 MHz - 930 MHz, -30 dBm - -1 dBm, 1MHz and 1dB steps:
 ```
-> list
  0 "rfoff"
  1 "level = -30"
  2 "freq = 900000" 
@@ -95,7 +99,6 @@ Linear frequency and power sweep 900 MHz - 930 MHz, -30 dBm - -1 dBm, 1MHz and 1
 
 RF beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 seconds:
 ```
-> list
  0 "rfoff"
  1 "level = -3"
  2 "freq = 902000" 
@@ -107,17 +110,17 @@ RF beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 second
  8 "end"
 ```
 
-AM modulated 25 MHz beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and send SPI commands to the programmable attenuator.
+Periodic, 300 Hz AM modulated 25 MHz Shortwave beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and send SPI commands to the programmable attenuator.
 ```
-> list
- 0 "freq = 25000"                                                               
- 1 "rfon"                                                                       
- 2 "level=0; level=-20; goto 2"
+ 0 "freq = 25000; echooff" 
+ 1 "rfon; c = 300"
+ 2 "level=0; c -= 1; level=-20; if c \"goto 2\""
+ 3 "rfoff; sleep 4000"
+ 4 "goto 1"
 ```
 
 Self-modifying program. After completion, line #5 will be overwritten.
 ```
-> list
  0 "rfoff"
  1 "freq = 900000"
  2 "rfon; sleep 200; rfoff"
@@ -126,9 +129,8 @@ Self-modifying program. After completion, line #5 will be overwritten.
  5 "goto 2"
 ```
 
-Loading and running another program from within a program. After loading, the original program is overwritten in RAM by the new program and cannot be returned into, however the subsequent program can load it and run it again if it's saved in the EEPROM.
+Loading and running another program from within a program. After loading, the original program is overwritten in RAM by the new program and cannot be returned into, however the subsequent program can load it and run it again as long as it's saved in the EEPROM.
 ```
-> list
  0 "rfoff"
  1 "freq = 900000"
  2 "rfon; sleep 200; rfoff"
@@ -139,7 +141,6 @@ Loading and running another program from within a program. After loading, the or
 
 Calculating and printing prime numbers between 3 and 1000, without any RF functionality whatsoever (language Turing-completeness demonstrator):
 ```
-> list
  0 "n = 3; f = 1000"
  1 "d = 1"
  2 "d += 1"

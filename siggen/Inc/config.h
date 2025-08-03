@@ -12,6 +12,7 @@ typedef struct config_s {
 		uint32_t 	khz;
 		int			level;
 		int			rfon;
+		int			echoon;
 
 		int			correction;
 		uint32_t	signature;

@@ -63,6 +63,12 @@ void apply_cfg (void) {
 }
 
 
+void cfg_override (void) {
+	config.fields.rfon = 1; // always load with RF on
+	config.fields.echoon = 1; // always load with RF on
+}
+
+
 int load_devicecfg (void) {
 	blockfile_t *configfile = blockfile_create(eeprom, 0x00);
 	if (!configfile) {
@@ -74,6 +80,7 @@ int load_devicecfg (void) {
 		print_cfg();
 	}
 	blockfile_destroy(configfile);
+	cfg_override();
 	return rc;
 }
 
