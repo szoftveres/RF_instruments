@@ -1,13 +1,18 @@
-## Programmable 6 GHz RF signal generator 
+## Stored-program 6 GHz RF signal generator
 
-This signal generator is based on the MAX2871 PLL and is intended for portable use.
+Basic specs:
+ * Frequency range: 23.5 MHz - 6 GHz, in 10 kHz steps   (MAX2871 PLL)
+ * Level setting synamic range: 30 dB (approx. -35 dBm - -5 dBm)
+ * Executable program size in RAM: 1 kB (16 lines x 64 character)
+ * Number of stored programs: 8 (8 x 1 kB in EEPROM)
+ * Power: +5V, 110mA (via USB)
+ * UART comm interface: 38400 8N1
 
- * Frequency range: 23.5 MHz - 6 GHz
- * Level range: -5 dBm - -35 dBm
+
+
+-->> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/siggen/schematics.pdf) <<--
 
 ![photo2](photo2.jpg)
-
--> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/siggen/schematics.pdf)
 
 ### Programming
 
