@@ -9,7 +9,7 @@
 
 
 static const char* invalid_val = "Invalid value \'%i\'";
-static const char* not_a_string = "Not a string \'%s\'";
+static const char* not_a_string = "Not a string";
 static const char* syntax_error = "Syntax error \'%s\'";
 static const char* not_an_expression = "Not an expression";
 
@@ -18,7 +18,6 @@ static const char* not_an_expression = "Not an expression";
 
 int parser_expression (parser_t *parser, int *n);
 int parser_primary_expression (parser_t *parser, int *n);
-
 
 
 int parser_resource_expression (parser_t *parser, int *n) {
@@ -273,17 +272,64 @@ int parser_expression (parser_t *parser, int *n) {
 }
 
 
+int parser_string (parser_t *parser, char **s) {
+	if (parser->lex->token != T_STRING) {
+		*s = NULL;
+		return 0;
+	}
+	str_value(parser->lex); // CMD in lexeme
+	*s = parser->lex->lexeme;
+    return 1;
+}
+
+
+
+// Recursive "parser within parser"
+int parse_str_cmd (parser_t *parser, char* cmdstr) {
+	int rc = 1;
+	parser_t *lcl_parser = parser_create(parser->line_length);
+	if (!lcl_parser) {
+		console_printf("malloc fail");
+		return 0;
+	}
+	// copying the command string to the new parser
+	char* lp = cmdstr;
+	while (*lp) {
+		parser_fill(lcl_parser, *lp++);
+	}
+	parser_fill(lcl_parser, EOF);
+
+	rc = parser_run(lcl_parser);
+
+
+	parser_destroy(lcl_parser);
+	return rc;
+}
+
+
+int parser_if (parser_t *parser) {
+	int n;
+	char* cmdstr;
+	if (!parser_expression(parser, &n) ) {
+		console_printf(syntax_error, not_an_expression);
+		return 0;
+	}
+	if (!parser_string(parser, &cmdstr)) {
+		console_printf(not_a_string);
+		return 0;
+	}
+	if (!n) {
+		return 1; // condition is false
+	}
+	if (!parse_str_cmd(parser, cmdstr)) {
+		return 0;
+	}
+	next_token(parser->lex);
+	return 1;
+}
+
 
 //==============================================================
-
-
-
-typedef struct {
-	char* token;
-	char* helpstr;
-	int (*exec) (parser_t*);
-} keyword_t;
-
 
 
 int cmd_eeprom_read (parser_t *parser) {
@@ -375,50 +421,9 @@ int cmd_print (parser_t *parser) {
 }
 
 
-// Recursive "parser within parser"
-int parse_str (parser_t *parser) {
-	int rc = 1;
-	str_value(parser->lex); // CMD in lexeme
-	parser_t *lcl_parser = parser_create(parser->line_length);
-	if (!lcl_parser) {
-		console_printf("malloc fail");
-		return 0;
-	}
-	// copying the command string to the new parser
-	char* lp = parser->lex->lexeme;
-	while (*lp) {
-		parser_fill(lcl_parser, *lp++);
-	}
-	parser_fill(lcl_parser, EOF);
-
-	rc = parser_run(lcl_parser);
-
-
-	parser_destroy(lcl_parser);
-	return rc;
-}
 
 
 
-int cmd_if (parser_t *parser) {
-	int n;
-	if (!parser_expression(parser, &n) ) {
-		console_printf(syntax_error, not_an_expression);
-		return 0;
-	}
-	if (parser->lex->token != T_STRING) {
-		console_printf(not_a_string, parser->lex->lexeme);
-		return 0;
-	}
-	if (!n) {
-		return 1; // condition is false
-	}
-	if (!parse_str(parser)) {
-		return 0;
-	}
-	next_token(parser->lex);
-	return 1;
-}
 
 
 int cmd_savecfg (parser_t *parser) {
@@ -521,48 +526,13 @@ int cmd_program_list (parser_t *parser) {
 
 int cmd_program_end (parser_t *parser) {
 	program_run = 0;
+	console_printf("Done");
 	return 1;
 }
 
 int cmd_program_run (parser_t *parser) {
-	int rc = 1;
-	program_ip = 0;
-	program_run = 1;
-	char* line;
-	char b;
-
-	while (program_run) {
-		line = program_line(program, program_ip);
-		program_ip += 1;
-
-		parser_t *lcl_parser = parser_create(program->header.fields.linelen); // line lenght is of the program's
-		if (!lcl_parser) {
-			program_run = 0;
-			rc = 0;
-			break;
-		}
-
-		do {
-			b = *line++;
-			parser_fill(lcl_parser, b);
-		} while (*line);
-
-		parser_fill(lcl_parser, EOF);
-
-		rc = parser_run(lcl_parser);
-		if (!rc) {
-			program_run = 0;
-		}
-
-		parser_destroy(lcl_parser);
-
-		if (program_ip >= program->header.fields.nlines) {
-			program_run = 0;
-			break;
-		}
-	}
-	console_printf("Done");
-	return rc;
+	execute_program(program);
+	return 1;
 }
 
 
@@ -583,8 +553,16 @@ int cmd_program_goto (parser_t *parser) {
 
 int cmd_help (parser_t *parser);
 
-keyword_t keywords[] = {
+_keyword_t keywords[] = {
 		{"help", "- print this help", cmd_help},
+		{"[0-16]", "\"cmdline\" - enter command line", NULL},
+		{"new", "- clear program", cmd_program_new},
+		{"end", "- end program", cmd_program_end},
+		{"list", "- list program", cmd_program_list},
+		{"run", "- run program", cmd_program_run},
+		{"goto", "[line] - jump", cmd_program_goto},
+		{"if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if},
+
 		{"rfon", "- RF on", cmd_rfon},
 		{"rfoff", "- RF off", cmd_rfoff},
 		{"cfg", "- show cfg", cmd_show_cfg},
@@ -601,14 +579,7 @@ keyword_t keywords[] = {
 		{"eer", "[page] - peek EEPROM", cmd_eeprom_read},
 		{"sleep", "[millisecs] - sleep", cmd_sleep},
 		{"print", "[expr] - print the value", cmd_print},
-		{"if", "[expr] \"cmdline\" - execute cmdline if expr is true", cmd_if},
-		{"[0-16]", "\"cmdline\" - enter command line", NULL},
 
-		{"new", "- clear program", cmd_program_new},
-		{"end", "- end program", cmd_program_end},
-		{"list", "- list program", cmd_program_list},
-		{"run", "- run program", cmd_program_run},
-		{"goto", "[line] - jump", cmd_program_goto},
 };
 
 int cmd_help (parser_t *parser) {
@@ -757,12 +728,12 @@ int parser_run (parser_t *parser) {
 			next_token(parser->lex);
 			char* line = program_line(program, nline);
 
-			if (parser->lex->token != T_STRING) {
+			char* cmdstr;
+			if (!parser_string(parser, &cmdstr)) {
 				console_printf("\"cmd\" expected");
 				continue;
 			}
-			str_value(parser->lex);
-			strcpy(line, parser->lex->lexeme);
+			strcpy(line, cmdstr);
 			next_token(parser->lex);
 			if (config.fields.echoon) {
 				cmd_program_list(parser);

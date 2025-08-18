@@ -66,6 +66,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SWITCH_Pin GPIO_PIN_3
+#define SWITCH_GPIO_Port GPIOA
+#define LED_Pin GPIO_PIN_14
+#define LED_GPIO_Port GPIOB
+#define ATTENUATOR_CS_Pin GPIO_PIN_6
+#define ATTENUATOR_CS_GPIO_Port GPIOC
+#define PLL1_LOCK_DETECT_Pin GPIO_PIN_8
+#define PLL1_LOCK_DETECT_GPIO_Port GPIOA
+#define PLL1_CS_Pin GPIO_PIN_12
+#define PLL1_CS_GPIO_Port GPIOC
 
 /* USER CODE BEGIN Private defines */
 

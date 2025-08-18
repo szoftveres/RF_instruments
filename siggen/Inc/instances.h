@@ -35,6 +35,7 @@ double set_rf_frequency (uint32_t khz);
 void set_rf_output (int on);
 int set_rf_level (int dBm);
 
+void cfg_override (void);
 
 int load_devicecfg (void);
 int save_devicecfg (void);
@@ -43,5 +44,7 @@ void apply_cfg (void);
 void print_cfg (void);
 
 int direntries (void);
+
+int execute_program (program_t *program);
 
 #endif

@@ -1,5 +1,7 @@
 #include "instances.h"
 #include "functions.h"
+#include <string.h> // memcpy
+#include <stdio.h> // EOF
 
 max2871_t* rf_pll;
 
@@ -66,21 +68,25 @@ void apply_cfg (void) {
 void cfg_override (void) {
 	config.fields.rfon = 1; // always load with RF on
 	config.fields.echoon = 1; // always load with RF on
+	set_rf_output(config.fields.rfon);
 }
 
 
 int load_devicecfg (void) {
+	config_t lcl_config;
 	blockfile_t *configfile = blockfile_create(eeprom, 0x00);
 	if (!configfile) {
 		return 0;
 	}
-	int rc = config_load(&config, configfile);
+	int rc = config_load(&lcl_config, configfile);
 	if (rc) {
+		memcpy(&config, &lcl_config, (sizeof(config_t)));
+		cfg_override();
 		apply_cfg();
 		print_cfg();
 	}
 	blockfile_destroy(configfile);
-	cfg_override();
+
 	return rc;
 }
 
@@ -102,4 +108,51 @@ void print_cfg (void) {
 
 int direntries (void) {
 	return (sizeof(directory)/sizeof(directory[0]));
+}
+
+
+int execute_program (program_t *program) {
+	int rc = 1;
+	program_ip = 0;
+	program_run = 1;
+	char* line;
+	char b;
+
+	while (program_run) {
+		if (switchstate()) {
+			program_run = 0;
+			console_printf("Break");
+			break;
+		}
+		line = program_line(program, program_ip);
+		program_ip += 1;
+
+		parser_t *lcl_parser = parser_create(program->header.fields.linelen); // line lenght is of the program's
+		if (!lcl_parser) {
+			program_run = 0;
+			rc = 0;
+			break;
+		}
+
+		do {
+			b = *line++;
+			parser_fill(lcl_parser, b);
+		} while (*line);
+
+		parser_fill(lcl_parser, EOF);
+
+		rc = parser_run(lcl_parser);
+		if (!rc) {
+			program_run = 0;
+		}
+
+		parser_destroy(lcl_parser);
+
+		if (program_ip >= program->header.fields.nlines) {
+			program_run = 0;
+			console_printf("Done");
+			break;
+		}
+	}
+	return rc;
 }

@@ -80,27 +80,62 @@ void halt_wait (void) {
 	while(1) {HAL_Delay(1950);}
 }
 
+static const char* invalid_val = "Invalid value \'%i\'";
+
+void frequency_setter (void * context, int khz) {
+	double actual = set_rf_frequency(khz);
+	int khzpart = (int)actual;
+	int hzpart = (actual - (double)khzpart) * 1000.0;
+	int error = (khz - actual) * 1000.0;
+	if (actual < 0) {
+		console_printf(invalid_val, khz);
+		return;
+	}
+	if (config.fields.echoon) {
+		console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
+		print_cfg();
+	}
+}
+
+int frequency_getter (void * context) {
+	return config.fields.khz;
+}
+
+void rflevel_setter (void * context, int dBm) {
+	if (!set_rf_level(dBm)) {
+		console_printf(invalid_val, dBm);
+		return;
+	}
+	if (config.fields.echoon) {
+		print_cfg();
+	}
+}
+
+int rflevel_getter (void * context) {
+	return config.fields.level;
+}
+
 
 void rf_pll_register_write (uint32_t r) {
 	uint32_t n = u32_swap_endian(r); // max2871 needs big-endian
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET); // LE low
+	HAL_GPIO_WritePin(PLL1_CS_GPIO_Port, PLL1_CS_Pin, GPIO_PIN_RESET); // LE low
 	HAL_SPI_Transmit(&hspi2, (uint8_t*)&n, sizeof(n), 500); // Transmit 32 bits
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET); // LE high
+	HAL_GPIO_WritePin(PLL1_CS_GPIO_Port, PLL1_CS_Pin, GPIO_PIN_SET); // LE high
 }
 
 int rf_pll_check_ld (void) {
-	return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
+	return HAL_GPIO_ReadPin(PLL1_LOCK_DETECT_GPIO_Port, PLL1_LOCK_DETECT_Pin);
 }
 
 void rf_pll_idle_wait (void) {
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(PLL1_CS_GPIO_Port, PLL1_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(30);
 }
 
 void attenuator_write (bda4700_t* instance, uint8_t n) {
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET); // LE low
+	HAL_GPIO_WritePin(ATTENUATOR_CS_GPIO_Port, ATTENUATOR_CS_Pin, GPIO_PIN_RESET); // LE low
 	HAL_SPI_Transmit(&hspi2, &n, sizeof(n), 500); // Transmit 8 bits
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET); // LE high
+	HAL_GPIO_WritePin(ATTENUATOR_CS_GPIO_Port, ATTENUATOR_CS_Pin, GPIO_PIN_SET); // LE high
 }
 
 
@@ -207,7 +242,14 @@ int main(void)
 
   console_printf("");
 
-  resources_setup(); // TODO error handling
+  // Variables, resources
+  for (int i = 'a'; i <= 'z'; i++) {
+	  char name[2];
+	  name [0] = i; name[1] = '\0';
+	  resource_add(name, NULL, variable_setter, variable_getter);
+  }
+  resource_add("freq", NULL, frequency_setter, frequency_getter);
+  resource_add("level", NULL, rflevel_setter, rflevel_getter);
 
   // Main PLL instance
   rf_pll = max2871_create(rf_pll_register_write, rf_pll_check_ld, rf_pll_idle_wait);
@@ -250,6 +292,7 @@ int main(void)
 	  set_rf_frequency(915000);
 	  set_rf_level(-20);
 	  set_rf_output(1);
+	  cfg_override();
 	  print_cfg();
   }
 
@@ -258,6 +301,11 @@ int main(void)
 
   // Online command parser
   online_parser = parser_create(program->header.fields.linelen); // align to the program line length
+
+
+  if (!switchstate()) {
+	  execute_program(program);
+  }
 
 
   console_printf_e("> "); // initial prompt
@@ -324,7 +372,7 @@ void SystemClock_Config(void)
   * in the RCC_OscInitTypeDef structure.
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 12;
@@ -409,7 +457,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -471,34 +519,40 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6|GPIO_PIN_12, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, ATTENUATOR_CS_Pin|PLL1_CS_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PB14 */
-  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  /*Configure GPIO pin : SWITCH_Pin */
+  GPIO_InitStruct.Pin = SWITCH_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(SWITCH_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LED_Pin */
+  GPIO_InitStruct.Pin = LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC6 PC12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_12;
+  /*Configure GPIO pins : ATTENUATOR_CS_Pin PLL1_CS_Pin */
+  GPIO_InitStruct.Pin = ATTENUATOR_CS_Pin|PLL1_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  /*Configure GPIO pin : PLL1_LOCK_DETECT_Pin */
+  GPIO_InitStruct.Pin = PLL1_LOCK_DETECT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(PLL1_LOCK_DETECT_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

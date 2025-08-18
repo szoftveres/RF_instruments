@@ -2,17 +2,21 @@
 #include "functions.h"
 #include <string.h> // strlen
 #include <stdio.h> // vsprintf
-#include "stm32f4xx_hal.h"
+#include "main.h"
 
 
 extern UART_HandleTypeDef huart1;
 
 void ledon (void) {
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 }
 
 void ledoff (void) {
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+}
+
+int switchstate (void) {
+	return HAL_GPIO_ReadPin(SWITCH_GPIO_Port, SWITCH_Pin);
 }
 
 void console_putchar (const unsigned char c) {
