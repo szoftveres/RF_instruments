@@ -20,6 +20,16 @@ int parser_expression (parser_t *parser, int *n);
 int parser_primary_expression (parser_t *parser, int *n);
 
 
+int parser_expect_expression (parser_t *parser, int *n) {
+	if (!parser_expression(parser, n) ) {
+		console_printf(syntax_error, not_an_expression);
+		return 0;
+	}
+	return 1;
+}
+
+
+
 int parser_resource_expression (parser_t *parser, int *n) {
 	if (parser->lex->token != T_IDENTIFIER) {
 		return 0;
@@ -116,8 +126,8 @@ int recursive_assignment (parser_t *parser, int left, int *right) {
         return 0;
     }
 
-    if (!parser_expression(parser, right)) {    /* only one expression after assignment */
-    	console_printf("expected expression after assignment operator");
+    if (!parser_expect_expression(parser, right)) {    /* only one expression after assignment */
+    	return 0;
     }
     if (!do_operations(op_type, &left, *right)) {
     	return 0;
@@ -132,8 +142,8 @@ int parser_assignment (parser_t *parser, resource_t *resource) {
 	int n;
 
     if (lex_get(parser->lex, T_ASSIGN, NULL)) {
-        if (!parser_expression(parser, &n)) {
-        	console_printf("expected expression after '='");
+        if (!parser_expect_expression(parser, &n)) {
+        	return 0;
         }
         resource->set(resource->context, n);
         return 1;
@@ -237,8 +247,7 @@ int parser_parentheses (parser_t *parser, int *n) {
     if (!lex_get(parser->lex, T_LEFT_PARENTH, NULL)) {
         return 0;
     }
-    if (!parser_expression(parser, n)) {
-    	console_printf("expected expression after '('");
+    if (!parser_expect_expression(parser, n)) {
     	return 0;
     }
     if (!lex_get(parser->lex, T_RIGHT_PARENTH, NULL)) {
@@ -310,8 +319,7 @@ int parse_str_cmd (parser_t *parser, char* cmdstr) {
 int parser_if (parser_t *parser) {
 	int n;
 	char* cmdstr;
-	if (!parser_expression(parser, &n) ) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &n) ) {
 		return 0;
 	}
 	if (!parser_string(parser, &cmdstr)) {
@@ -334,8 +342,7 @@ int parser_if (parser_t *parser) {
 
 int cmd_eeprom_read (parser_t *parser) {
 	int addr;
-	if (!parser_expression(parser, &addr) ) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &addr) ) {
 		return 0;
 	}
 	console_printf_e("%04x | ", addr);
@@ -397,8 +404,7 @@ int cmd_echooff (parser_t *parser) {
 
 int cmd_sleep (parser_t *parser) {
 	int ms;
-	if (!parser_expression(parser, &ms) ) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &ms) ) {
 		return 0;
 	}
 	if (ms < 0 || ms > 3600000) { // max 1 hour
@@ -412,18 +418,12 @@ int cmd_sleep (parser_t *parser) {
 
 int cmd_print (parser_t *parser) {
 	int n;
-	if (!parser_expression(parser, &n) ) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &n) ) {
 		return 0;
 	}
 	console_printf("%i", n);
 	return 1;
 }
-
-
-
-
-
 
 
 int cmd_savecfg (parser_t *parser) {
@@ -453,8 +453,7 @@ int cmd_loadcfg (parser_t *parser) {
 
 int cmd_saveprg (parser_t *parser) {
 	int entry;
-	if (!parser_expression(parser, &entry)) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &entry)) {
 		return 0;
 	}
 	if (entry >= direntries()) {
@@ -473,8 +472,7 @@ int cmd_saveprg (parser_t *parser) {
 
 int cmd_loadprg (parser_t *parser) {
 	int entry;
-	if (!parser_expression(parser, &entry)) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &entry)) {
 		return 0;
 	}
 	if (entry >= direntries()) {
@@ -538,8 +536,7 @@ int cmd_program_run (parser_t *parser) {
 
 int cmd_program_goto (parser_t *parser) {
 	int line;
-	if (!parser_expression(parser, &line) ) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &line) ) {
 		return 0;
 	}
 	if (line < 0 || line > 15) {
@@ -553,8 +550,7 @@ int cmd_program_goto (parser_t *parser) {
 
 int cmd_program_gosub (parser_t *parser) {
 	int line;
-	if (!parser_expression(parser, &line) ) {
-		console_printf(syntax_error, not_an_expression);
+	if (!parser_expect_expression(parser, &line) ) {
 		return 0;
 	}
 	if (line < 0 || line > 15) {
@@ -595,7 +591,7 @@ _keyword_t keywords[] = {
 		{"rfoff", "- RF off", cmd_rfoff},
 		{"cfg", "- show cfg", cmd_show_cfg},
 
-		{"echoon", "- Echo on", cmd_echoon},
+		{"echoon", "- echo on", cmd_echoon},
 		{"echooff", "- echo off", cmd_echooff},
 
 		{"loadprg", "[n] - load program from file [n]", cmd_loadprg},

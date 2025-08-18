@@ -337,8 +337,8 @@ int main(void)
 			console_printf_e(" \b"); // delete
 			if (parser_back(online_parser)) {
 				console_printf_e(" "); // cannot move further back
-				break;
 			}
+			break;
 		default:
 			if (parser_fill(online_parser, c)) {
 				console_printf_e("\b"); // full line
