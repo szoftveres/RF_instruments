@@ -126,7 +126,7 @@ Periodic, 1 kHz Hz AM modulated 25 MHz Shortwave beacon - the AM frequency is pr
  4 "goto 1"
 ```
 
-CQ shortwave AM beacon, showing the use of subroutines
+AM-modulated Morse beacon, sending CQ calls (showing the use of subroutines)
 ```
  0 "echooff; freq=25000; level=0; rfon; sleep 100"
  1 "c = 200; gosub 11"
