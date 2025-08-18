@@ -29,6 +29,8 @@ extern program_t* program;
 
 extern int	program_ip;
 extern int	program_run;
+extern int  subroutine_stack[8];
+extern int  subroutine_sp;
 
 
 double set_rf_frequency (uint32_t khz);

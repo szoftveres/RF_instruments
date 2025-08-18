@@ -551,6 +551,32 @@ int cmd_program_goto (parser_t *parser) {
 }
 
 
+int cmd_program_gosub (parser_t *parser) {
+	int line;
+	if (!parser_expression(parser, &line) ) {
+		console_printf(syntax_error, not_an_expression);
+		return 0;
+	}
+	if (line < 0 || line > 15) {
+		console_printf(invalid_val, line);
+		return 0;
+	}
+	subroutine_stack[subroutine_sp] = program_ip; // At this point the executing function has already increased the line number
+	subroutine_sp += 1; // TODO error handling
+	program_ip = line;
+	return 1;
+}
+
+int cmd_program_return (parser_t *parser) {
+	if (!subroutine_sp) {
+		console_printf("Not in a subroutine");
+		return 0;
+	}
+	subroutine_sp -= 1;
+	program_ip = subroutine_stack[subroutine_sp];
+	return 1;
+}
+
 int cmd_help (parser_t *parser);
 
 _keyword_t keywords[] = {
@@ -561,6 +587,8 @@ _keyword_t keywords[] = {
 		{"list", "- list program", cmd_program_list},
 		{"run", "- run program", cmd_program_run},
 		{"goto", "[line] - jump", cmd_program_goto},
+		{"gosub", "[line] - call", cmd_program_gosub},
+		{"return", "- return", cmd_program_return},
 		{"if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if},
 
 		{"rfon", "- RF on", cmd_rfon},

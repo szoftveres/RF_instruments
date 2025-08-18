@@ -19,6 +19,8 @@ program_t* program;
 
 int	program_ip;
 int	program_run;
+int subroutine_stack[8];
+int subroutine_sp;
 
 
 

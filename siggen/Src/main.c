@@ -243,7 +243,7 @@ int main(void)
   console_printf("");
 
   // Variables, resources
-  for (int i = 'a'; i <= 'z'; i++) {
+  for (int i = 'z'; i >= 'a'; i--) {
 	  char name[2];
 	  name [0] = i; name[1] = '\0';
 	  resource_add(name, NULL, variable_setter, variable_getter);
@@ -298,15 +298,14 @@ int main(void)
 
   program_ip = 0;
   program_run = 0;
-
-  // Online command parser
-  online_parser = parser_create(program->header.fields.linelen); // align to the program line length
-
+  subroutine_sp = 0;
 
   if (!switchstate()) {
 	  execute_program(program);
   }
 
+  // Online command parser
+  online_parser = parser_create(program->header.fields.linelen); // align to the program line length
 
   console_printf_e("> "); // initial prompt
 

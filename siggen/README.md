@@ -56,11 +56,20 @@ The available keywords and commands can be listed with the `help` command:
 ```
 > help
  help - print this help
+ [0-16] "cmdline" - enter command line
+ new - clear program
+ end - end program
+ list - list program
+ run - run program
+ goto [line] - jump
+ gosub [line] - call
+ return - return
+ if [expr] "cmdline" - execute cmdline if expr is true
  rfon - RF on
  rfoff - RF off
  cfg - show cfg
- echoon - Echo on
- echooff - Echo off
+ echoon - echo on
+ echooff - echo off
  loadprg [n] - load program from file [n]
  saveprg [n] - save program to file [n]
  loadcfg - load config
@@ -68,13 +77,6 @@ The available keywords and commands can be listed with the `help` command:
  eer [page] - peek EEPROM
  sleep [millisecs] - sleep
  print [expr] - print the value
- if [expr] "cmdline" - execute cmdline if expr is true
- [0-16] "cmdline" - enter command line
- new - clear program
- end - end program
- list - list program
- run - run program
- goto [line] - jump
 ```
 
 ### Program examples
@@ -102,7 +104,7 @@ Linear frequency *and* power sweep; 900 MHz - 930 MHz in 1 MHz steps, -30 dBm - 
  8 "end"
 ```
 
-RF beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 seconds:
+RF CW beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 seconds:
 ```
  0 "rfoff"
  1 "level = -3"
@@ -115,13 +117,31 @@ RF beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 second
  8 "end"
 ```
 
-Periodic, 300 Hz AM modulated 25 MHz Shortwave beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and program the attenuator through SPI.
+Periodic, 1 kHz Hz AM modulated 25 MHz Shortwave beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and program the attenuator through SPI.
 ```
  0 "freq = 25000; echooff" 
  1 "rfon; c = 300"
  2 "level=0; c -= 1; level=-20; if c \"goto 2\""
  3 "rfoff; sleep 4000"
  4 "goto 1"
+```
+
+CQ shortwave AM beacon, showing the use of subroutines
+```
+ 0 "echooff; freq=25000; level=0; rfon; sleep 100"
+ 1 "c = 200; gosub 11"
+ 2 "c = 100; gosub 11"
+ 3 "c = 200; gosub 11"
+ 4 "c = 100; gosub 11"
+ 5 "s = 400; gosub 13"
+ 6 "c = 200; gosub 11"
+ 7 "c = 200; gosub 11"
+ 8 "c = 100; gosub 11"
+ 9 "c = 200; gosub 11"
+10 "sleep 100; rfoff; sleep 10000; rfon; goto 1"
+11 "s = c"
+12 "level=-20;c -= 1; level=0;if c \"goto 12\""
+13 "sleep s; return"
 ```
 
 Self-modifying program. After completion, line #5 will be overwritten.
