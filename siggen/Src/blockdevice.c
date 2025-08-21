@@ -2,12 +2,13 @@
 #include <stdlib.h> //malloc free
 
 
-blockdevice_t* blockdevice_create (int blocksize, int (*reader) (struct blockdevice_s*, int), int (*writer) (struct blockdevice_s*, int)) {
+blockdevice_t* blockdevice_create (int blocksize, int blocks, int (*reader) (struct blockdevice_s*, int), int (*writer) (struct blockdevice_s*, int)) {
 	blockdevice_t *instance = (blockdevice_t*)malloc(sizeof(blockdevice_t));
 	if (!instance) {
 		return instance;
 	}
 	instance->blocksize = blocksize;
+	instance->blocks = blocks;
 	instance->read_block = reader;
 	instance->write_block = writer;
 	instance->buffer = (char*)malloc(instance->blocksize);

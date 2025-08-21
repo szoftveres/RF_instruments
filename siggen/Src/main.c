@@ -266,34 +266,36 @@ int main(void)
   	  halt_wait();
   }
   // EEPROM instance
-  eeprom = blockdevice_create(AT24C256_PAGE, at24c256_read_page, at24c256_write_page);
-  if (!attenuator) {
+  eeprom = blockdevice_create(AT24C256_PAGE, AT24C256_MAX_PAGEADDRESS, at24c256_read_page, at24c256_write_page);
+  if (!eeprom) {
   	  console_printf("EEPROM init error");
   	  halt_wait();
+  }
+  eepromfs = fs_create(eeprom);
+  if (!eepromfs) {
+	  console_printf("FS init error");
+	  halt_wait();
+  }
+  if (!fs_verify(eepromfs)) {
+	  console_printf("Formatting EEPROM");
+	  fs_format(eepromfs, 16);
   }
   program = program_create(14, AT24C256_PAGE); // 14 lines, 64 characters each
   if (!program) {
   	  console_printf("program init error");
   	  halt_wait();
   }
-  for (int p = 0; p != direntries(); p++) {
-	  directory[p].file = blockfile_create(eeprom, (p+1) * 0x10);
-	  if (!directory[p].file) {
-		  console_printf("programfile init error");
-		  halt_wait();
-	  }
-  }
-  if (program_load(program, directory[0].file)) { // try to load the 1st program
-	  console_printf("program loaded");
+  if (load_autorun_program()) {
+  	  console_printf("program loaded");
   }
   if (load_devicecfg()) {
-	  console_printf("config loaded");
+  	  console_printf("config loaded");
   } else {
-	  set_rf_frequency(915000);
-	  set_rf_level(-20);
-	  set_rf_output(1);
-	  cfg_override();
-	  print_cfg();
+  	  set_rf_frequency(915000);
+  	  set_rf_level(-20);
+  	  set_rf_output(1);
+  	  cfg_override();
+  	  print_cfg();
   }
 
   program_ip = 0;

@@ -2,7 +2,7 @@
 #define __CONFIG_H__
 
 #include <stdint.h>
-#include "blockdev_fs.h"
+#include "fatsmall_fs.h"
 
 
 typedef struct config_s {
@@ -22,8 +22,8 @@ typedef struct config_s {
 } config_t;
 
 
-int config_save (config_t* instance, blockfile_t *file);
-int config_load (config_t* instance, blockfile_t *file);
+int config_save (config_t* instance, fs_t *fs, int fd);
+int config_load (config_t* instance, fs_t *fs, int fd);
 
 
 #endif

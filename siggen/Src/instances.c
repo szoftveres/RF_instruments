@@ -9,11 +9,11 @@ bda4700_t *attenuator;
 
 blockdevice_t *eeprom;
 
+fs_t *eepromfs;
+
 config_t config;
 
 parser_t *online_parser;
-
-direntry_t directory[PROGRAMS];
 
 program_t* program;
 
@@ -74,42 +74,69 @@ void cfg_override (void) {
 }
 
 
-int load_devicecfg (void) {
-	config_t lcl_config;
-	blockfile_t *configfile = blockfile_create(eeprom, 0x00);
-	if (!configfile) {
+int load_autorun_program (void) {
+	int rc;
+	int fd;
+	fd = fs_open(eepromfs, "autoprg", 0);
+	if (fd < 0) {
 		return 0;
 	}
-	int rc = config_load(&lcl_config, configfile);
+	rc = program_load(program, eepromfs, fd);
+	fs_close(eepromfs, fd);
+
+	if (rc < 1) {
+		rc = 0;
+	}
+	return rc;
+}
+
+
+int load_devicecfg (void) {
+	config_t lcl_config;
+	int rc;
+	int fd;
+	fd = fs_open(eepromfs, "cfg", 0);
+	if (fd < 0) {
+		return 0;
+	}
+
+	rc = config_load(&lcl_config, eepromfs, fd);
+	fs_close(eepromfs, fd);
+
+	if (rc < 1) {
+		rc = 0;
+	}
+
 	if (rc) {
 		memcpy(&config, &lcl_config, (sizeof(config_t)));
 		cfg_override();
 		apply_cfg();
 		print_cfg();
 	}
-	blockfile_destroy(configfile);
-
 	return rc;
 }
 
 int save_devicecfg (void) {
-	blockfile_t *configfile = blockfile_create(eeprom, 0x00);
-	if (!configfile) {
+	int fd;
+	int rc;
+
+	fd = fs_open(eepromfs, "cfg", FS_O_CREAT | FS_O_TRUNC);
+	if (fd < 0) {
+		console_printf("conf save:open fail");
 		return 0;
 	}
-	int rc = config_save(&config, configfile);
-	blockfile_destroy(configfile);
+
+	rc = config_save(&config, eepromfs, fd);
+	fs_close(eepromfs, fd);
+	if (rc < 1) {
+		rc = 0;
+	}
 	return rc;
 }
 
 
 void print_cfg (void) {
 	console_printf("RF: %i kHz, %i dBm, output %s", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
-}
-
-
-int direntries (void) {
-	return (sizeof(directory)/sizeof(directory[0]));
 }
 
 

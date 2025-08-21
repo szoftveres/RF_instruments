@@ -4,7 +4,7 @@
 #include <bda4700.h>
 #include "max2871.h"
 #include "blockdevice.h"
-#include "blockdev_fs.h"
+#include "fatsmall_fs.h"
 #include "config.h"
 #include "program.h"
 #include "levelcal.h"
@@ -19,11 +19,11 @@ extern bda4700_t *attenuator;
 
 extern blockdevice_t *eeprom;
 
+extern fs_t *eepromfs;
+
 extern config_t config;
 
 extern parser_t *online_parser;
-
-extern direntry_t directory[PROGRAMS];
 
 extern program_t* program;
 
@@ -39,13 +39,12 @@ int set_rf_level (int dBm);
 
 void cfg_override (void);
 
+int load_autorun_program (void);
 int load_devicecfg (void);
 int save_devicecfg (void);
 
 void apply_cfg (void);
 void print_cfg (void);
-
-int direntries (void);
 
 int execute_program (program_t *program);
 

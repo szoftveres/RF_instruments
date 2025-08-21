@@ -38,7 +38,7 @@ void console_printf (const char* fmt, ...) {
 }
 
 
-void console_printf_e (const char* fmt, ...) {
+int console_printf_e (const char* fmt, ...) {
 	va_list ap;
 	int len;
 	char buf[128];
@@ -49,6 +49,7 @@ void console_printf_e (const char* fmt, ...) {
 
 	len = strlen(buf)+1;
 	HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
+	return len;
 }
 
 

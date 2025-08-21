@@ -2,7 +2,7 @@
 #define __PROGRAM_H__
 
 #include <stdint.h>
-#include "blockdev_fs.h"
+#include "fatsmall_fs.h"
 
 typedef struct program_s {
 	struct program_header_s {
@@ -23,7 +23,8 @@ program_t *program_create (int nlines, int linelen);
 void program_destroy (program_t* instance);
 char* program_line (program_t* instance, int line);
 
-int program_save (program_t* instance, blockfile_t *file);
-int program_load (program_t* instance, blockfile_t *file);
+
+int program_save (program_t* instance, fs_t *fs, int fd);
+int program_load (program_t* instance, fs_t *fs, int fd);
 
 #endif

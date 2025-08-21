@@ -31,47 +31,21 @@ int verify_config (config_t* instance) {
 
 
 
-int config_save (config_t* instance, blockfile_t *file) {
+int config_save (config_t* instance, fs_t *fs, int fd) {
 	int rc = 0;
-	int bufsize = blockfile_getbufsize(file);
-	char* buf = blockfile_getbuf(file);
-
-	int block = 0;
-	int ip = 0;
 
 	validate_config(instance);
 
-	for (int i = 0; i != sizeof(config_t); i++) {
-		buf[ip++] = instance->byte[i];
-		if (ip >= bufsize) {
-			rc += blockfile_write(file, block++); // buf is full, flush
-			ip = 0;
-		}
-	}
-	if (ip) {
-		rc += blockfile_write(file, block++); // flush the rest
-	}
+	rc += fs_write(fs, fd, (char*)instance, sizeof(config_t));
+
 	return rc;
 }
 
 
-int config_load (config_t* instance, blockfile_t *file) {
+int config_load (config_t* instance, fs_t *fs, int fd) {
 	int rc = 0;
-	int bufsize = blockfile_getbufsize(file);
-	char* buf = blockfile_getbuf(file);
 
-	int block = 0;
-
-	rc += blockfile_read(file, block++); // Read the first block
-	int ip = 0;
-
-	for (int i = 0; i != sizeof(config_t); i++) {
-		instance->byte[i] = buf[ip++];
-		if (ip >= bufsize) {
-			rc += blockfile_read(file, block++); // read the next block
-			ip = 0;
-		}
-	}
+	rc += fs_read(fs, fd, (char*)instance, sizeof(config_t));
 
 	if (!verify_config(instance)) {
 		rc = 0;

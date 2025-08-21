@@ -417,18 +417,36 @@ int cmd_sleep (parser_t *parser) {
 
 
 int cmd_print (parser_t *parser) {
+	int res;
+	int rc = 0;
+
 	int n;
-	if (!parser_expect_expression(parser, &n) ) {
-		return 0;
+	char* str;
+
+	do {
+		res = 0;
+
+		if (parser_expression(parser, &n) ) {
+			console_printf_e("%i", n);
+			res = 1;
+		}
+		if (parser_string(parser, &str) ) {
+			console_printf_e("%s", str);
+			next_token(parser->lex);
+			res = 1;
+		}
+		rc |= res;
+	} while (res);
+
+	if (rc) {
+		console_printf("");
 	}
-	console_printf("%i", n);
-	return 1;
+	return rc;
 }
 
 
 int cmd_savecfg (parser_t *parser) {
 	int rc = save_devicecfg();
-
 	if (rc && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
@@ -440,7 +458,6 @@ int cmd_savecfg (parser_t *parser) {
 
 int cmd_loadcfg (parser_t *parser) {
 	int rc = load_devicecfg();
-
 	if (rc && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
@@ -452,42 +469,68 @@ int cmd_loadcfg (parser_t *parser) {
 
 
 int cmd_saveprg (parser_t *parser) {
-	int entry;
-	if (!parser_expect_expression(parser, &entry)) {
+	char* name;
+	int fd;
+	int rc;
+	char str[12];
+
+	if (!parser_string(parser, &name)) {
+		console_printf("\"name\" expected");
 		return 0;
 	}
-	if (entry >= direntries()) {
-		console_printf("'%i' doesn't exist", entry);
+	strcpy(str, name);
+	next_token(parser->lex);
+
+	fd = fs_open(eepromfs, str, FS_O_CREAT | FS_O_TRUNC);
+
+	if (fd < 0) {
+		console_printf("open fail");
 		return 0;
 	}
-	int rc = program_save(program, directory[entry].file);
-	if (rc && config.fields.echoon) {
+	rc = program_save(program, eepromfs, fd);
+
+	fs_close(eepromfs, fd);
+	if (rc > 0 && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
 	if (config.fields.echoon) {
-		console_printf("prg save %s", rc ? "success" : "error");
+		console_printf("prg save %s", rc > 0 ? "success" : "error");
 	}
 	return rc;
 }
 
+
 int cmd_loadprg (parser_t *parser) {
-	int entry;
-	if (!parser_expect_expression(parser, &entry)) {
+	char* name;
+	int fd;
+	int rc;
+	char str[12];
+
+	if (!parser_string(parser, &name)) {
+		console_printf("\"name\" expected");
 		return 0;
 	}
-	if (entry >= direntries()) {
-		console_printf("'%i' doesn't exist", entry);
+	strcpy(str, name);
+	next_token(parser->lex);
+
+	fd = fs_open(eepromfs, str, 0);
+
+	if (fd < 0) {
+		console_printf("open fail");
 		return 0;
 	}
-	int rc = program_load(program, directory[entry].file);
-	if (rc && config.fields.echoon) {
+	rc = program_load(program, eepromfs, fd);
+
+	fs_close(eepromfs, fd);
+	if (rc > 0 && config.fields.echoon) {
 		console_printf("%i bytes", rc);
 	}
 	if (config.fields.echoon) {
-		console_printf("prg load %s", rc ? "success" : "error");
+		console_printf("prg load %s", rc > 0 ? "success" : "error");
 	}
 	return rc;
 }
+
 
 int cmd_program_new (parser_t *parser) {
 	char* endstr = " ";
@@ -573,10 +616,84 @@ int cmd_program_return (parser_t *parser) {
 	return 1;
 }
 
+int cmd_ver (parser_t *parser) {
+	console_printf("%s - %s", __DATE__ ,__TIME__);
+	return 1;
+}
+
+
+int cmd_format (parser_t *parser) {
+	console_printf("file_entry_t %i", sizeof(file_entry_t));
+	console_printf("device_params_t %i", sizeof(device_params_t));
+
+	fs_format(eepromfs, 16);
+	return 1;
+}
+
+
+
+
+int cmd_del (parser_t *parser) {
+	char* name;
+	int rc;
+	if (!parser_string(parser, &name)) {
+		console_printf("\"name\" expected");
+		return 0;
+	}
+	rc = fs_delete(eepromfs, name);
+	next_token(parser->lex);
+	if (rc < 0) {
+		console_printf("delete fail");
+	}
+
+	return 1;
+}
+
+
+int cmd_dir (parser_t *parser) {
+	int n = 0;
+	file_entry_t *entry;
+
+	while (1) {
+		int nlen;
+		entry = fs_walk_dir(eepromfs, &n);
+		if (!entry) {
+			break;
+		}
+		nlen = strlen(entry->name);
+		console_printf_e("%s", entry->name);
+		for (int i = nlen; i != 20; i++) {
+			console_printf_e(" ");
+		}
+		nlen = console_printf_e("%i", entry->size);
+		for (int i = nlen; i != 20; i++) {
+			console_printf_e(" ");
+		}
+		console_printf("n:%02i:attr:0x%04x,start:0x%04x", n, entry->attrib, entry->start);
+	}
+	return 1;
+}
+
+/*
+int cmd_fat (parser_t *parser) {
+	fs_dump_fat(eepromfs);
+	return 1;
+}
+*/
+
 int cmd_help (parser_t *parser);
 
 _keyword_t keywords[] = {
 		{"help", "- print this help", cmd_help},
+		{"ver", "- FW build", cmd_ver},
+
+
+		{"format", "- format EEPROM", cmd_format},
+		{"del", "\"file\"- del file", cmd_del},
+		{"dir", "- list files", cmd_dir},
+		//{"fat", "- fs test", cmd_fat},
+
+
 		{"[0-16]", "\"cmdline\" - enter command line", NULL},
 		{"new", "- clear program", cmd_program_new},
 		{"end", "- end program", cmd_program_end},
@@ -594,15 +711,15 @@ _keyword_t keywords[] = {
 		{"echoon", "- echo on", cmd_echoon},
 		{"echooff", "- echo off", cmd_echooff},
 
-		{"loadprg", "[n] - load program from file [n]", cmd_loadprg},
-		{"saveprg", "[n] - save program to file [n]", cmd_saveprg},
+		{"loadprg", "\"name\" - load program", cmd_loadprg},
+		{"saveprg", "\"name\" - save program", cmd_saveprg},
 
 		{"loadcfg", "- load config", cmd_loadcfg},
 		{"savecfg", "- save config", cmd_savecfg},
 
 		{"eer", "[page] - peek EEPROM", cmd_eeprom_read},
 		{"sleep", "[millisecs] - sleep", cmd_sleep},
-		{"print", "[expr] - print the value", cmd_print},
+		{"print", "[expr] \"str\"", cmd_print},
 
 };
 
@@ -724,7 +841,7 @@ int parser_run (parser_t *parser) {
 					}
 					next_token(parser->lex); //
 					rc = keywords[i].exec(parser);
-					if (!rc) {
+					if (rc < 1) {
 						console_printf("%s %s", keywords[i].token, keywords[i].helpstr);
 					}
 					break;

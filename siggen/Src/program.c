@@ -107,78 +107,37 @@ char* program_line (program_t* instance, int line) {
 }
 
 
-int program_save (program_t* instance, blockfile_t *file) {
+int program_save (program_t* instance, fs_t *fs, int fd) {
 	int rc = 0;
-	int bufsize = blockfile_getbufsize(file);
-	char* buf = blockfile_getbuf(file);
-
-	int block = 0;
-	int ip = 0;
-
 	validate_program(instance);
-
-	for (int i = 0; i != sizeof(instance->header); i++) {
-		buf[ip++] = instance->header.savebyte[i];
-		if (ip >= bufsize) {
-			rc += blockfile_write(file, block++); // buf is full, flush
-			ip = 0;
-		}
-	}
-
+	rc += fs_write(fs, fd, (char*)&(instance->header), sizeof(instance->header));
 	for (int i = 0; i != instance->header.fields.nlines; i++) {
-		char* linebyte = instance->line[i];
-		for (int j = 0; j != instance->header.fields.linelen; j++) {
-			buf[ip++] = linebyte[j];
-			if (ip >= bufsize) {
-				rc += blockfile_write(file, block++); // buf is full, flush
-				ip = 0;
-			}
-		}
-	}
-	if (ip) {
-		rc += blockfile_write(file, block++); // flush the rest
+		int linelen = strlen(instance->line[i]) + 1; // + '\0'
+		rc += fs_write(fs, fd, (char*)&linelen, sizeof(int));
+		rc += fs_write(fs, fd, instance->line[i], linelen);
 	}
 	return rc;
 }
 
 
-
-int program_load (program_t* instance, blockfile_t *file) {
+int program_load (program_t* instance, fs_t *fs, int fd) {
 	int rc = 0;
-	int bufsize = blockfile_getbufsize(file);
-	char* buf = blockfile_getbuf(file);
 
 	struct program_header_s lcl_header;
-
-	int block = 0;
-
-	rc += blockfile_read(file, block++); // Read the first block
-	int ip = 0;
-
-	for (int i = 0; i != sizeof(instance->header); i++) {
-		lcl_header.savebyte[i] = buf[ip++];
-		if (ip >= bufsize) {
-			rc += blockfile_read(file, block++); // read the next block
-			ip = 0;
-		}
-	}
+	rc += fs_read(fs, fd, (char*)&(lcl_header), sizeof(lcl_header));
 
 	if (!verify_program(instance, &lcl_header)) {
 		return 0;
 	}
 
 	for (int i = 0; i != instance->header.fields.nlines; i++) {
-		char* linebyte = instance->line[i];
-		for (int j = 0; j != instance->header.fields.linelen; j++) {
-			linebyte[j] = buf[ip++];
-			if (ip >= bufsize) {
-				rc += blockfile_read(file, block++); // read the next block
-				ip = 0;
-			}
-		}
+		int linelen;
+		rc += fs_read(fs, fd, (char*)&linelen, sizeof(int));
+		rc += fs_read(fs, fd, instance->line[i], linelen);
 	}
 
 	return rc;
 }
+
 
 

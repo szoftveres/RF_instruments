@@ -56,6 +56,10 @@ The available keywords and commands can be listed with the `help` command:
 ```
 > help
  help - print this help
+ ver - FW build
+ format - format EEPROM
+ del "file"- del file
+ dir - list files
  [0-16] "cmdline" - enter command line
  new - clear program
  end - end program
@@ -70,13 +74,13 @@ The available keywords and commands can be listed with the `help` command:
  cfg - show cfg
  echoon - echo on
  echooff - echo off
- loadprg [n] - load program from file [n]
- saveprg [n] - save program to file [n]
+ loadprg "name" - load program
+ saveprg "name" - save program
  loadcfg - load config
  savecfg - save config
  eer [page] - peek EEPROM
  sleep [millisecs] - sleep
- print [expr] - print the value
+ print [expr] "str"
 ```
 
 ### Program examples
