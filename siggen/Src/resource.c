@@ -15,6 +15,7 @@ resource_t* resource_add (char* name, void* context, void (*setter) (void *, int
 	instance->context = context ? context : instance;
 	instance->set = setter;
 	instance->get = getter;
+	instance->value = 0;
 	strncpy(instance->name, name, MAX_LEN_RESOURCE_NAME);
 
 

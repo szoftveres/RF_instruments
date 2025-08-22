@@ -2,7 +2,6 @@
 #include <stdlib.h> //malloc free
 #include <string.h> //memcpy
 
-
 #define BLOCK_VALID(b)  ((b) && ((b) != FS_FAT_END))
 
 
@@ -427,7 +426,7 @@ int fs_delete (fs_t* instance, char* name) {
 
 int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 	block_t block;
-	int pos_in_block = instance->fp[fd].rp % instance->device->blocksize;
+	uint16_t pos_in_block = instance->fp[fd].rp % instance->device->blocksize;
 	uint16_t bytes = instance->device->blocksize - pos_in_block; // available bytes in the block at rp
 
 	if ((fd < 0) || (instance->fp[fd].direntry < 0)) {
@@ -437,11 +436,11 @@ int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 	if (count < bytes) {
 		bytes = count;
 	}
+
 	fs_load_direntry(instance, instance->fp[fd].direntry);
 
-
 	if ((instance->fp[fd].rp + bytes) > instance->direntry.size) {
-		bytes = (instance->fp[fd].rp + bytes) - instance->direntry.size;
+		bytes = (instance->direntry.size % instance->device->blocksize) - pos_in_block;
 	}
 	if (bytes < 1) {
 		return bytes;
@@ -465,7 +464,7 @@ int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
 	block_t block;
 	int reserve = 0;
-	int pos_in_block = instance->fp[fd].wp % instance->device->blocksize;
+	uint16_t pos_in_block = instance->fp[fd].wp % instance->device->blocksize;
 	uint16_t bytes = instance->device->blocksize - pos_in_block; // available bytes in the block at wp
 
 	if ((fd < 0) || (instance->fp[fd].direntry < 0)) {

@@ -340,32 +340,6 @@ int parser_if (parser_t *parser) {
 //==============================================================
 
 
-int cmd_eeprom_read (parser_t *parser) {
-	int addr;
-	if (!parser_expect_expression(parser, &addr) ) {
-		return 0;
-	}
-	console_printf_e("%04x | ", addr);
-
-	eeprom->read_block(eeprom, addr);
-
-	for (int i = 0; i != eeprom->blocksize; i++) {
-		console_printf_e("%02x ", eeprom->buffer[i]);
-	}
-	/*
-	console_printf_e("| ");
-	lcl_addr = addr;
-	for (int i = 0; i != 16; i++) {
-		b = eeprom_read_byte((uint16_t)lcl_addr);
-		console_printf_e("%c", b);
-		lcl_addr++;
-	}
-	*/
-	console_printf(" |");
-	return 1;
-}
-
-
 int cmd_show_cfg (parser_t *parser) {
 	print_cfg();
 	return 1;
@@ -472,16 +446,14 @@ int cmd_saveprg (parser_t *parser) {
 	char* name;
 	int fd;
 	int rc;
-	char str[12];
 
 	if (!parser_string(parser, &name)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
-	strcpy(str, name);
-	next_token(parser->lex);
 
-	fd = fs_open(eepromfs, str, FS_O_CREAT | FS_O_TRUNC);
+	fd = fs_open(eepromfs, name, FS_O_CREAT | FS_O_TRUNC);
+	next_token(parser->lex);
 
 	if (fd < 0) {
 		console_printf("open fail");
@@ -504,17 +476,14 @@ int cmd_loadprg (parser_t *parser) {
 	char* name;
 	int fd;
 	int rc;
-	char str[12];
 
 	if (!parser_string(parser, &name)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
-	strcpy(str, name);
+
+	fd = fs_open(eepromfs, name, 0);
 	next_token(parser->lex);
-
-	fd = fs_open(eepromfs, str, 0);
-
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
@@ -669,10 +638,68 @@ int cmd_dir (parser_t *parser) {
 		for (int i = nlen; i != 20; i++) {
 			console_printf_e(" ");
 		}
-		console_printf("n:%02i:attr:0x%04x,start:0x%04x", n, entry->attrib, entry->start);
+		console_printf("n:%02i,attr:0x%04x,start:0x%04x", n, entry->attrib, entry->start);
 	}
 	return 1;
 }
+
+
+int
+cmd_hexdump (parser_t *parser) {
+	char buf[16];
+	char* name;
+	int fd;
+	int rc = 16;
+    int i;
+    int addr = 0;
+
+	if (!parser_string(parser, &name)) {
+		console_printf("\"name\" expected");
+		return 0;
+	}
+
+	fd = fs_open(eepromfs, name, 0);
+	next_token(parser->lex);
+	if (fd < 0) {
+		console_printf("open fail");
+		return 0;
+	}
+
+    while (rc == 16) {
+    	rc = fs_read(eepromfs, fd, buf, 16);
+        console_printf_e("%04X  ", addr);
+        for (i = 0; i != 16; i++) {
+        	if (i < rc) {
+        		console_printf_e("%02X ", buf[i]);
+        	} else {
+        		console_printf_e("   ");
+        	}
+            if (i == 7) {
+                console_printf_e(" ");
+            }
+        }
+        console_printf_e(" |");
+        for (i = 0; i != 16; i++) {
+        	if (i < rc) {
+				if (buf[i] < 0x20 || buf[i] > 0x7E) {
+					console_printf_e(".");
+				} else {
+					console_printf_e("%c", buf[i]);
+				}
+        	} else {
+        		console_printf_e(" ");
+        	}
+        }
+        addr += 16;
+        console_printf("|");
+    }
+
+	fs_close(eepromfs, fd);
+
+    return 1;
+}
+
+
 
 /*
 int cmd_fat (parser_t *parser) {
@@ -691,6 +718,7 @@ _keyword_t keywords[] = {
 		{"format", "- format EEPROM", cmd_format},
 		{"del", "\"file\"- del file", cmd_del},
 		{"dir", "- list files", cmd_dir},
+		{"hexdump", "\"file\"", cmd_hexdump},
 		//{"fat", "- fs test", cmd_fat},
 
 
@@ -717,7 +745,6 @@ _keyword_t keywords[] = {
 		{"loadcfg", "- load config", cmd_loadcfg},
 		{"savecfg", "- save config", cmd_savecfg},
 
-		{"eer", "[page] - peek EEPROM", cmd_eeprom_read},
 		{"sleep", "[millisecs] - sleep", cmd_sleep},
 		{"print", "[expr] \"str\"", cmd_print},
 
@@ -862,7 +889,7 @@ int parser_run (parser_t *parser) {
 			}
 		} else if (parser->lex->token == T_INTEGER) { // edit a program line
 			int nline = integer_value(parser->lex);
-			if (nline < 0 || nline > 15) {
+			if (nline < 0 || nline >= program->header.fields.nlines) {
 				console_printf("Bad line \'%i\'", nline);
 				continue;
 			}
@@ -874,7 +901,11 @@ int parser_run (parser_t *parser) {
 				console_printf("\"cmd\" expected");
 				continue;
 			}
-			strcpy(line, cmdstr);
+			if ((strlen(cmdstr) + 1) < program->header.fields.linelen) {
+				strcpy(line, cmdstr);
+			} else {
+				console_printf("too long");
+			}
 			next_token(parser->lex);
 			if (config.fields.echoon) {
 				cmd_program_list(parser);

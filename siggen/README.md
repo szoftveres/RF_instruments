@@ -60,6 +60,7 @@ The available keywords and commands can be listed with the `help` command:
  format - format EEPROM
  del "file"- del file
  dir - list files
+ hexdump "file"
  [0-16] "cmdline" - enter command line
  new - clear program
  end - end program
@@ -78,7 +79,6 @@ The available keywords and commands can be listed with the `help` command:
  saveprg "name" - save program
  loadcfg - load config
  savecfg - save config
- eer [page] - peek EEPROM
  sleep [millisecs] - sleep
  print [expr] "str"
 ```
