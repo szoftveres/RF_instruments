@@ -1,5 +1,6 @@
 #include "instances.h"
 #include "functions.h"
+#include "analog.h"
 #include <string.h> // memcpy
 #include <stdio.h> // EOF
 
@@ -22,6 +23,7 @@ int	program_run;
 int subroutine_stack[8];
 int subroutine_sp;
 
+static const char* invalid_val = "Invalid value \'%i\'";
 
 
 double set_rf_frequency (uint32_t khz) {
@@ -60,10 +62,23 @@ int set_rf_level (int dBm) {
 }
 
 
+int set_fs (int fs) {
+	config.fields.fs = fs;
+	return 1;
+}
+
+
+int set_fc (int fc) {
+	config.fields.fc = fc;
+	return 1;
+}
+
 void apply_cfg (void) {
 	set_rf_level(config.fields.level);
 	set_rf_frequency(config.fields.khz);
 	set_rf_output(config.fields.rfon);
+	set_fs(config.fields.fs);
+	set_fc(config.fields.fc);
 }
 
 
@@ -184,4 +199,70 @@ int execute_program (program_t *program) {
 		}
 	}
 	return rc;
+}
+
+void frequency_setter (void * context, int khz) {
+	double actual = set_rf_frequency(khz);
+	int khzpart = (int)actual;
+	int hzpart = (actual - (double)khzpart) * 1000.0;
+	int error = (khz - actual) * 1000.0;
+	if (actual < 0) {
+		console_printf(invalid_val, khz);
+		return;
+	}
+	if (config.fields.echoon) {
+		console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
+		print_cfg();
+	}
+}
+
+int frequency_getter (void * context) {
+	return config.fields.khz;
+}
+
+void rflevel_setter (void * context, int dBm) {
+	if (!set_rf_level(dBm)) {
+		console_printf(invalid_val, dBm);
+		return;
+	}
+	if (config.fields.echoon) {
+		print_cfg();
+	}
+}
+
+int rflevel_getter (void * context) {
+	return config.fields.level;
+}
+
+
+void fs_setter (void * context, int fs) {
+	if (!set_fs(fs)) {
+		console_printf(invalid_val, fs);
+		return;
+	}
+	if (config.fields.echoon) {
+		console_printf("fs: %i Hz", fs);
+	}
+}
+
+int fs_getter (void * context) {
+	return config.fields.fs;
+}
+
+void fc_setter (void * context, int fc) {
+	if (!set_fc(fc)) {
+		console_printf(invalid_val, fc);
+		return;
+	}
+	if (config.fields.echoon) {
+		console_printf("fc: %i Hz", fc);
+	}
+}
+
+int fc_getter (void * context) {
+	return config.fields.fc;
+}
+
+int baud_to_samples (int baud) {
+	return config.fields.fs / baud;
 }

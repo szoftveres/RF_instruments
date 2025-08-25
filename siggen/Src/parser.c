@@ -16,12 +16,12 @@ static const char* not_an_expression = "Not an expression";
 
 
 
-int parser_expression (parser_t *parser, int *n);
-int parser_primary_expression (parser_t *parser, int *n);
+int parser_expression (lex_instance_t *lex, int *n);
+int parser_primary_expression (lex_instance_t *lex, int *n);
 
 
-int parser_expect_expression (parser_t *parser, int *n) {
-	if (!parser_expression(parser, n) ) {
+int parser_expect_expression (lex_instance_t *lex, int *n) {
+	if (!parser_expression(lex, n) ) {
 		console_printf(syntax_error, not_an_expression);
 		return 0;
 	}
@@ -30,15 +30,15 @@ int parser_expect_expression (parser_t *parser, int *n) {
 
 
 
-int parser_resource_expression (parser_t *parser, int *n) {
-	if (parser->lex->token != T_IDENTIFIER) {
+int parser_resource_expression (lex_instance_t *lex, int *n) {
+	if (lex->token != T_IDENTIFIER) {
 		return 0;
 	}
-	resource_t* resource = locate_resource(parser->lex->lexeme);
+	resource_t* resource = locate_resource(lex->lexeme);
 	if (!resource) {
 		return 0;
 	}
-	next_token(parser->lex);
+	next_token(lex);
 	*n = resource->get(resource->context);
 	return 1;
 }
@@ -109,8 +109,8 @@ int do_operations (int op_type, int *left, int right) {
 
 
 
-int recursive_assignment (parser_t *parser, int left, int *right) {
-    int op_type = parser->lex->token;
+int recursive_assignment (lex_instance_t *lex, int left, int *right) {
+    int op_type = lex->token;
 
     switch (op_type) {
       case T_RECURADD :
@@ -120,13 +120,13 @@ int recursive_assignment (parser_t *parser, int left, int *right) {
       case T_RECURBWAND :
       case T_RECURBWOR :
       case T_RECURBWXOR :
-        next_token(parser->lex);
+        next_token(lex);
         break;
       default:
         return 0;
     }
 
-    if (!parser_expect_expression(parser, right)) {    /* only one expression after assignment */
+    if (!parser_expect_expression(lex, right)) {    /* only one expression after assignment */
     	return 0;
     }
     if (!do_operations(op_type, &left, *right)) {
@@ -138,16 +138,16 @@ int recursive_assignment (parser_t *parser, int left, int *right) {
 
 
 
-int parser_assignment (parser_t *parser, resource_t *resource) {
+int parser_assignment (lex_instance_t *lex, resource_t *resource) {
 	int n;
 
-    if (lex_get(parser->lex, T_ASSIGN, NULL)) {
-        if (!parser_expect_expression(parser, &n)) {
+    if (lex_get(lex, T_ASSIGN, NULL)) {
+        if (!parser_expect_expression(lex, &n)) {
         	return 0;
         }
         resource->set(resource->context, n);
         return 1;
-    } else if (recursive_assignment(parser, resource->get(resource->context), &n)) {
+    } else if (recursive_assignment(lex, resource->get(resource->context), &n)) {
     	resource->set(resource->context, n);
         return 1;
     }
@@ -192,26 +192,26 @@ int get_op_precedence (int op) {
 }
 
 
-int parser_binary_operation (parser_t *parser, int min_prec, int *left) {
+int parser_binary_operation (lex_instance_t *lex, int min_prec, int *left) {
     int op;
     int prec;
     int right;
 
-    prec = get_op_precedence(parser->lex->token);
+    prec = get_op_precedence(lex->token);
     if (prec < min_prec) {
         return 0;
     }
 
-    op = parser->lex->token;
-    next_token(parser->lex);
+    op = lex->token;
+    next_token(lex);
 
-    if (!parser_primary_expression(parser, &right)) {
+    if (!parser_primary_expression(lex, &right)) {
     	console_printf("expected expression after operator");
         return 0;
     }
 
     /* Subsequent higher precedence operations */
-    parser_binary_operation(parser, prec + 1, &right);
+    parser_binary_operation(lex, prec + 1, &right);
 
     if (!do_operations(op, left, right)) {
     	console_printf("unknown operator");
@@ -219,38 +219,38 @@ int parser_binary_operation (parser_t *parser, int min_prec, int *left) {
     }
 
     /* Subsequent same or lower precedence operations */
-    parser_binary_operation(parser, 0, left);
+    parser_binary_operation(lex, 0, left);
     return 1;
 }
 
 
-int parser_numeric_const (parser_t *parser, int *n) {
+int parser_numeric_const (lex_instance_t *lex, int *n) {
 	int neg = 0;
-	if (parser->lex->token == T_MINUS) {
+	if (lex->token == T_MINUS) {
 		neg = 1;
-		next_token(parser->lex);
+		next_token(lex);
 	}
-	if (parser->lex->token != T_CHAR &&
-		parser->lex->token != T_HEXA &&
-		parser->lex->token != T_INTEGER &&
-		parser->lex->token != T_BINARY &&
-		parser->lex->token != T_OCTAL) {
+	if (lex->token != T_CHAR &&
+		lex->token != T_HEXA &&
+		lex->token != T_INTEGER &&
+		lex->token != T_BINARY &&
+		lex->token != T_OCTAL) {
 		return 0;
 	}
-	*n = integer_value(parser->lex) * (neg ? -1 : 1);
-	next_token(parser->lex);
+	*n = integer_value(lex) * (neg ? -1 : 1);
+	next_token(lex);
 	return 1;
 }
 
 
-int parser_parentheses (parser_t *parser, int *n) {
-    if (!lex_get(parser->lex, T_LEFT_PARENTH, NULL)) {
+int parser_parentheses (lex_instance_t *lex, int *n) {
+    if (!lex_get(lex, T_LEFT_PARENTH, NULL)) {
         return 0;
     }
-    if (!parser_expect_expression(parser, n)) {
+    if (!parser_expect_expression(lex, n)) {
     	return 0;
     }
-    if (!lex_get(parser->lex, T_RIGHT_PARENTH, NULL)) {
+    if (!lex_get(lex, T_RIGHT_PARENTH, NULL)) {
     	console_printf("expected ')'");
     	return 0;
     }
@@ -258,39 +258,40 @@ int parser_parentheses (parser_t *parser, int *n) {
 }
 
 
-int parser_primary_expression (parser_t *parser, int *n) {
-    if (parser_parentheses(parser, n)) {
+int parser_primary_expression (lex_instance_t *lex, int *n) {
+    if (parser_parentheses(lex, n)) {
         return 1;
     }
-    if (parser_numeric_const(parser, n)) {
+    if (parser_numeric_const(lex, n)) {
         return 1;
     }
-    if (parser_resource_expression(parser, n)) {
-        return 1;
-    }
-    return 0;
-}
-
-
-int parser_expression (parser_t *parser, int *n) {
-    if (parser_primary_expression(parser, n)) {
-    	parser_binary_operation(parser, 0, n);
+    if (parser_resource_expression(lex, n)) {
         return 1;
     }
     return 0;
 }
 
 
-int parser_string (parser_t *parser, char **s) {
-	if (parser->lex->token != T_STRING) {
+int parser_expression (lex_instance_t *lex, int *n) {
+    if (parser_primary_expression(lex, n)) {
+    	parser_binary_operation(lex, 0, n);
+        return 1;
+    }
+    return 0;
+}
+
+
+int parser_string (lex_instance_t *lex, char **s) {
+	if (lex->token != T_STRING) {
 		*s = NULL;
 		return 0;
 	}
-	str_value(parser->lex); // CMD in lexeme
-	*s = parser->lex->lexeme;
+	str_value(lex); // CMD in lexeme
+	*s = lex->lexeme;
     return 1;
 }
 
+//==============================================================
 
 
 // Recursive "parser within parser"
@@ -319,10 +320,10 @@ int parse_str_cmd (parser_t *parser, char* cmdstr) {
 int parser_if (parser_t *parser) {
 	int n;
 	char* cmdstr;
-	if (!parser_expect_expression(parser, &n) ) {
+	if (!parser_expect_expression(parser->lex, &n) ) {
 		return 0;
 	}
-	if (!parser_string(parser, &cmdstr)) {
+	if (!parser_string(parser->lex, &cmdstr)) {
 		console_printf(not_a_string);
 		return 0;
 	}
@@ -335,9 +336,6 @@ int parser_if (parser_t *parser) {
 	next_token(parser->lex);
 	return 1;
 }
-
-
-//==============================================================
 
 
 int cmd_show_cfg (parser_t *parser) {
@@ -378,7 +376,7 @@ int cmd_echooff (parser_t *parser) {
 
 int cmd_sleep (parser_t *parser) {
 	int ms;
-	if (!parser_expect_expression(parser, &ms) ) {
+	if (!parser_expect_expression(parser->lex, &ms) ) {
 		return 0;
 	}
 	if (ms < 0 || ms > 3600000) { // max 1 hour
@@ -400,11 +398,11 @@ int cmd_print (parser_t *parser) {
 	do {
 		res = 0;
 
-		if (parser_expression(parser, &n) ) {
+		if (parser_expression(parser->lex, &n) ) {
 			console_printf_e("%i", n);
 			res = 1;
 		}
-		if (parser_string(parser, &str) ) {
+		if (parser_string(parser->lex, &str) ) {
 			console_printf_e("%s", str);
 			next_token(parser->lex);
 			res = 1;
@@ -447,7 +445,7 @@ int cmd_saveprg (parser_t *parser) {
 	int fd;
 	int rc;
 
-	if (!parser_string(parser, &name)) {
+	if (!parser_string(parser->lex, &name)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
@@ -477,7 +475,7 @@ int cmd_loadprg (parser_t *parser) {
 	int fd;
 	int rc;
 
-	if (!parser_string(parser, &name)) {
+	if (!parser_string(parser->lex, &name)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
@@ -548,7 +546,7 @@ int cmd_program_run (parser_t *parser) {
 
 int cmd_program_goto (parser_t *parser) {
 	int line;
-	if (!parser_expect_expression(parser, &line) ) {
+	if (!parser_expect_expression(parser->lex, &line) ) {
 		return 0;
 	}
 	if (line < 0 || line > 15) {
@@ -562,7 +560,7 @@ int cmd_program_goto (parser_t *parser) {
 
 int cmd_program_gosub (parser_t *parser) {
 	int line;
-	if (!parser_expect_expression(parser, &line) ) {
+	if (!parser_expect_expression(parser->lex, &line) ) {
 		return 0;
 	}
 	if (line < 0 || line > 15) {
@@ -605,7 +603,7 @@ int cmd_format (parser_t *parser) {
 int cmd_del (parser_t *parser) {
 	char* name;
 	int rc;
-	if (!parser_string(parser, &name)) {
+	if (!parser_string(parser->lex, &name)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
@@ -653,7 +651,7 @@ cmd_hexdump (parser_t *parser) {
     int i;
     int addr = 0;
 
-	if (!parser_string(parser, &name)) {
+	if (!parser_string(parser->lex, &name)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
@@ -708,11 +706,54 @@ int cmd_fat (parser_t *parser) {
 }
 */
 
+
+int
+cmd_samples (parser_t *parser) {
+	int bits;
+	int buflen = baud_to_samples(10);
+
+	if (!parser_expect_expression(parser->lex, &bits) ) {
+		return 0;
+	}
+
+	if (!adc_on(config.fields.fs, config.fields.fc, buflen)) {
+		return 0;
+	}
+
+	console_printf("fs:%i Hz, fc:%i Hz, buf:%i", config.fields.fs, config.fields.fc, buflen);
+
+	while (bits) {
+		int avg = 0;
+		int* buf = adc_get_buf(); // This will block until a buf becomes available
+		for (int i = 0; i != buflen; i++) {
+
+			//int s;
+			//dds_next_sample(&s, &s);
+			//s /= 2; s += 2048;
+			//buf[i] = s;
+
+			avg += buf[i];
+		}
+		console_printf("%06x", avg / buflen);
+		bits--;
+	}
+
+	adc_off();
+	console_printf("");
+
+	return 1;
+}
+
+
+
+
 int cmd_help (parser_t *parser);
 
 _keyword_t keywords[] = {
 		{"help", "- print this help", cmd_help},
 		{"ver", "- FW build", cmd_ver},
+
+		{"samples", "- test", cmd_samples},
 
 
 		{"format", "- format EEPROM", cmd_format},
@@ -878,7 +919,7 @@ int parser_run (parser_t *parser) {
 				resource_t* resource = locate_resource(parser->lex->lexeme);
 				if (resource) {
 					next_token(parser->lex);
-					if (!parser_assignment(parser, resource)) {
+					if (!parser_assignment(parser->lex, resource)) {
 						console_printf("assignment expected");
 						rc = 0;
 					}
@@ -897,7 +938,7 @@ int parser_run (parser_t *parser) {
 			char* line = program_line(program, nline);
 
 			char* cmdstr;
-			if (!parser_string(parser, &cmdstr)) {
+			if (!parser_string(parser->lex, &cmdstr)) {
 				console_printf("\"cmd\" expected");
 				continue;
 			}

@@ -289,7 +289,6 @@ int fs_mknod (fs_t* instance, char* name, uint16_t attrib) {
 }
 
 
-
 block_t fs_fat_next_block (fs_t* instance, block_t block) {
 	block_t* fat;
 
@@ -439,7 +438,7 @@ int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 
 	fs_load_direntry(instance, instance->fp[fd].direntry);
 
-	if ((instance->fp[fd].rp + bytes) > instance->direntry.size) {
+	if ((instance->fp[fd].rp + bytes) > instance->direntry.size) {  // end of file check
 		bytes = (instance->direntry.size % instance->device->blocksize) - pos_in_block;
 	}
 	if (bytes < 1) {
