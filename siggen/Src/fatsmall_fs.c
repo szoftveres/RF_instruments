@@ -258,6 +258,31 @@ block_t fs_fat_find_empyt_block (fs_t* instance) {
 }
 
 
+int fs_count_empyt_blocks (fs_t* instance) {
+	block_t* fat;
+	block_t block;
+	int n = 0;
+
+	for (block = 0; block != instance->device->blocks; block++) {
+		fat = fs_load_fatblock(instance, block);
+		n += *fat ? 0 : 1;
+	}
+    return n;
+}
+
+
+int fs_count_empyt_direntries (fs_t* instance) {
+	int d;
+	int n = 0;
+
+	for (d = 1; d != instance->params.rootdir_entries; d++) {
+		fs_load_direntry(instance, d);
+		n += instance->direntry.attrib ? 0 : 1;
+	}
+    return n;
+}
+
+
 int fs_mknod (fs_t* instance, char* name, uint16_t attrib) {
 	int n;
 	block_t block;

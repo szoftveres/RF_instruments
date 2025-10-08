@@ -36,15 +36,6 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-#define USART_BUF_SIZE (0x20)
-
-extern char usartbuf[];
-extern int usartbuf_ip;
-extern int usartbuf_op;
-extern int usartbuf_data;
-
-void usartbuf_push (char c);
-int usartbuf_pop (char *c);
 
 /* USER CODE END ET */
 

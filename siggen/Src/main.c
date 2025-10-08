@@ -38,10 +38,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-char usartbuf[USART_BUF_SIZE];
-int usartbuf_ip;
-int usartbuf_op;
-int usartbuf_data;
+fifo_t* usart_stream;
 
 /* USER CODE END PD */
 
@@ -51,17 +48,9 @@ int usartbuf_data;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
-DMA_HandleTypeDef hdma_adc1;
-
-DAC_HandleTypeDef hdac;
-DMA_HandleTypeDef hdma_dac2;
-
 I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi2;
-
-TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
 
@@ -72,13 +61,9 @@ UART_HandleTypeDef huart1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_TIM2_Init(void);
-static void MX_DAC_Init(void);
-static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -91,7 +76,6 @@ void halt_wait (void) {
 	console_printf("System halted");
 	while(1) {HAL_Delay(1950);}
 }
-
 
 
 void rf_pll_register_write (uint32_t r) {
@@ -114,27 +98,6 @@ void attenuator_write (bda4700_t* instance, uint8_t n) {
 	HAL_GPIO_WritePin(ATTENUATOR_CS_GPIO_Port, ATTENUATOR_CS_Pin, GPIO_PIN_RESET); // LE low
 	HAL_SPI_Transmit(&hspi2, &n, sizeof(n), 500); // Transmit 8 bits
 	HAL_GPIO_WritePin(ATTENUATOR_CS_GPIO_Port, ATTENUATOR_CS_Pin, GPIO_PIN_SET); // LE high
-}
-
-
-void usartbuf_push (char c) {
-	if (((usartbuf_ip + 1) & (USART_BUF_SIZE - 1)) == usartbuf_op) {
-		return;
-	}
- 	usartbuf[usartbuf_ip] = c;
- 	usartbuf_ip = (usartbuf_ip + 1) & (USART_BUF_SIZE - 1);
- 	usartbuf_data += 1;
-}
-
-
-int usartbuf_pop (char *c) {
-	if (!usartbuf_data || usartbuf_ip == usartbuf_op) {
-		return 0;
-	}
- 	usartbuf_data -= 1;
- 	*c = usartbuf[usartbuf_op];
- 	usartbuf_op = (usartbuf_op + 1) & (USART_BUF_SIZE - 1);
- 	return 1;
 }
 
 
@@ -195,10 +158,10 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-
-  usartbuf_ip = 0;
-  usartbuf_op = 0;
-  usartbuf_data = 0;
+  usart_stream = fifo_create(16, sizeof(char));
+  if (!usart_stream) {
+	  halt_wait();
+  }
 
   /* USER CODE END Init */
 
@@ -211,13 +174,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_I2C1_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
-  MX_TIM2_Init();
-  MX_DAC_Init();
-  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
@@ -232,8 +191,6 @@ int main(void)
   }
   resource_add("freq", NULL, frequency_setter, frequency_getter);
   resource_add("level", NULL, rflevel_setter, rflevel_getter);
-  resource_add("fs", NULL, fs_setter, fs_getter);
-  resource_add("fc", NULL, fc_setter, fc_getter);
 
   // Main PLL instance
   rf_pll = max2871_create(rf_pll_register_write, rf_pll_check_ld, rf_pll_idle_wait);
@@ -252,19 +209,19 @@ int main(void)
   // EEPROM instance
   eeprom = blockdevice_create(AT24C256_PAGE, AT24C256_MAX_PAGEADDRESS, at24c256_read_page, at24c256_write_page);
   if (!eeprom) {
-  	  console_printf("EEPROM init error");
-  	  halt_wait();
+	  console_printf("EEPROM init error");
+	  halt_wait();
   }
   eepromfs = fs_create(eeprom);
   if (!eepromfs) {
-	  console_printf("FS init error");
-	  halt_wait();
+  	  console_printf("FS init error");
+  	  halt_wait();
   }
   if (!fs_verify(eepromfs)) {
-	  console_printf("Formatting EEPROM");
-	  fs_format(eepromfs, 16);
+  	  console_printf("Formatting EEPROM");
+  	  fs_format(eepromfs, 16);
   }
-  program = program_create(14, AT24C256_PAGE); // 14 lines, 64 characters each
+  program = program_create(20, 80); // 20 lines, 80 characters each -> 1.6k max program size
   if (!program) {
   	  console_printf("program init error");
   	  halt_wait();
@@ -278,8 +235,6 @@ int main(void)
   	  set_rf_frequency(915000);
   	  set_rf_level(-20);
   	  set_rf_output(1);
-  	  set_fs(80000);
-  	  set_fc(10000);
   	  cfg_override();
   	  print_cfg();
   }
@@ -307,7 +262,7 @@ int main(void)
 
 	  // Go to sleep while waiting for an USART Rx interrupt
 	  HAL_SuspendTick();
-	  while (!usartbuf_pop(&c)) {
+	  while (!fifo_pop(usart_stream, &c)) {
 		  HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 	  }
 	  HAL_ResumeTick();
@@ -388,98 +343,6 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief ADC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC1_Init(void)
-{
-
-  /* USER CODE BEGIN ADC1_Init 0 */
-
-  /* USER CODE END ADC1_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC1_Init 1 */
-
-  /* USER CODE END ADC1_Init 1 */
-
-  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-  */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_TRGO;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = ENABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_2;
-  sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC1_Init 2 */
-
-  /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief DAC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_DAC_Init(void)
-{
-
-  /* USER CODE BEGIN DAC_Init 0 */
-
-  /* USER CODE END DAC_Init 0 */
-
-  DAC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN DAC_Init 1 */
-
-  /* USER CODE END DAC_Init 1 */
-
-  /** DAC Initialization
-  */
-  hdac.Instance = DAC;
-  if (HAL_DAC_Init(&hdac) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** DAC channel OUT2 config
-  */
-  sConfig.DAC_Trigger = DAC_TRIGGER_T2_TRGO;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
-  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN DAC_Init 2 */
-
-  /* USER CODE END DAC_Init 2 */
-
-}
-
-/**
   * @brief I2C1 Initialization Function
   * @param None
   * @retval None
@@ -552,51 +415,6 @@ static void MX_SPI2_Init(void)
 }
 
 /**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM2_Init(void)
-{
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 1000;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-
-}
-
-/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -626,26 +444,6 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-  __HAL_RCC_DMA2_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA1_Stream6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
-  /* DMA2_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
 

@@ -1,8 +1,8 @@
 #include "instances.h"
 #include "functions.h"
-#include "analog.h"
 #include <string.h> // memcpy
 #include <stdio.h> // EOF
+#include <stdlib.h> // malloc free
 
 max2871_t* rf_pll;
 
@@ -62,23 +62,10 @@ int set_rf_level (int dBm) {
 }
 
 
-int set_fs (int fs) {
-	config.fields.fs = fs;
-	return 1;
-}
-
-
-int set_fc (int fc) {
-	config.fields.fc = fc;
-	return 1;
-}
-
 void apply_cfg (void) {
 	set_rf_level(config.fields.level);
 	set_rf_frequency(config.fields.khz);
 	set_rf_output(config.fields.rfon);
-	set_fs(config.fields.fs);
-	set_fc(config.fields.fc);
 }
 
 
@@ -235,34 +222,3 @@ int rflevel_getter (void * context) {
 }
 
 
-void fs_setter (void * context, int fs) {
-	if (!set_fs(fs)) {
-		console_printf(invalid_val, fs);
-		return;
-	}
-	if (config.fields.echoon) {
-		console_printf("fs: %i Hz", fs);
-	}
-}
-
-int fs_getter (void * context) {
-	return config.fields.fs;
-}
-
-void fc_setter (void * context, int fc) {
-	if (!set_fc(fc)) {
-		console_printf(invalid_val, fc);
-		return;
-	}
-	if (config.fields.echoon) {
-		console_printf("fc: %i Hz", fc);
-	}
-}
-
-int fc_getter (void * context) {
-	return config.fields.fc;
-}
-
-int baud_to_samples (int baud) {
-	return config.fields.fs / baud;
-}

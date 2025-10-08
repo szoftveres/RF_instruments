@@ -281,13 +281,11 @@ int parser_expression (lex_instance_t *lex, int *n) {
 }
 
 
-int parser_string (lex_instance_t *lex, char **s) {
+int parser_string (lex_instance_t *lex) {
 	if (lex->token != T_STRING) {
-		*s = NULL;
 		return 0;
 	}
 	str_value(lex); // CMD in lexeme
-	*s = lex->lexeme;
     return 1;
 }
 
@@ -319,18 +317,17 @@ int parse_str_cmd (parser_t *parser, char* cmdstr) {
 
 int parser_if (parser_t *parser) {
 	int n;
-	char* cmdstr;
 	if (!parser_expect_expression(parser->lex, &n) ) {
 		return 0;
 	}
-	if (!parser_string(parser->lex, &cmdstr)) {
+	if (!parser_string(parser->lex)) {
 		console_printf(not_a_string);
 		return 0;
 	}
 	if (!n) {
 		return 1; // condition is false
 	}
-	if (!parse_str_cmd(parser, cmdstr)) {
+	if (!parse_str_cmd(parser, parser->lex->lexeme)) {
 		return 0;
 	}
 	next_token(parser->lex);
@@ -393,7 +390,6 @@ int cmd_print (parser_t *parser) {
 	int rc = 0;
 
 	int n;
-	char* str;
 
 	do {
 		res = 0;
@@ -402,8 +398,8 @@ int cmd_print (parser_t *parser) {
 			console_printf_e("%i", n);
 			res = 1;
 		}
-		if (parser_string(parser->lex, &str) ) {
-			console_printf_e("%s", str);
+		if (parser_string(parser->lex) ) {
+			console_printf_e("%s", parser->lex->lexeme);
 			next_token(parser->lex);
 			res = 1;
 		}
@@ -441,16 +437,15 @@ int cmd_loadcfg (parser_t *parser) {
 
 
 int cmd_saveprg (parser_t *parser) {
-	char* name;
 	int fd;
 	int rc;
 
-	if (!parser_string(parser->lex, &name)) {
+	if (!parser_string(parser->lex)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, name, FS_O_CREAT | FS_O_TRUNC);
+	fd = fs_open(eepromfs, parser->lex->lexeme, FS_O_CREAT | FS_O_TRUNC);
 	next_token(parser->lex);
 
 	if (fd < 0) {
@@ -471,16 +466,15 @@ int cmd_saveprg (parser_t *parser) {
 
 
 int cmd_loadprg (parser_t *parser) {
-	char* name;
 	int fd;
 	int rc;
 
-	if (!parser_string(parser->lex, &name)) {
+	if (!parser_string(parser->lex)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, name, 0);
+	fd = fs_open(eepromfs, parser->lex->lexeme, 0);
 	next_token(parser->lex);
 	if (fd < 0) {
 		console_printf("open fail");
@@ -549,7 +543,7 @@ int cmd_program_goto (parser_t *parser) {
 	if (!parser_expect_expression(parser->lex, &line) ) {
 		return 0;
 	}
-	if (line < 0 || line > 15) {
+	if (line < 0 || line >= program->header.fields.nlines) {
 		console_printf(invalid_val, line);
 		return 0;
 	}
@@ -563,7 +557,7 @@ int cmd_program_gosub (parser_t *parser) {
 	if (!parser_expect_expression(parser->lex, &line) ) {
 		return 0;
 	}
-	if (line < 0 || line > 15) {
+	if (line < 0 || line >= program->header.fields.nlines) {
 		console_printf(invalid_val, line);
 		return 0;
 	}
@@ -589,25 +583,31 @@ int cmd_ver (parser_t *parser) {
 }
 
 
-int cmd_format (parser_t *parser) {
-	console_printf("file_entry_t %i", sizeof(file_entry_t));
-	console_printf("device_params_t %i", sizeof(device_params_t));
-
-	fs_format(eepromfs, 16);
+int cmd_fsinfo (parser_t *parser) {
+	int n;
+	//fs_dump_fat(eepromfs);
+	//console_printf("file_entry_t %i", sizeof(file_entry_t));
+	//console_printf("device_params_t %i", sizeof(device_params_t));
+	console_printf("%i entries free", fs_count_empyt_direntries(eepromfs));
+	n = fs_count_empyt_blocks(eepromfs);
+	console_printf("%i blocks (%i Bytes) free", n, (n * eepromfs->device->blocksize));
 	return 1;
 }
 
 
+int cmd_format (parser_t *parser) {
+	fs_format(eepromfs, 16);
+	return cmd_fsinfo(parser);
+}
 
 
 int cmd_del (parser_t *parser) {
-	char* name;
 	int rc;
-	if (!parser_string(parser->lex, &name)) {
+	if (!parser_string(parser->lex)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
-	rc = fs_delete(eepromfs, name);
+	rc = fs_delete(eepromfs, parser->lex->lexeme);
 	next_token(parser->lex);
 	if (rc < 0) {
 		console_printf("delete fail");
@@ -638,25 +638,24 @@ int cmd_dir (parser_t *parser) {
 		}
 		console_printf("n:%02i,attr:0x%04x,start:0x%04x", n, entry->attrib, entry->start);
 	}
-	return 1;
+	return cmd_fsinfo(parser);
 }
 
 
 int
 cmd_hexdump (parser_t *parser) {
 	char buf[16];
-	char* name;
 	int fd;
 	int rc = 16;
     int i;
     int addr = 0;
 
-	if (!parser_string(parser->lex, &name)) {
+	if (!parser_string(parser->lex)) {
 		console_printf("\"name\" expected");
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, name, 0);
+	fd = fs_open(eepromfs, parser->lex->lexeme, 0);
 	next_token(parser->lex);
 	if (fd < 0) {
 		console_printf("open fail");
@@ -707,45 +706,6 @@ int cmd_fat (parser_t *parser) {
 */
 
 
-int
-cmd_samples (parser_t *parser) {
-	int bits;
-	int buflen = baud_to_samples(10);
-
-	if (!parser_expect_expression(parser->lex, &bits) ) {
-		return 0;
-	}
-
-	if (!adc_on(config.fields.fs, config.fields.fc, buflen)) {
-		return 0;
-	}
-
-	console_printf("fs:%i Hz, fc:%i Hz, buf:%i", config.fields.fs, config.fields.fc, buflen);
-
-	while (bits) {
-		int avg = 0;
-		int* buf = adc_get_buf(); // This will block until a buf becomes available
-		for (int i = 0; i != buflen; i++) {
-
-			//int s;
-			//dds_next_sample(&s, &s);
-			//s /= 2; s += 2048;
-			//buf[i] = s;
-
-			avg += buf[i];
-		}
-		console_printf("%06x", avg / buflen);
-		bits--;
-	}
-
-	adc_off();
-	console_printf("");
-
-	return 1;
-}
-
-
-
 
 int cmd_help (parser_t *parser);
 
@@ -753,17 +713,13 @@ _keyword_t keywords[] = {
 		{"help", "- print this help", cmd_help},
 		{"ver", "- FW build", cmd_ver},
 
-		{"samples", "- test", cmd_samples},
-
-
 		{"format", "- format EEPROM", cmd_format},
-		{"del", "\"file\"- del file", cmd_del},
+		{"del", "\"file\" - del file", cmd_del},
 		{"dir", "- list files", cmd_dir},
 		{"hexdump", "\"file\"", cmd_hexdump},
-		//{"fat", "- fs test", cmd_fat},
 
 
-		{"[0-16]", "\"cmdline\" - enter command line", NULL},
+		{"[0-n]", "\"cmdline\" - enter command line", NULL},
 		{"new", "- clear program", cmd_program_new},
 		{"end", "- end program", cmd_program_end},
 		{"list", "- list program", cmd_program_list},
@@ -937,13 +893,12 @@ int parser_run (parser_t *parser) {
 			next_token(parser->lex);
 			char* line = program_line(program, nline);
 
-			char* cmdstr;
-			if (!parser_string(parser->lex, &cmdstr)) {
+			if (!parser_string(parser->lex)) {
 				console_printf("\"cmd\" expected");
 				continue;
 			}
-			if ((strlen(cmdstr) + 1) < program->header.fields.linelen) {
-				strcpy(line, cmdstr);
+			if ((strlen(parser->lex->lexeme) + 1) < program->header.fields.linelen) {
+				strcpy(line, parser->lex->lexeme);
 			} else {
 				console_printf("too long");
 			}

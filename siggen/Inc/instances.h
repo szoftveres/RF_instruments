@@ -8,7 +8,6 @@
 #include "config.h"
 #include "program.h"
 #include "levelcal.h"
-#include "analog.h"
 #include "parser.h"
 
 
@@ -56,11 +55,5 @@ void frequency_setter (void * context, int khz);
 int frequency_getter (void * context);
 void rflevel_setter (void * context, int dBm);
 int rflevel_getter (void * context);
-void fs_setter (void * context, int fs);
-int fs_getter (void * context);
-void fc_setter (void * context, int fc);
-int fc_getter (void * context);
-
-int baud_to_samples (int baud);
 
 #endif

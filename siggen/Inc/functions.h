@@ -17,4 +17,21 @@ int console_printf_e (const char* fmt, ...);
 
 uint32_t u32_swap_endian (uint32_t n);
 
+
+typedef struct fifo_s {
+	char *buf;
+	int length;
+	int wordlength;
+	int ip;
+	int op;
+	int data;
+} fifo_t;
+
+fifo_t* fifo_create (int length, int wordlength);
+void fifo_destroy (fifo_t *instance);
+int fifo_push (fifo_t* instance, void *c);
+int fifo_pop (fifo_t* instance, void *c);
+
+
+
 #endif /* INC_FUNCTIONS_H_ */

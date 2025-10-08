@@ -2,6 +2,7 @@
 #include "functions.h"
 #include <string.h> // strlen
 #include <stdio.h> // vsprintf
+#include <stdlib.h> // malloc free
 #include "main.h"
 
 
@@ -32,8 +33,10 @@ void console_printf (const char* fmt, ...) {
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
 
-	len = strlen(buf)+1;
-	HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
+	len = strlen(buf);
+	if (len) {
+		HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
+	}
 	HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n", 2, 1);
 }
 
@@ -47,8 +50,10 @@ int console_printf_e (const char* fmt, ...) {
 	vsprintf(buf, fmt, ap);
 	va_end(ap);
 
-	len = strlen(buf)+1;
-	HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
+	len = strlen(buf);
+	if (len) {
+		HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
+	}
 	return len;
 }
 
@@ -59,4 +64,63 @@ uint32_t u32_swap_endian (uint32_t n) {
 		    ((n & 0xFF0000) >> 8) +
 		    ((n & 0xFF000000) >> 24));
 }
+
+
+/* ================================ */
+
+
+fifo_t* fifo_create (int length, int wordlength) {
+	fifo_t *instance;
+
+	instance = (fifo_t*)malloc(sizeof(fifo_t));
+	if (!instance) {
+		return instance;
+	}
+	instance->buf = (char*)malloc(length * wordlength);
+	if (!instance->buf) {
+		free(instance);
+		instance = NULL;
+		return instance;
+	}
+	instance->length = length;
+	instance->wordlength = wordlength;
+	instance->ip = 0;
+	instance->op = 0;
+	instance->data = 0;
+	return instance;
+}
+
+
+void fifo_destroy (fifo_t *instance) {
+	if (!instance) {
+		return;
+	}
+	if (instance->buf) {
+		free(instance->buf);
+	}
+	free(instance);
+}
+
+
+int fifo_push (fifo_t* instance, void *c) {
+	if (((instance->ip + 1) & (instance->length - 1)) == instance->op) {
+		return 0; // full
+	}
+	memcpy(&(instance->buf[instance->ip * instance->wordlength]), c, instance->wordlength);
+	instance->ip = (instance->ip + 1) & (instance->length - 1);
+	instance->data += 1;
+	return 1;
+}
+
+
+int fifo_pop (fifo_t* instance, void *c) {
+	if (!instance->data || (instance->ip == instance->op)) {
+		return 0; // empty
+	}
+	instance->data -= 1;
+	memcpy(c, &(instance->buf[instance->op * instance->wordlength]), instance->wordlength);
+ 	instance->op = (instance->op + 1) & (instance->length - 1);
+ 	return 1;
+}
+
 

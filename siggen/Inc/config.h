@@ -13,8 +13,6 @@ typedef struct config_s {
 		int			level;
 		int			rfon;
 		int			echoon;
-		int			fs; 		// sampling freq
-		int			fc;			// baseband carrier freq
 
 		int			correction;
 		uint32_t	signature;

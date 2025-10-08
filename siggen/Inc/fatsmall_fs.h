@@ -77,6 +77,8 @@ void fs_destroy (fs_t* instance);
 int fs_verify (fs_t* instance);
 void fs_format (fs_t* instance, int direntries);
 void fs_flush (fs_t* instance);
+int fs_count_empyt_blocks (fs_t* instance);
+int fs_count_empyt_direntries (fs_t* instance);
 
 int fs_open (fs_t* instance, char* name, int flags);
 void fs_close (fs_t* instance, int fd);
