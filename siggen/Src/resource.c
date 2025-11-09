@@ -25,6 +25,17 @@ resource_t* resource_add (char* name, void* context, void (*setter) (void *, int
 	return instance;
 }
 
+resource_t* resource_it_start (void) {
+	return resource_head;
+}
+
+resource_t* resource_it_next (resource_t* r) {
+	if (r) {
+		r = r->next;
+	}
+	return r;
+}
+
 
 void variable_setter (void * context, int value) {
 	resource_t* resource = (resource_t*)context;

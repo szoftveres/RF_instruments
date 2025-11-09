@@ -341,35 +341,6 @@ int cmd_show_cfg (parser_t *parser) {
 }
 
 
-int cmd_rfon (parser_t *parser) {
-	set_rf_output(1);
-	if (config.fields.echoon) {
-		print_cfg();
-	}
-	return 1;
-}
-
-
-int cmd_rfoff (parser_t *parser) {
-	set_rf_output(0);
-	if (config.fields.echoon) {
-		print_cfg();
-	}
-	return 1;
-}
-
-
-int cmd_echoon (parser_t *parser) {
-	config.fields.echoon = 1;
-	return 1;
-}
-
-
-int cmd_echooff (parser_t *parser) {
-	config.fields.echoon = 0;
-	return 1;
-}
-
 
 int cmd_sleep (parser_t *parser) {
 	int ms;
@@ -380,7 +351,15 @@ int cmd_sleep (parser_t *parser) {
 		console_printf(invalid_val, ms);
 		return 0;
 	}
-	HAL_Delay(ms);
+
+	uint32_t tickstart = HAL_GetTick();
+
+	while((HAL_GetTick() - tickstart) < ms) {
+		if (switchstate()) {
+			console_printf("Break");
+			break;
+		}
+	}
 	return 1;
 }
 
@@ -415,23 +394,21 @@ int cmd_print (parser_t *parser) {
 
 int cmd_savecfg (parser_t *parser) {
 	int rc = save_devicecfg();
-	if (rc && config.fields.echoon) {
+	if (rc) {
 		console_printf("%i bytes", rc);
 	}
-	if (config.fields.echoon) {
-		console_printf("cfg save %s", rc ? "success" : "error");
-	}
+	console_printf("cfg save %s", rc ? "success" : "error");
+
 	return rc;
 }
 
 int cmd_loadcfg (parser_t *parser) {
 	int rc = load_devicecfg();
-	if (rc && config.fields.echoon) {
+	if (rc) {
 		console_printf("%i bytes", rc);
 	}
-	if (config.fields.echoon) {
-		console_printf("cfg load %s", rc ? "success" : "error");
-	}
+	console_printf("cfg load %s", rc ? "success" : "error");
+
 	return rc;
 }
 
@@ -455,12 +432,11 @@ int cmd_saveprg (parser_t *parser) {
 	rc = program_save(program, eepromfs, fd);
 
 	fs_close(eepromfs, fd);
-	if (rc > 0 && config.fields.echoon) {
+	if (rc > 0) {
 		console_printf("%i bytes", rc);
 	}
-	if (config.fields.echoon) {
-		console_printf("prg save %s", rc > 0 ? "success" : "error");
-	}
+	console_printf("prg save %s", rc > 0 ? "success" : "error");
+
 	return rc;
 }
 
@@ -483,12 +459,11 @@ int cmd_loadprg (parser_t *parser) {
 	rc = program_load(program, eepromfs, fd);
 
 	fs_close(eepromfs, fd);
-	if (rc > 0 && config.fields.echoon) {
+	if (rc > 0) {
 		console_printf("%i bytes", rc);
 	}
-	if (config.fields.echoon) {
-		console_printf("prg load %s", rc > 0 ? "success" : "error");
-	}
+	console_printf("prg load %s", rc > 0 ? "success" : "error");
+
 	return rc;
 }
 
@@ -576,6 +551,15 @@ int cmd_program_return (parser_t *parser) {
 	program_ip = subroutine_stack[subroutine_sp];
 	return 1;
 }
+
+
+int cmd_vars (parser_t *parser) {
+	for (resource_t* r = resource_it_start(); r; r = resource_it_next(r)) {
+		console_printf("%s : %i", r->name, r->get(r));
+	}
+	return 1;
+}
+
 
 int cmd_ver (parser_t *parser) {
 	console_printf("%s - %s", __DATE__ ,__TIME__);
@@ -697,7 +681,6 @@ cmd_hexdump (parser_t *parser) {
 }
 
 
-
 /*
 int cmd_fat (parser_t *parser) {
 	fs_dump_fat(eepromfs);
@@ -706,11 +689,97 @@ int cmd_fat (parser_t *parser) {
 */
 
 
+int cmd_rfon (parser_t *parser) {
+	set_rf_output(1);
+	print_cfg();
+	return 1;
+}
+
+
+int cmd_rfoff (parser_t *parser) {
+	set_rf_output(0);
+	print_cfg();
+	return 1;
+}
+
+
+int cmd_amtone (parser_t *parser) {
+	int ms;
+	if (!parser_expect_expression(parser->lex, &ms) ) {
+		return 0;
+	}
+	if (ms < 0 || ms > 3600000) { // max 1 hour
+		console_printf(invalid_val, ms);
+		return 0;
+	}
+
+	uint32_t tickstart = HAL_GetTick();
+	uint32_t thistick;
+	int level = rflevel_getter(NULL);
+	int state = 0;
+
+	while(((thistick = HAL_GetTick()) - tickstart) < ms) {
+		if (switchstate()) {
+			console_printf("Break");
+			break;
+		}
+		if (!set_rf_level(state ? -30 : level)) {
+			break;
+		}
+		state += 1; state %= 2;
+		while (thistick == HAL_GetTick());
+	}
+
+	return (set_rf_level(level));
+}
+
+
+int cmd_fmtone (parser_t *parser) {
+	int ms;
+	int dev;
+
+	if (!parser_expect_expression(parser->lex, &dev) ) {
+		return 0;
+	}
+	if (dev < 10 || dev > 1000) { // 10 kHz - 1 MHz
+		console_printf(invalid_val, dev);
+		return 0;
+	}
+
+	if (!parser_expect_expression(parser->lex, &ms) ) {
+		return 0;
+	}
+	if (ms < 0 || ms > 3600000) { // max 1 hour
+		console_printf(invalid_val, ms);
+		return 0;
+	}
+
+	uint32_t tickstart = HAL_GetTick();
+	uint32_t thistick;
+	int freq = frequency_getter(NULL);
+	int state = 0;
+
+	while(((thistick = HAL_GetTick()) - tickstart) < ms) {
+		if (switchstate()) {
+			console_printf("Break");
+			break;
+		}
+		if (!set_rf_frequency(freq + (state ? dev : -dev))) {
+			break;
+		}
+		state += 1; state %= 2;
+		while (thistick == HAL_GetTick());
+	}
+
+	return (set_rf_frequency(freq));
+}
+
 
 int cmd_help (parser_t *parser);
 
 _keyword_t keywords[] = {
 		{"help", "- print this help", cmd_help},
+		{"vars", "- print rsrc vars", cmd_vars},
 		{"ver", "- FW build", cmd_ver},
 
 		{"format", "- format EEPROM", cmd_format},
@@ -733,14 +802,14 @@ _keyword_t keywords[] = {
 		{"rfoff", "- RF off", cmd_rfoff},
 		{"cfg", "- show cfg", cmd_show_cfg},
 
-		{"echoon", "- echo on", cmd_echoon},
-		{"echooff", "- echo off", cmd_echooff},
-
 		{"loadprg", "\"name\" - load program", cmd_loadprg},
 		{"saveprg", "\"name\" - save program", cmd_saveprg},
 
 		{"loadcfg", "- load config", cmd_loadcfg},
 		{"savecfg", "- save config", cmd_savecfg},
+
+		{"amtone", " [ms] - AM tone", cmd_amtone},
+		{"fmtone", " [dev] [ms] - FM tone", cmd_fmtone},
 
 		{"sleep", "[millisecs] - sleep", cmd_sleep},
 		{"print", "[expr] \"str\"", cmd_print},
@@ -903,9 +972,7 @@ int parser_run (parser_t *parser) {
 				console_printf("too long");
 			}
 			next_token(parser->lex);
-			if (config.fields.echoon) {
-				cmd_program_list(parser);
-			}
+			cmd_program_list(parser);
 		}
 
 	} while (lex_get(parser->lex, T_SEMICOLON, NULL));

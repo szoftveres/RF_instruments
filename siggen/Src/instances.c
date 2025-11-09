@@ -71,7 +71,6 @@ void apply_cfg (void) {
 
 void cfg_override (void) {
 	config.fields.rfon = 1; // always load with RF on
-	config.fields.echoon = 1; // always load with RF on
 	set_rf_output(config.fields.rfon);
 }
 
@@ -188,6 +187,8 @@ int execute_program (program_t *program) {
 	return rc;
 }
 
+
+
 void frequency_setter (void * context, int khz) {
 	double actual = set_rf_frequency(khz);
 	int khzpart = (int)actual;
@@ -197,10 +198,8 @@ void frequency_setter (void * context, int khz) {
 		console_printf(invalid_val, khz);
 		return;
 	}
-	if (config.fields.echoon) {
-		console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
-		print_cfg();
-	}
+	console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
+	print_cfg();
 }
 
 int frequency_getter (void * context) {
@@ -212,9 +211,7 @@ void rflevel_setter (void * context, int dBm) {
 		console_printf(invalid_val, dBm);
 		return;
 	}
-	if (config.fields.echoon) {
-		print_cfg();
-	}
+	print_cfg();
 }
 
 int rflevel_getter (void * context) {

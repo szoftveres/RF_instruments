@@ -20,6 +20,9 @@ resource_t* resource_add (char* name, void* context, void (*setter) (void *, int
 
 resource_t* locate_resource (char* name);
 
+resource_t* resource_it_start (void);
+resource_t* resource_it_next (resource_t* r);
+
 void variable_setter (void * context, int value);
 int variable_getter (void * context);
 

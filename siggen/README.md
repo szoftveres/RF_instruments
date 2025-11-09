@@ -3,10 +3,10 @@
 Basic specs:
  * Frequency range: 23.5 MHz - 6 GHz, in 10 kHz steps   (MAX2871 PLL)
  * Level setting dynamic range: 30 dB (approx. -35 dBm - -5 dBm)
- * Executable program size in RAM: 1 kB (16 lines x 64 character)
- * Number of stored programs: 8 (8 x 1 kB in EEPROM)
+ * Storage: 32 kB EEPROM (programs, calibration data and configuration)
+ * Programming: BASIC-like programming language
+ * Communication interface: USB (FT230 USB-UART)
  * Power: +5V, 110mA (via USB)
- * UART comm interface: 38400 8N1 (FT230x USB UART)
 
 
 
@@ -18,9 +18,9 @@ Basic specs:
 
 The instrument has a USB UART communication interface, and a 32 kB EEPROM to store programs, level calibration data and configuration.
 
-Frequency can be programmed by setting the `freq` *resource variable* <sup>[1]</sup>; the unit is kHz, e.g. `freq = 915000` sets the frequency to 915 MHz, `freq += 1000` increases the current frequency by 1 MHz. The `print <expr>` command prints the value of an *expression*, e.g. `print freq / 1000` prints the current frequency, in MHz.
+Frequency can be set and retrieved by using the `freq` *resource variable* <sup>[1]</sup>; the unit is kHz, e.g. `freq = 915000` sets the frequency to 915 MHz, `freq += 1000` increases the current frequency by 1 MHz. The `print <expr>` command prints the value of an *expression*, e.g. `print freq / 1000` prints the current frequency, in MHz.
 
-<sup>[1]: A resource variable is a special variable that is accessible within the program namespace just like any general purpose variable, however retrieving its value or assigning value to it might result in additonal actions. E.g. assigning a value to `freq` resource variable also sets the output frequency of the MAX2871 PLL.</sup>
+<sup>[1]: A resource variable is accessible within the program namespace just like any general purpose variable, however setting or retrieving its value invokes special functions. E.g. assigning a value to `freq` resource variable programs the output frequency of the MAX2871 PLL.</sup>
 
 RF output level can be set (and retrieved) by using the `level` *resource variable*, the unit is in dBm, the accepted range is between -30 and 0.
 
@@ -30,7 +30,9 @@ Besides printing out values of resource variables, the current configuration can
 RF: 915000 kHz, -20 dBm, output on
 ```
 
-Besides the `freq` and `level` resource variables, there are 26 *general purpose variables* (`a` - `z`), each holding a 32-bit signed integer. Parentheses `(` `)` can be used in expressions to emphaseize and/or to override built-in operator-precedence, e.g. `a = (150 + b) * freq`. The parser has a complete, full-blown C-style compound expression evaluator with almost every imaginable arithmetic and logic operations and with pre-defined operator precedence.
+Besides the `freq` and `level` resource variables, there are 26 *general purpose variables* (`a` - `z`), each holding a 32-bit signed integer. Available variables (along with their values) can be listed by the `vars` command.
+
+Parentheses `(` `)` can be used in expressions to emphaseize and/or to override built-in operator-precedence, e.g. `a = (150 + b) * freq`. The parser has a complete, full-blown C-style compound expression evaluator with almost every imaginable arithmetic and logic operations and with pre-defined operator precedence.
 
 RF output can be turned on or off with the `rfon` and `rfoff` commands.
 
@@ -56,12 +58,13 @@ The available keywords and commands can be listed with the `help` command:
 ```
 > help
  help - print this help
+ vars - print vars
  ver - FW build
  format - format EEPROM
- del "file"- del file
+ del "file" - del file
  dir - list files
  hexdump "file"
- [0-16] "cmdline" - enter command line
+ [0-n] "cmdline" - enter command line
  new - clear program
  end - end program
  list - list program
@@ -73,19 +76,23 @@ The available keywords and commands can be listed with the `help` command:
  rfon - RF on
  rfoff - RF off
  cfg - show cfg
- echoon - echo on
- echooff - echo off
  loadprg "name" - load program
  saveprg "name" - save program
  loadcfg - load config
  savecfg - save config
+ amtone  [ms] - AM tone
+ fmtone  [dev] [ms] - FM tone
  sleep [millisecs] - sleep
  print [expr] "str"
 ```
 
+### 32 kB EEPROM Storage
+
+Programs can be loaded or stored as files with the `loadprg` and `saveprg` commands, the contents of the file system can be listed with the `dir` command, files can be deleted using `del`, and the contents can be viewed with the `hexdump` commands. A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM, giving familiar programming interface (`open`, `close`, `read`, `write`) to any kind of data storage.
+
 ### Program examples
 
-Exponential frequency sweep between 50 MHz - 5 GHz, with 1.032x (33/32) increments:
+Exponential frequency sweep between 50 MHz - 5 GHz, in 1.032x (33/32) increments:
 ```
  0 "rfoff"
  1 "freq = 50000"
@@ -121,18 +128,18 @@ RF CW beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 sec
  8 "end"
 ```
 
-Periodic, 1 kHz Hz AM modulated 25 MHz Shortwave beacon - the AM frequency is primarily the function of how quickly the CPU is able to process the program line and program the attenuator through SPI.
+Periodic, 1 kHz Hz AM modulated 25 MHz Shortwave beacon (1 sec on, 1 sec off):
 ```
- 0 "freq = 25000; echooff" 
- 1 "rfon; c = 300"
- 2 "level=0; c -= 1; level=-20; if c \"goto 2\""
- 3 "rfoff; sleep 4000"
+ 0 "freq = 25000; level = -10"
+ 1 "rfon"
+ 2 "amtone 1000"
+ 3 "rfoff; sleep 1000"
  4 "goto 1"
 ```
 
 AM-modulated Morse beacon, sending CQ calls (showing the use of subroutines)
 ```
- 0 "echooff; freq=25000; level=0; rfon; sleep 100"
+ 0 "freq=25000; level=0; rfon; sleep 100"
  1 "c = 200; gosub 12"
  2 "c = 50; gosub 12"
  3 "c = 200; gosub 12"
@@ -144,9 +151,18 @@ AM-modulated Morse beacon, sending CQ calls (showing the use of subroutines)
  9 "c = 200; gosub 12"
 10 "sleep 100; rfoff; sleep 1000; rfon; goto 1"
 11 " "
-12 "level=-20;c -= 1; level=0;if c \"goto 12\""
+12 "amtone c"
 13 "sleep 100; return"
 ```
+
+FM beacon for 88.1 MHz - the first parameter of the `fmtone` command is the +/- deviation (in kHz):
+```
+ 0 "freq = 88100; rfon"
+ 1 "fmtone 30 1000"
+ 2 "rfoff; sleep 1000"
+ 3 "goto 0"
+```
+
 
 Self-modifying program. After completion, line #5 will be overwritten.
 ```
