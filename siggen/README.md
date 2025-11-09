@@ -69,6 +69,7 @@ The available keywords and commands can be listed with the `help` command:
  end - end program
  list - list program
  run - run program
+ print [expr] "str"
  goto [line] - jump
  gosub [line] - call
  return - return
@@ -80,15 +81,16 @@ The available keywords and commands can be listed with the `help` command:
  saveprg "name" - save program
  loadcfg - load config
  savecfg - save config
- amtone  [ms] - AM tone
- fmtone  [dev] [ms] - FM tone
  sleep [millisecs] - sleep
- print [expr] "str"
+ amtone  [millisecs] - AM tone
+ fmtone  [dev] [millisecs] - FM tone
 ```
 
-### 32 kB EEPROM Storage
+### 32 kB EEPROM storage
 
-Programs can be loaded or stored as files with the `loadprg` and `saveprg` commands, the contents of the file system can be listed with the `dir` command, files can be deleted using `del`, and the contents can be viewed with the `hexdump` commands. A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM, giving familiar programming interface (`open`, `close`, `read`, `write`) to any kind of data storage.
+Programs can be loaded or stored as files with the `loadprg` and `saveprg` commands, the contents of the file system can be listed with the `dir` command, files can be deleted using `del`, and the contents can be viewed with the `hexdump` commands.
+
+A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM, giving familiar programming interface (`open`, `close`, `read`, `write`) for any kind of data storage.
 
 ### Program examples
 
@@ -163,7 +165,6 @@ FM beacon for 88.1 MHz - the first parameter of the `fmtone` command is the +/- 
  3 "goto 0"
 ```
 
-
 Self-modifying program. After completion, line #5 will be overwritten.
 ```
  0 "rfoff"
@@ -174,13 +175,13 @@ Self-modifying program. After completion, line #5 will be overwritten.
  5 "goto 2"
 ```
 
-Loading and running another program from within a program. After loading, the original program is overwritten in RAM by the new program and cannot be returned into, however the subsequent program can load it and run it again as long as it's saved in the EEPROM.
+Loading and running another program from within a program. After executing line #4, the original program will be overwritten in RAM by the new program and cannot be returned into, however the subsequent program can load it (as long as it's similarly stored on the filesystem) and run it again.
 ```
  0 "rfoff"
  1 "freq = 900000"
  2 "rfon; sleep 200; rfoff"
  3 "freq += 1000"
- 4 "if freq >= 930000 \"loadprg 2; run\""
+ 4 "if freq >= 930000 \"loadprg \\"prgfile\\"; run\""
  5 "goto 2"
 ```
 
