@@ -1,8 +1,8 @@
 #include "instances.h"
 #include "functions.h"
 #include <string.h> // memcpy
-#include <stdio.h> // EOF
-#include <stdlib.h> // malloc free
+#include <stdlib.h> // malloc free rand
+#include "main.h" // HAL
 
 max2871_t* rf_pll;
 
@@ -17,6 +17,9 @@ config_t config;
 parser_t *online_parser;
 
 program_t* program;
+
+terminal_input_t* online_input;
+
 
 int	program_ip;
 int	program_run;
@@ -141,12 +144,14 @@ void print_cfg (void) {
 }
 
 
+
+
+
 int execute_program (program_t *program) {
 	int rc = 1;
 	program_ip = 0;
 	program_run = 1;
 	char* line;
-	char b;
 
 	while (program_run) {
 		if (switchstate()) {
@@ -154,6 +159,7 @@ int execute_program (program_t *program) {
 			console_printf("Break");
 			break;
 		}
+
 		line = program_line(program, program_ip);
 		program_ip += 1;
 
@@ -163,15 +169,7 @@ int execute_program (program_t *program) {
 			rc = 0;
 			break;
 		}
-
-		do {
-			b = *line++;
-			parser_fill(lcl_parser, b);
-		} while (*line);
-
-		parser_fill(lcl_parser, EOF);
-
-		rc = parser_run(lcl_parser);
+		rc = cmd_line_parser(lcl_parser, line);
 		if (!rc) {
 			program_run = 0;
 		}
@@ -186,7 +184,6 @@ int execute_program (program_t *program) {
 	}
 	return rc;
 }
-
 
 
 void frequency_setter (void * context, int khz) {
@@ -216,6 +213,20 @@ void rflevel_setter (void * context, int dBm) {
 
 int rflevel_getter (void * context) {
 	return config.fields.level;
+}
+
+int ticks_getter (void * context) {
+	return HAL_GetTick();
+}
+
+
+void rnd_setter (void * context, int rand_set) {
+	srand(rand_set);
+	return;
+}
+
+int rnd_getter (void * context) {
+	return rand();
 }
 
 

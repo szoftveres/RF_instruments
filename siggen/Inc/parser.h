@@ -8,7 +8,6 @@
 typedef struct {
 	int				line_length;
 	char* 			cmdbuf;
-	int 			cmd_ip; // write pointer
 	int 			cmd_op; // lex read pointer
 	lex_instance_t 	*lex;
 } parser_t;
@@ -23,9 +22,8 @@ typedef struct _keyword_s {
 parser_t* parser_create (int line_length);
 void parser_destroy (parser_t *parser);
 
-int parser_fill (parser_t *parser, char b);
-int parser_back (parser_t *parser);
-int parser_run (parser_t *parser);
+int cmd_line_parser (parser_t *parser, char* line);
+int expression_line_parser (parser_t *parser, char* line, int* n);
 
 
 

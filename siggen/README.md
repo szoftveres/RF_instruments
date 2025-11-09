@@ -18,9 +18,9 @@ Basic specs:
 
 The instrument has a USB UART communication interface, and a 32 kB EEPROM to store programs, level calibration data and configuration.
 
-Frequency can be set and retrieved by using the `freq` *resource variable* <sup>[1]</sup>; the unit is kHz, e.g. `freq = 915000` sets the frequency to 915 MHz, `freq += 1000` increases the current frequency by 1 MHz. The `print <expr>` command prints the value of an *expression*, e.g. `print freq / 1000` prints the current frequency, in MHz.
+Frequency can be set and retrieved by using the `freq` *resource variable* <sup>[1]</sup>; the unit is kHz, e.g. `freq = 915000` sets the frequency to 915 MHz, `freq += 1000` increases the current frequency by 1000 kHz. The `print <expr>` command prints the value of an *expression*, e.g. `print freq / 1000` prints the current frequency, in MHz.
 
-<sup>[1]: A resource variable is accessible within the program namespace just like any general purpose variable, however setting or retrieving its value invokes special functions. E.g. assigning a value to `freq` resource variable programs the output frequency of the MAX2871 PLL.</sup>
+<sup>[1]: Setting or retrieving the value of a *resource variable* invokes special functions. E.g. updating value of `freq` resource variable simultaneously programs the output frequency of the MAX2871 PLL. Otherwise, *resource variables* are accessible from within the program namespace an can be used in any expression, just like normal, general purpose variables.</sup>
 
 RF output level can be set (and retrieved) by using the `level` *resource variable*, the unit is in dBm, the accepted range is between -30 and 0.
 
@@ -90,7 +90,22 @@ The available keywords and commands can be listed with the `help` command:
 
 Programs can be loaded or stored as files with the `loadprg` and `saveprg` commands, the contents of the file system can be listed with the `dir` command, files can be deleted using `del`, and the contents can be viewed with the `hexdump` commands.
 
-A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM, giving familiar programming interface (`open`, `close`, `read`, `write`) for any kind of data storage.
+A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM, giving efficient usage of space and familiar programming interface (`open`, `close`, `read`, `write`) for any kind of data storage.
+
+```
+> dir
+cfg                 24                  n:01,attr:0x0001,start:0x0014
+expsweep            220                 n:02,attr:0x0001,start:0x0015
+flsweep             250                 n:03,attr:0x0001,start:0x0019
+ismbcon             234                 n:04,attr:0x0001,start:0x001d
+swbeacon            194                 n:05,attr:0x0001,start:0x0021
+morsebcn            368                 n:06,attr:0x0001,start:0x0025
+fmbcn               187                 n:07,attr:0x0001,start:0x002b
+primes              248                 n:08,attr:0x0001,start:0x002e
+guess               314                 n:09,attr:0x0001,start:0x0032
+                    6 entries free
+                    457 blocks (29248 Bytes) free
+```
 
 ### Program examples
 
@@ -197,6 +212,19 @@ Calculating and printing prime numbers between 3 and 1000, without any RF functi
  7 "print n"
  8 "n += 1"
  9 "if n < f \"goto 1\""
+```
+
+Number guessing game
+```
+ 0 "rnd = ticks"
+ 1 "n = rnd % 100"
+ 2 "i = 0"
+ 3 "g = $\"Guess [0-99]?\""
+ 4 "if g > n \"goto 7\""
+ 5 "if g < n \"goto 8\""
+ 6 "print \"Found out from \" i \" guesses\"; end"
+ 7 "print \"Too high\"; i += 1; goto 3"
+ 8 "print \"Too low\"; i += 1; goto 3"
 ```
 
 ![photo](photo.jpg)

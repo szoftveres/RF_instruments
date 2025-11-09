@@ -139,6 +139,17 @@ at24c256_write_page (blockdevice_t* blockdevice, int pageaddress) {
 }
 
 
+char get_online_char (void) {
+	char c;
+	// Go to sleep while waiting
+	HAL_SuspendTick();
+	while (!fifo_pop(usart_stream, &c)) {
+		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+	}
+	HAL_ResumeTick();
+	return c;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -192,6 +203,9 @@ int main(void)
   }
   resource_add("freq", NULL, frequency_setter, frequency_getter);
   resource_add("level", NULL, rflevel_setter, rflevel_getter);
+  resource_add("rnd", NULL, rnd_setter, rnd_getter);
+  resource_add("ticks", NULL, void_setter, ticks_getter);
+
 
   // Main PLL instance
   rf_pll = max2871_create(rf_pll_register_write, rf_pll_check_ld, rf_pll_idle_wait);
@@ -227,9 +241,7 @@ int main(void)
   	  console_printf("program init error");
   	  halt_wait();
   }
-  if (load_autorun_program()) {
-  	  console_printf("program loaded");
-  }
+
   if (load_devicecfg()) {
   	  console_printf("config loaded");
   } else {
@@ -244,14 +256,25 @@ int main(void)
   program_run = 0;
   subroutine_sp = 0;
 
-  if (!switchstate()) {
-	  execute_program(program);
+  if (load_autorun_program()) {
+  	  console_printf("program loaded");
+  	  if (!switchstate()) {
+  		  execute_program(program);
+  	  }
   }
 
   // Online command parser
   online_parser = parser_create(program->header.fields.linelen); // align to the program line length
+  if (!online_parser) {
+	  console_printf("parser init error");
+	  halt_wait();
+  }
 
-  console_printf_e("> "); // initial prompt
+  online_input = terminal_input_create(get_online_char, program->header.fields.linelen - 2);
+  if (!online_input) {
+  	  console_printf("input init error");
+  	  halt_wait();
+  }
 
   /* USER CODE END 2 */
 
@@ -259,36 +282,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  char c;
-
-	  // Go to sleep while waiting for an USART Rx interrupt
-	  HAL_SuspendTick();
-	  while (!fifo_pop(usart_stream, &c)) {
-		  HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-	  }
-	  HAL_ResumeTick();
-
-	  if (c == '\r') {
-		  c = '\n';
-	  }
-	  console_printf_e("%c", c);  // echo
-	  switch (c) {
-		case '\n':
-			parser_run(online_parser);
-			console_printf_e("> ");
-			break;
-		case '\b':
-			console_printf_e(" \b"); // delete
-			if (parser_back(online_parser)) {
-				console_printf_e(" "); // cannot move further back
-			}
-			break;
-		default:
-			if (parser_fill(online_parser, c)) {
-				console_printf_e("\b"); // full line
-			}
-			break;
-		}
+	  // Online prompt and command interpreter
+	  cmd_line_parser(online_parser, terminal_get_line(online_input, "> ", 1));
 
     /* USER CODE END WHILE */
 

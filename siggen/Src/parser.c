@@ -2,7 +2,6 @@
 #include "functions.h"
 #include <string.h> // strcmp
 #include <stdlib.h> //malloc
-#include <stdio.h> // EOF
 #include "instances.h"
 #include "resource.h"
 #include "stm32f4xx_hal.h" // HAL_Delay
@@ -20,12 +19,50 @@ int parser_expression (lex_instance_t *lex, int *n);
 int parser_primary_expression (lex_instance_t *lex, int *n);
 
 
+int parser_string (lex_instance_t *lex) {
+	if (lex->token != T_STRING) {
+		return 0;
+	}
+	str_value(lex); // CMD in lexeme
+    return 1;
+}
+
+
 int parser_expect_expression (lex_instance_t *lex, int *n) {
 	if (!parser_expression(lex, n) ) {
 		console_printf(syntax_error, not_an_expression);
 		return 0;
 	}
 	return 1;
+}
+
+
+int parser_interactive_input_expression (lex_instance_t *lex, int linelen, int *n) {
+	int rc;
+
+	if (!lex_get(lex, T_DOLLAR, NULL)) {
+		return 0;
+	}
+
+	if (!parser_string(lex) ) {
+		console_printf("\"prompt\" expected");
+		return 0;
+	}
+	console_printf_e("%s", lex->lexeme);
+	next_token(lex);
+
+	char* line = terminal_get_line(online_input, " > ", 1);
+	parser_t *lcl_parser = parser_create(linelen);
+	if (!lcl_parser) {
+		console_printf("malloc fail");
+		return 0;
+	}
+
+	rc = expression_line_parser(lcl_parser, line, n);
+
+	parser_destroy(lcl_parser);
+
+	return rc;
 }
 
 
@@ -225,11 +262,6 @@ int parser_binary_operation (lex_instance_t *lex, int min_prec, int *left) {
 
 
 int parser_numeric_const (lex_instance_t *lex, int *n) {
-	int neg = 0;
-	if (lex->token == T_MINUS) {
-		neg = 1;
-		next_token(lex);
-	}
 	if (lex->token != T_CHAR &&
 		lex->token != T_HEXA &&
 		lex->token != T_INTEGER &&
@@ -237,7 +269,7 @@ int parser_numeric_const (lex_instance_t *lex, int *n) {
 		lex->token != T_OCTAL) {
 		return 0;
 	}
-	*n = integer_value(lex) * (neg ? -1 : 1);
+	*n = integer_value(lex);
 	next_token(lex);
 	return 1;
 }
@@ -259,16 +291,26 @@ int parser_parentheses (lex_instance_t *lex, int *n) {
 
 
 int parser_primary_expression (lex_instance_t *lex, int *n) {
+	int rc = 0;
+	int neg = 0;
+
+	if (lex->token == T_MINUS) {
+		neg = 1;
+		next_token(lex);
+	}
     if (parser_parentheses(lex, n)) {
-        return 1;
+        rc = 1;
+    } else if (parser_numeric_const(lex, n)) {
+        rc = 1;
+    } else if (parser_resource_expression(lex, n)) {
+        rc = 1;
+    } else if (parser_interactive_input_expression(lex, 40, n)) { // TODO linelen
+    	rc = 1;
     }
-    if (parser_numeric_const(lex, n)) {
-        return 1;
+    if (rc) {
+    	*n *= (neg ? -1 : 1);
     }
-    if (parser_resource_expression(lex, n)) {
-        return 1;
-    }
-    return 0;
+    return rc;
 }
 
 
@@ -281,13 +323,6 @@ int parser_expression (lex_instance_t *lex, int *n) {
 }
 
 
-int parser_string (lex_instance_t *lex) {
-	if (lex->token != T_STRING) {
-		return 0;
-	}
-	str_value(lex); // CMD in lexeme
-    return 1;
-}
 
 //==============================================================
 
@@ -300,15 +335,8 @@ int parse_str_cmd (parser_t *parser, char* cmdstr) {
 		console_printf("malloc fail");
 		return 0;
 	}
-	// copying the command string to the new parser
-	char* lp = cmdstr;
-	while (*lp) {
-		parser_fill(lcl_parser, *lp++);
-	}
-	parser_fill(lcl_parser, EOF);
 
-	rc = parser_run(lcl_parser);
-
+	rc = cmd_line_parser(lcl_parser, cmdstr);
 
 	parser_destroy(lcl_parser);
 	return rc;
@@ -339,7 +367,6 @@ int cmd_show_cfg (parser_t *parser) {
 	print_cfg();
 	return 1;
 }
-
 
 
 int cmd_sleep (parser_t *parser) {
@@ -572,8 +599,10 @@ int cmd_fsinfo (parser_t *parser) {
 	//fs_dump_fat(eepromfs);
 	//console_printf("file_entry_t %i", sizeof(file_entry_t));
 	//console_printf("device_params_t %i", sizeof(device_params_t));
+	leading_wspace(0, 20);
 	console_printf("%i entries free", fs_count_empyt_direntries(eepromfs));
 	n = fs_count_empyt_blocks(eepromfs);
+	leading_wspace(0, 20);
 	console_printf("%i blocks (%i Bytes) free", n, (n * eepromfs->device->blocksize));
 	return 1;
 }
@@ -613,13 +642,9 @@ int cmd_dir (parser_t *parser) {
 		}
 		nlen = strlen(entry->name);
 		console_printf_e("%s", entry->name);
-		for (int i = nlen; i != 20; i++) {
-			console_printf_e(" ");
-		}
+		leading_wspace(nlen, 20);
 		nlen = console_printf_e("%i", entry->size);
-		for (int i = nlen; i != 20; i++) {
-			console_printf_e(" ");
-		}
+		leading_wspace(nlen, 20);
 		console_printf("n:%02i,attr:0x%04x,start:0x%04x", n, entry->attrib, entry->start);
 	}
 	return cmd_fsinfo(parser);
@@ -813,7 +838,6 @@ _keyword_t keywords[] = {
 
 		{"sleep", "[millisecs] - sleep", cmd_sleep},
 		{"print", "[expr] \"str\"", cmd_print},
-
 };
 
 int cmd_help (parser_t *parser) {
@@ -830,30 +854,25 @@ int cmd_help (parser_t *parser) {
 int parser_lex_read (lex_instance_t *instance, int *b) {
 	char byte;
 	parser_t *parser = (parser_t*)instance->context; // context of lex is the parser
-	if (parser->cmd_op >= parser->line_length || parser->cmd_op >= parser->cmd_ip) {
+	if (parser->cmd_op >= parser->line_length) {
 		return 0;
 	}
-	byte = parser->cmdbuf[parser->cmd_op++];
-	*b = byte;
+	byte = parser->cmdbuf[parser->cmd_op];
+	*b = (int)byte;
 
-	if (byte == (char)EOF) {
+	if (byte == '\0') {
 		return 0;
 	}
+	parser->cmd_op += 1;
 	return 1;
 }
 
 // this is how lex prints an error message on this system
-void parser_lex_error (lex_instance_t *instance, const char *str) {
+void parser_lex_error (lex_instance_t *instance, int c, const char *str) {
 	parser_t *parser = (parser_t*)instance->context; // context of lex is the parser
-	console_printf("lex error: %s, \"%s\"", str, parser->lex->lexeme);
+	console_printf("lex error: %s, \"%s\", %i, [%i]", str, parser->lex->lexeme, parser->lex->token, c);
 }
 
-
-void parser_reset (parser_t *parser) {
-	parser->cmd_ip = 0;
-	parser->cmd_op = 0;
-	parser->cmdbuf[parser->cmd_ip] = EOF;
-}
 
 // Constructor
 parser_t* parser_create (int line_length) {
@@ -870,13 +889,13 @@ parser_t* parser_create (int line_length) {
 		instance = NULL;
 		return instance;
 	}
-	parser_reset(instance);
+	instance->cmd_op = 0;
 	instance->lex = lex_create(instance, instance->line_length, parser_lex_read, parser_lex_error, 0x00); // context of lex is the parser
 	if (!instance->lex) {
+		free(instance->cmdbuf);
 		free(instance);
 	    return NULL;
 	}
-	parser_reset(instance); // lex_create() automaticaly runs lex_reset()->next_token()->read_byte(), hence giving another reset
 	return instance;
 }
 
@@ -890,39 +909,19 @@ void parser_destroy (parser_t *parser) {
 	free(parser);
 }
 
-// new byte
-int parser_fill (parser_t *parser, char b) {
-	int rc = 0;
-	parser->cmdbuf[parser->cmd_ip++] = b;
-	if (parser->cmd_ip >= (parser->line_length - 1)) {
-		parser->cmd_ip = (parser->line_length - 1);
-		rc = 1;
-	}
-	parser->cmdbuf[parser->cmd_ip] = EOF;
-	return rc;
-}
 
-// backspace
-int parser_back (parser_t *parser) {
-	int rc = 0;
-	parser->cmd_ip -= 1;
-	if (parser->cmd_ip < 0) {
-		parser->cmd_ip = 0;
-		rc = 1;
-	}
-	parser->cmdbuf[parser->cmd_ip] = EOF;
-	return rc;
-}
 
-// run parser
-int parser_run (parser_t *parser) {
+int cmd_line_parser (parser_t *parser, char* line) {
 	int rc = 1;
 
-	if (!parser->cmd_ip) {
-		return 1;
+	if (!line) {
+		return 0;
 	}
+	strcpy(parser->cmdbuf, line);
 
+	parser->cmd_op = 0;
 	lex_reset(parser->lex);
+
 	do {
 		if (parser->lex->token == T_IDENTIFIER) {
 			int i;
@@ -977,8 +976,28 @@ int parser_run (parser_t *parser) {
 
 	} while (lex_get(parser->lex, T_SEMICOLON, NULL));
 
-	parser_reset(parser);
 	return rc;
 }
 
+
+int expression_line_parser (parser_t *parser, char* line, int* n) {
+	int rc = 1;
+
+	if (!line) {
+		return 0;
+	}
+	strcpy(parser->cmdbuf, line);
+
+	parser->cmd_op = 0;
+	lex_reset(parser->lex);
+
+	do {
+		if (!parser_expect_expression(parser->lex, n)) {
+			rc = 0;
+			break;
+		}
+	} while (lex_get(parser->lex, T_COMMA, NULL));
+
+	return rc;
+}
 

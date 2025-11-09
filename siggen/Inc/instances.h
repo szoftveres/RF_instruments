@@ -9,6 +9,7 @@
 #include "program.h"
 #include "levelcal.h"
 #include "parser.h"
+#include "terminal_input.h"
 
 
 #define PROGRAMS (8)
@@ -26,6 +27,8 @@ extern config_t config;
 extern parser_t *online_parser;
 
 extern program_t* program;
+
+extern terminal_input_t* online_input;
 
 extern int	program_ip;
 extern int	program_run;
@@ -50,10 +53,14 @@ void print_cfg (void);
 
 int execute_program (program_t *program);
 
+int ticks_getter (void * context);
 
 void frequency_setter (void * context, int khz);
 int frequency_getter (void * context);
 void rflevel_setter (void * context, int dBm);
 int rflevel_getter (void * context);
+
+void rnd_setter (void * context, int rand_set);
+int rnd_getter (void * context);
 
 #endif
