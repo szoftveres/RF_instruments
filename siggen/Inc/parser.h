@@ -3,7 +3,6 @@
 
 
 #include "../lex/lex.h"  // This is somewhat annoying
-#include "program.h"
 
 typedef struct {
 	int				line_length;
@@ -12,11 +11,10 @@ typedef struct {
 	lex_instance_t 	*lex;
 } parser_t;
 
-typedef struct _keyword_s {
-	char* token;
-	char* helpstr;
-	int (*exec) (parser_t*);
-} _keyword_t;
+
+int parser_expect_expression (lex_instance_t *lex, int *n);
+int parser_expression (lex_instance_t *lex, int *n);
+int parser_string (lex_instance_t *lex);
 
 
 parser_t* parser_create (int line_length);

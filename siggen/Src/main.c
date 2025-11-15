@@ -23,8 +23,8 @@
 /* USER CODE BEGIN Includes */
 #include <string.h> // memcpy
 #include <unistd.h> // sbrk
-#include <functions.h>
-#include <parser.h>
+#include "functions.h"
+#include "commands.h"
 #include "instances.h"
 #include "resource.h"
 
@@ -236,6 +236,7 @@ int main(void)
   	  console_printf("Formatting EEPROM");
   	  fs_format(eepromfs, 16);
   }
+  setup_commands();
   program = program_create(20, 80); // 20 lines, 80 characters each -> 1.6k max program size
   if (!program) {
   	  console_printf("program init error");
@@ -282,7 +283,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // Online prompt and command interpreter
+	  // Interpreting and executing commands, till the eternity
 	  cmd_line_parser(online_parser, terminal_get_line(online_input, "> ", 1));
 
     /* USER CODE END WHILE */
