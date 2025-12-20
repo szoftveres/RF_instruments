@@ -322,8 +322,8 @@ block_t fs_fat_next_block (fs_t* instance, block_t block) {
 }
 
 
-block_t fs_file_pos_to_block (fs_t* instance, uint16_t pos) {
-	block_t block = instance->direntry.start;
+block_t fs_file_pos_to_block (fs_t* instance, int fd, uint16_t pos) {
+	block_t block = instance->fp[fd].start;
 	while ((pos / instance->device->blocksize) && BLOCK_VALID(block)) {
 		block = fs_fat_next_block(instance, block);
 	    pos -= instance->device->blocksize;
@@ -357,7 +357,7 @@ void fs_reclaim_blocks (fs_t* instance, block_t block) {
 }
 
 
-void fs_truncate_file (fs_t* instance) {
+void fs_truncate_current_direntry (fs_t* instance) {
 	block_t block;
 	block_t next;
 
@@ -380,10 +380,16 @@ void fs_truncate_file (fs_t* instance) {
 int fs_open (fs_t* instance, char* name, int flags) {
 	int fd;
 	int exists;
-	uint16_t size;
 
 	if (strlen(name) + 1 > FILENAME_LEN) {
 		return -1;
+	}
+
+	// When readonly, only read only
+	if (flags & FS_O_READONLY) {
+		if (flags != FS_O_READONLY) {
+			return -1;
+		}
 	}
 
 	exists = fs_locate_direntry(instance, name);
@@ -394,25 +400,37 @@ int fs_open (fs_t* instance, char* name, int flags) {
 	if (!exists) {
 		return -1;
 	}
-	size = instance->direntry.size;
 	fd = fs_get_fp_for_node(instance, instance->recent_direntry);
 	if (fd < 0) {
-		return -1;
+		return fd;
 	}
+	instance->fp[fd].size = instance->direntry.size;
 	instance->fp[fd].rp = 0;
 	instance->fp[fd].wp = 0;
+	instance->fp[fd].start = instance->direntry.start; // Trunc will not change this once assigned
+	instance->fp[fd].flags = flags;
 	if (flags & FS_O_TRUNC) {
-		fs_truncate_file(instance);
-		size = 0;
+		fs_truncate_current_direntry(instance);
+		instance->fp[fd].size = 0;
 	}
 	//if (flags & FS_O_APPEND) {
-		instance->fp[fd].wp = size;
+		instance->fp[fd].wp = instance->fp[fd].size;
 	//}
 	return fd;
 }
 
 
+void fs_sync_open_direntry (fs_t* instance, int fd) {
+	fs_load_direntry(instance, instance->fp[fd].direntry);
+	if (instance->fp[fd].size != instance->direntry.size) {
+		instance->direntry.size = instance->fp[fd].size;
+		instance->recent_direntry_dirty = 1;
+	}
+}
+
+
 void fs_close (fs_t* instance, int fd) {
+	fs_sync_open_direntry(instance, fd);
 	fs_flush_fat(instance);
 
 	instance->fp[fd].direntry = -1;
@@ -461,16 +479,14 @@ int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 		bytes = count;
 	}
 
-	fs_load_direntry(instance, instance->fp[fd].direntry);
-
-	if ((instance->fp[fd].rp + bytes) > instance->direntry.size) {  // end of file check
-		bytes = (instance->direntry.size % instance->device->blocksize) - pos_in_block;
+	if ((instance->fp[fd].rp + bytes) > instance->fp[fd].size) {  // end of file check
+		bytes = (instance->fp[fd].size % instance->device->blocksize) - pos_in_block;
 	}
 	if (bytes < 1) {
 		return bytes;
 	}
 
-	block = fs_file_pos_to_block(instance, instance->fp[fd].rp);
+	block = fs_file_pos_to_block(instance, fd, instance->fp[fd].rp);
 
 	if (!BLOCK_VALID(block)) {
 		return -1; // Not supposed to happen
@@ -491,6 +507,10 @@ int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
 	uint16_t pos_in_block = instance->fp[fd].wp % instance->device->blocksize;
 	uint16_t bytes = instance->device->blocksize - pos_in_block; // available bytes in the block at wp
 
+	if (instance->fp[fd].flags & FS_O_READONLY) {
+		return -1;
+	}
+
 	if ((fd < 0) || (instance->fp[fd].direntry < 0)) {
 		return -1;
 	}
@@ -507,12 +527,9 @@ int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
 		reserve = 1; // Reserve new block at the end
 	}
 
-	fs_load_direntry(instance, instance->fp[fd].direntry);
+	instance->fp[fd].size += bytes; // TODO undo if the operation falls through
 
-	instance->direntry.size += bytes; // TODO undo if the operation falls through
-	instance->recent_direntry_dirty = 1;
-
-	block = fs_file_pos_to_block(instance, instance->fp[fd].wp);
+	block = fs_file_pos_to_block(instance, fd, instance->fp[fd].wp);
 
 	if (!BLOCK_VALID(block)) {
 		return -1; // Not supposed to happen

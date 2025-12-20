@@ -6,7 +6,7 @@
 static resource_t *resource_head = NULL;
 
 
-resource_t* resource_add (char* name, void* context, void (*setter) (void *, int), int (*getter) (void *)) {
+resource_t* resource_add (char* name, void* context, int (*setter) (void *, int), int (*getter) (void *)) {
 
 	resource_t* instance = (resource_t*)malloc(sizeof(resource_t));
 	if (!instance) {
@@ -25,9 +25,11 @@ resource_t* resource_add (char* name, void* context, void (*setter) (void *, int
 	return instance;
 }
 
+
 resource_t* resource_it_start (void) {
 	return resource_head;
 }
+
 
 resource_t* resource_it_next (resource_t* r) {
 	if (r) {
@@ -37,17 +39,21 @@ resource_t* resource_it_next (resource_t* r) {
 }
 
 
-void variable_setter (void * context, int value) {
+int variable_setter (void * context, int value) {
 	resource_t* resource = (resource_t*)context;
 	resource->value = value;
+	return 1;
 }
+
 
 int variable_getter (void * context) {
 	resource_t* resource = (resource_t*)context;
 	return resource->value;
 }
 
-void void_setter (void * context, int value) {}
+
+int void_setter (void * context, int value) {return 1;}
+
 
 resource_t* locate_resource (char* name) {
 	resource_t* i;

@@ -106,6 +106,7 @@ void attenuator_write (bda4700_t* instance, uint8_t n) {
 #define AT24C256_PAGE (64)
 #define AT24C256_MAX_PAGEADDRESS ((32768) / (AT24C256_PAGE))
 
+
 int
 at24c256_read_page (blockdevice_t* blockdevice, int pageaddress) {
 	if (pageaddress >= AT24C256_MAX_PAGEADDRESS) {
@@ -141,12 +142,7 @@ at24c256_write_page (blockdevice_t* blockdevice, int pageaddress) {
 
 char get_online_char (void) {
 	char c;
-	// Go to sleep while waiting
-	HAL_SuspendTick();
-	while (!fifo_pop(usart_stream, &c)) {
-		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-	}
-	HAL_ResumeTick();
+	fifo_pop_or_sleep(usart_stream, &c);
 	return c;
 }
 
@@ -243,6 +239,8 @@ int main(void)
   	  halt_wait();
   }
 
+  ledflash(2);
+
   if (load_devicecfg()) {
   	  console_printf("config loaded");
   } else {
@@ -259,7 +257,7 @@ int main(void)
 
   if (load_autorun_program()) {
   	  console_printf("program loaded");
-  	  if (!switchstate()) {
+  	  if (!switchbreak()) {
   		  execute_program(program);
   	  }
   }

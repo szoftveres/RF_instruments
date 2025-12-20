@@ -6,12 +6,14 @@
 #include "keyword.h"
 #include <stddef.h> //NULL
 #include <string.h> //strcpy
+#include <stdlib.h> //malloc/free
 #include "stm32f4xx_hal.h" // HAL_Delay
 
 
 static const char* invalid_val = "Invalid value \'%i\'";
 static const char* not_a_string = "Not a string";
 static const char* name_expected = "\"name\" expected";
+static const char* malloc_fail = "out of memory";
 
 
 // Recursive "parser within parser"
@@ -19,7 +21,7 @@ int parse_str_cmd (parser_t *parser, char* cmdstr) {
 	int rc = 1;
 	parser_t *lcl_parser = parser_create(parser->line_length);
 	if (!lcl_parser) {
-		console_printf("malloc fail");
+		console_printf(malloc_fail);
 		return 0;
 	}
 
@@ -69,7 +71,7 @@ int cmd_sleep (parser_t *parser) {
 	uint32_t tickstart = HAL_GetTick();
 
 	while((HAL_GetTick() - tickstart) < ms) {
-		if (switchstate()) {
+		if (switchbreak()) {
 			console_printf("Break");
 			break;
 		}
@@ -165,7 +167,7 @@ int cmd_loadprg (parser_t *parser) {
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, parser->lex->lexeme, 0);
+	fd = fs_open(eepromfs, parser->lex->lexeme, FS_O_READONLY);
 	next_token(parser->lex);
 	if (fd < 0) {
 		console_printf("open fail");
@@ -184,7 +186,7 @@ int cmd_loadprg (parser_t *parser) {
 
 
 int cmd_program_new (parser_t *parser) {
-	char* endstr = " ";
+	char* endstr = "";
 	char* line;
 
 	for (int i = 0; i != program->header.fields.nlines; i++) {
@@ -299,6 +301,10 @@ int cmd_fsinfo (parser_t *parser) {
 
 
 int cmd_format (parser_t *parser) {
+	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
+	if (strcmp(line, "yes")) {
+		return 1;
+	}
 	fs_format(eepromfs, 16);
 	return cmd_fsinfo(parser);
 }
@@ -354,7 +360,7 @@ cmd_hexdump (parser_t *parser) {
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, parser->lex->lexeme, 0);
+	fd = fs_open(eepromfs, parser->lex->lexeme, FS_O_READONLY);
 	next_token(parser->lex);
 	if (fd < 0) {
 		console_printf("open fail");
@@ -396,6 +402,68 @@ cmd_hexdump (parser_t *parser) {
 }
 
 
+int cmd_copy (parser_t *parser) {
+	int fdsrc;
+	int fdnew;
+	int totalbytes = 0;
+	void* buf;
+
+	buf = malloc(eepromfs->device->blocksize);
+	if (!buf) {
+	    console_printf(malloc_fail);
+	    return 0;
+	}
+
+	if (!parser_string(parser->lex)) {
+		console_printf(name_expected);
+		free(buf);
+		return 0;
+	}
+
+	fdsrc = fs_open(eepromfs, parser->lex->lexeme, FS_O_READONLY);
+	next_token(parser->lex);
+	if (fdsrc < 0) {
+		console_printf("open fail");
+		free(buf);
+		return 0;
+	}
+
+	if (!parser_string(parser->lex)) {
+		console_printf(name_expected);
+		fs_close(eepromfs, fdsrc);
+		free(buf);
+		return 0;
+	}
+
+	fdnew = fs_open(eepromfs, parser->lex->lexeme, FS_O_CREAT | FS_O_TRUNC);
+	next_token(parser->lex);
+
+	if (fdnew < 0) {
+		console_printf("open fail");
+		fs_close(eepromfs, fdsrc);
+		free(buf);
+		return 0;
+	}
+
+	int b;
+	while ((b = fs_read(eepromfs, fdsrc, buf, eepromfs->device->blocksize)) > 0) {
+		if (fs_write(eepromfs, fdnew, buf, b) != b) {
+			console_printf("disk full");
+			break;
+		}
+		totalbytes += b;
+	}
+
+	fs_close(eepromfs, fdnew);
+	fs_close(eepromfs, fdsrc);
+	free(buf);
+
+	console_printf("%i bytes copied", totalbytes);
+
+	return 1;
+}
+
+
 /*
 int cmd_fat (parser_t *parser) {
 	fs_dump_fat(eepromfs);
@@ -433,8 +501,8 @@ int cmd_amtone (parser_t *parser) {
 	int level = rflevel_getter(NULL);
 	int state = 0;
 
-	while(((thistick = HAL_GetTick()) - tickstart) < ms) {
-		if (switchstate()) {
+	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
+		if (switchbreak()) {
 			console_printf("Break");
 			break;
 		}
@@ -474,8 +542,8 @@ int cmd_fmtone (parser_t *parser) {
 	int freq = frequency_getter(NULL);
 	int state = 0;
 
-	while(((thistick = HAL_GetTick()) - tickstart) < ms) {
-		if (switchstate()) {
+	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
+		if (switchbreak()) {
 			console_printf("Break");
 			break;
 		}
@@ -500,41 +568,92 @@ int cmd_help (parser_t *parser) {
 }
 
 
+int cmd_alias (parser_t *parser) {
+	char *aliasname;
+	char *aliascmd;
+	if (!parser_string(parser->lex)) {
+		console_printf(not_a_string);
+		return 0;
+	}
+	aliasname = strdup(parser->lex->lexeme);
+	next_token(parser->lex);
+
+	if (parser->lex->token != T_STRING) {
+		console_printf(not_a_string);
+		free(aliasname);
+		return 0;
+	}
+	aliascmd = strdup(parser->lex->lexeme);
+	next_token(parser->lex);
+
+	keyword_add(aliasname, aliascmd, NULL);
+	return 1;
+}
+
+
+int cmd_unalias (parser_t *parser) {
+	keyword_t *kw;
+	int rc = 0;
+
+	if (!parser_string(parser->lex)) {
+		console_printf(not_a_string);
+		return 0;
+	}
+	/* TODO check if it was an alias (i.e. not a regular cmd) */
+	kw = keyword_remove(parser->lex->lexeme);
+	next_token(parser->lex);
+
+	if (kw) {
+		free(kw->token);
+		free(kw->helpstr);
+		rc = 1;
+	}
+
+	return rc;
+}
+
+
 int setup_commands (void) {
 
-	keyword_add("cfg", "- show cfg", cmd_show_cfg);
+	//keyword_add("unalias", " - name", cmd_unalias);
+	//keyword_add("alias", " - name \"commands\"", cmd_alias);
+
+
+	// RF GENERATOR ==================================
 	keyword_add("rfoff", "- RF off", cmd_rfoff);
 	keyword_add("rfon", "- RF on", cmd_rfon);
-
-
-	keyword_add("saveprg", "\"name\" - save program", cmd_saveprg);
-	keyword_add("loadprg", "\"name\" - load program", cmd_loadprg);
-
-
-	keyword_add("savecfg", "- save config", cmd_savecfg);
-	keyword_add("loadcfg", "- load config", cmd_loadcfg);
-
-
 	keyword_add("fmtone", " [dev] [ms] - FM tone", cmd_fmtone);
 	keyword_add("amtone", " [ms] - AM tone", cmd_amtone);
 
 
+	// CONFIG ==================================
+	keyword_add("cfg", "- print cfg", cmd_show_cfg);
+	keyword_add("savecfg", "- save config", cmd_savecfg);
+	keyword_add("loadcfg", "- load config", cmd_loadcfg);
+
+
+	// EEPROM FAT ==================================
+	keyword_add("format", "- format EEPROM", cmd_format);
+	keyword_add("del", "\"file\" - del file", cmd_del);
 	keyword_add("hexdump", "\"file\"", cmd_hexdump);
 	keyword_add("dir", "- list files", cmd_dir);
-	keyword_add("del", "\"file\" - del file", cmd_del);
-	keyword_add("format", "- format EEPROM", cmd_format);
+	keyword_add("copy", "\"src\" \"new\"", cmd_copy);
 
 
+	// PROGRAM ==================================
+	keyword_add("saveprg", "\"name\" - save program", cmd_saveprg);
+	keyword_add("loadprg", "\"name\" - load program", cmd_loadprg);
 	keyword_add("return", "- return", cmd_program_return);
 	keyword_add("gosub", "[line] - call", cmd_program_gosub);
 	keyword_add("goto", "[line] - jump", cmd_program_goto);
+	keyword_add("end", "- end program", cmd_program_end);
 	keyword_add("run", "- run program", cmd_program_run);
 	keyword_add("list", "- list program", cmd_program_list);
-	keyword_add("end", "- end program", cmd_program_end);
-	keyword_add("new", "- clear program", cmd_program_new);
 	keyword_add("[0-n]", "\"cmdline\" - enter command line", NULL);
+	keyword_add("new", "- clear program", cmd_program_new);
 
 
+	// BASIC FUNCTIONS ==================================
 	keyword_add("if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if);
 	keyword_add("sleep", "[millisecs] - sleep", cmd_sleep);
 	keyword_add("print", "[expr] \"str\"", cmd_print);

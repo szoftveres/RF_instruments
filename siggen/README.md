@@ -4,8 +4,8 @@ Basic specs:
  * Frequency range: 23.5 MHz - 6 GHz, in 10 kHz steps   (MAX2871 PLL)
  * Level setting dynamic range: 30 dB (approx. -35 dBm - -5 dBm)
  * Storage: 32 kB EEPROM (programs, calibration data and configuration)
- * Programming: BASIC-like programming language
- * Communication interface: USB (FT230 USB-UART)
+ * Programming: Programming language with BASIC-like syntax
+ * Communication interface: USB UART (FT230)
  * Power: +5V, 110mA (via USB)
 
 
@@ -13,6 +13,12 @@ Basic specs:
 -->> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/siggen/schematics.pdf) <<--
 
 ![photo2](photo2.jpg)
+
+![photo](photo.jpg)
+
+Frequency- and power sweep (raw output without level calibration), 30 MHz - 6 GHz, in 10dB output level increments:
+
+![sweep](sweep.jpg)
 
 ### Programming
 
@@ -57,38 +63,39 @@ If a program line contains nested string literals, the `\` character must be use
 The available keywords and commands can be listed with the `help` command:
 ```
 > help
- help - print this help
- vars - print vars
- ver - FW build
- format - format EEPROM
- del "file" - del file
- dir - list files
- hexdump "file"
- [0-n] "cmdline" - enter command line
- new - clear program
- end - end program
- list - list program
- run - run program
- print [expr] "str"
- goto [line] - jump
- gosub [line] - call
- return - return
- if [expr] "cmdline" - execute cmdline if expr is true
- rfon - RF on
- rfoff - RF off
- cfg - show cfg
- loadprg "name" - load program
- saveprg "name" - save program
- loadcfg - load config
- savecfg - save config
- sleep [millisecs] - sleep
- amtone  [millisecs] - AM tone
- fmtone  [dev] [millisecs] - FM tone
+  help - print this help
+  vars - print rsrc vars
+  ver - FW build
+  print [expr] "str"
+  sleep [millisecs] - sleep
+  if [expr] "cmdline" - execute cmdline if expr is true
+  new - clear program
+  [0-n] "cmdline" - enter command line
+  list - list program
+  run - run program
+  end - end program
+  goto [line] - jump
+  gosub [line] - call
+  return - return
+  loadprg "name" - load program
+  saveprg "name" - save program
+  copy "src" "new"
+  dir - list files
+  hexdump "file"
+  del "file" - del file
+  format - format EEPROM
+  loadcfg - load config
+  savecfg - save config
+  cfg - print cfg
+  amtone  [ms] - AM tone
+  fmtone  [dev] [ms] - FM tone
+  rfon - RF on
+  rfoff - RF off
 ```
 
 ### 32 kB EEPROM storage
 
-Programs can be loaded or stored as files with the `loadprg` and `saveprg` commands, the contents of the file system can be listed with the `dir` command, files can be deleted using `del`, and the contents can be viewed with the `hexdump` commands.
+Programs can be loaded or stored as files with the `loadprg` and `saveprg` commands, the contents of the file system can be listed with the `dir` command, files can be deleted using `del` and copied using the `copy` commands, and the contents can be viewed with the `hexdump` commands.
 
 A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM, giving efficient usage of space and familiar programming interface (`open`, `close`, `read`, `write`) for any kind of data storage.
 
@@ -227,8 +234,3 @@ Number guessing game
  8 "print \"Too low\"; i += 1; goto 3"
 ```
 
-![photo](photo.jpg)
-
-Frequency- and power sweep (raw output without level calibration), 30 MHz - 6 GHz, in 10dB output level increments:
-
-![sweep](sweep.jpg)

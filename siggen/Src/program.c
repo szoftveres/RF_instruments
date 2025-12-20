@@ -62,7 +62,7 @@ program_t *program_create (int nlines, int linelen) {
 			bail = 1;
 			break;
 		}
-		strcpy(instance->line[i], " ");
+		strcpy(instance->line[i], "");
 	}
 
 

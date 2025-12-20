@@ -1,6 +1,7 @@
 #include <bda4700.h>
 #include <stdlib.h> // malloc
 
+
 bda4700_t* bda4700_create (void (*writer) (struct bda4700_s*, uint8_t)) {
 
 	bda4700_t* instance = (bda4700_t*) malloc(sizeof(bda4700_t));
@@ -21,6 +22,7 @@ void bda4700_destroy (bda4700_t* instance) {
 	}
 	free(instance);
 }
+
 
 int bda4700_set (bda4700_t* instance, float dB) {
 	uint8_t n = 0;

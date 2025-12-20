@@ -3,6 +3,7 @@
 #include <string.h> // strlen
 #include <stdio.h> // vsprintf
 #include <stdlib.h> // malloc free
+#include <malloc.h>
 #include "main.h"
 
 
@@ -16,7 +17,17 @@ void ledoff (void) {
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 }
 
-int switchstate (void) {
+void ledflash (int n) {
+	while (n) {
+		ledon();
+		HAL_Delay(75);
+		ledoff();
+		HAL_Delay(75);
+		n -= 1;
+	}
+}
+
+int switchbreak (void) {
 	return HAL_GPIO_ReadPin(SWITCH_GPIO_Port, SWITCH_Pin);
 }
 
@@ -70,6 +81,11 @@ uint32_t u32_swap_endian (uint32_t n) {
 			((n & 0xFF00) << 8) +
 		    ((n & 0xFF0000) >> 8) +
 		    ((n & 0xFF000000) >> 24));
+}
+
+
+void print_meminfo (void) {
+	console_printf("arena:%i", mallinfo().arena);
 }
 
 /* ================================ */
@@ -128,5 +144,27 @@ int fifo_pop (fifo_t* instance, void *c) {
  	instance->op = (instance->op + 1) & (instance->length - 1);
  	return 1;
 }
+
+
+void fifo_sleep (fifo_t* instance, void *c, int (*fifo_op) (fifo_t* , void *)) {
+	HAL_SuspendTick();
+	while (!fifo_op(instance, c)) {
+		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+	}
+	HAL_ResumeTick();
+}
+
+
+void fifo_push_or_sleep (fifo_t* instance, void *c) {
+	fifo_sleep(instance, c, fifo_push);
+}
+
+void fifo_pop_or_sleep (fifo_t* instance, void *c) {
+	fifo_sleep(instance, c, fifo_pop);
+}
+
+
+/* ================================ */
+
 
 

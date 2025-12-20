@@ -37,8 +37,23 @@ keyword_t* keyword_add (char* token, char* helpstr, int (*exec) (parser_t*)) {
 }
 
 
+keyword_t* keyword_remove (char* token) {
+	keyword_t **p;
+	keyword_t *r;
+
+	for (p = &keyword_head; *p; p = &((*p)->next)) {
+		if (!strcmp((*p)->token, token)) {
+			r = *p;
+			*p = (*p)->next;
+			return r;
+		}
+	}
+	return NULL;
+}
+
+
 keyword_t* locate_keyword (char* token) {
-	keyword_t* i;
+	keyword_t *i;
 
 	for (i = keyword_head; i; i = i->next) {
 		if (!strcmp(i->token, token)) {

@@ -229,17 +229,16 @@ int parser_assignment (lex_instance_t *lex, resource_t *resource) {
         if (!parser_expect_expression(lex, &n)) {
         	return 0;
         }
-        resource->set(resource->context, n);
-        return 1;
+        return resource->set(resource->context, n);;
     } else if (recursive_assignment(lex, resource->get(resource->context), &n)) {
-    	resource->set(resource->context, n);
-        return 1;
+        return resource->set(resource->context, n);;
     }
     return 0;
 }
 
 
 int parser_resource_expression (lex_instance_t *lex, int *n) {
+	//int rc;
 	if (lex->token != T_IDENTIFIER) {
 		return 0;
 	}
@@ -249,6 +248,7 @@ int parser_resource_expression (lex_instance_t *lex, int *n) {
 	}
 	next_token(lex);
 
+	//rc = parser_assignment(lex, resource);
 	parser_assignment(lex, resource);
 
 	*n = resource->get(resource->context);
@@ -408,6 +408,9 @@ int parser_keyword_statement (parser_t *parser) {
 		return 0;
 	}
 	next_token(parser->lex);
+	if (!keyword->exec) {
+		return rc;
+	}
 	rc = keyword->exec(parser);
 	if (rc < 1) {
 		console_printf("%s %s", keyword->token, keyword->helpstr);
@@ -447,7 +450,10 @@ int parser_programline_statement (parser_t *parser) {
 int parser_statement (parser_t *parser) {
 	int rc = 0;
 	int n;
-	if (parser_programline_statement(parser)) {
+
+	 if (parser->lex->token == T_SEMICOLON) {  // Empty statement
+		rc = 1;
+	} else if (parser_programline_statement(parser)) {
 		rc = 1;
 	} else if (parser_resource_expression(parser->lex, &n)) {
 		//console_printf("%i", n);
@@ -455,6 +461,7 @@ int parser_statement (parser_t *parser) {
 	} else if (parser_keyword_statement(parser)) {
 		rc = 1;
 	}
+
 	return rc;
 }
 
@@ -471,12 +478,11 @@ int cmd_line_parser (parser_t *parser, char* line) {
 	lex_reset(parser->lex);
 
 	do {
-		if (!parser_statement(parser)) {
-			rc = 0;
-			break;
+		if (lex_get(parser->lex, T_EOF, NULL)) {
+			return 1; // Empty line is valid
 		}
-
-	} while (lex_get(parser->lex, T_SEMICOLON, NULL));
+		rc = parser_statement(parser);
+	} while (rc && lex_get(parser->lex, T_SEMICOLON, NULL));
 
 	return rc;
 }
@@ -494,11 +500,8 @@ int expression_line_parser (parser_t *parser, char* line, int* n) {
 	lex_reset(parser->lex);
 
 	do {
-		if (!parser_expect_expression(parser->lex, n)) {
-			rc = 0;
-			break;
-		}
-	} while (lex_get(parser->lex, T_COMMA, NULL));
+		rc = parser_expect_expression(parser->lex, n);
+	} while (rc && lex_get(parser->lex, T_COMMA, NULL));
 
 	return rc;
 }

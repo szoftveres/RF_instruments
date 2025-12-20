@@ -12,8 +12,6 @@
 #include "terminal_input.h"
 
 
-#define PROGRAMS (8)
-
 extern max2871_t *rf_pll;
 
 extern bda4700_t *attenuator;
@@ -55,12 +53,12 @@ int execute_program (program_t *program);
 
 int ticks_getter (void * context);
 
-void frequency_setter (void * context, int khz);
+int frequency_setter (void * context, int khz);
 int frequency_getter (void * context);
-void rflevel_setter (void * context, int dBm);
+int rflevel_setter (void * context, int dBm);
 int rflevel_getter (void * context);
 
-void rnd_setter (void * context, int rand_set);
+int rnd_setter (void * context, int rand_set);
 int rnd_getter (void * context);
 
 #endif

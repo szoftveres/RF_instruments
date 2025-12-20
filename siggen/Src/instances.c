@@ -81,7 +81,7 @@ void cfg_override (void) {
 int load_autorun_program (void) {
 	int rc;
 	int fd;
-	fd = fs_open(eepromfs, "autoprg", 0);
+	fd = fs_open(eepromfs, "autoprg", FS_O_READONLY);
 	if (fd < 0) {
 		return 0;
 	}
@@ -99,7 +99,7 @@ int load_devicecfg (void) {
 	config_t lcl_config;
 	int rc;
 	int fd;
-	fd = fs_open(eepromfs, "cfg", 0);
+	fd = fs_open(eepromfs, "cfg", FS_O_READONLY);
 	if (fd < 0) {
 		return 0;
 	}
@@ -154,7 +154,7 @@ int execute_program (program_t *program) {
 	char* line;
 
 	while (program_run) {
-		if (switchstate()) {
+		if (switchbreak()) {
 			program_run = 0;
 			console_printf("Break");
 			break;
@@ -186,29 +186,31 @@ int execute_program (program_t *program) {
 }
 
 
-void frequency_setter (void * context, int khz) {
+int frequency_setter (void * context, int khz) {
 	double actual = set_rf_frequency(khz);
 	int khzpart = (int)actual;
 	int hzpart = (actual - (double)khzpart) * 1000.0;
 	int error = (khz - actual) * 1000.0;
 	if (actual < 0) {
 		console_printf(invalid_val, khz);
-		return;
+		return 0;
 	}
 	console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
 	print_cfg();
+	return 1;
 }
 
 int frequency_getter (void * context) {
 	return config.fields.khz;
 }
 
-void rflevel_setter (void * context, int dBm) {
+int rflevel_setter (void * context, int dBm) {
 	if (!set_rf_level(dBm)) {
 		console_printf(invalid_val, dBm);
-		return;
+		return 0;
 	}
 	print_cfg();
+	return 1;
 }
 
 int rflevel_getter (void * context) {
@@ -220,9 +222,9 @@ int ticks_getter (void * context) {
 }
 
 
-void rnd_setter (void * context, int rand_set) {
+int rnd_setter (void * context, int rand_set) {
 	srand(rand_set);
-	return;
+	return 1;
 }
 
 int rnd_getter (void * context) {
