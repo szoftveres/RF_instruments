@@ -152,7 +152,7 @@ RF CW beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 sec
  8 "end"
 ```
 
-Periodic, 1 kHz Hz AM modulated 25 MHz Shortwave beacon (1 sec on, 1 sec off):
+Periodic, 1 kHz AM modulated 25 MHz Shortwave beacon (1 sec on, 1 sec off):
 ```
  0 "freq = 25000; level = -10"
  1 "rfon"
@@ -161,7 +161,7 @@ Periodic, 1 kHz Hz AM modulated 25 MHz Shortwave beacon (1 sec on, 1 sec off):
  4 "goto 1"
 ```
 
-AM-modulated Morse beacon, sending CQ calls (showing the use of subroutines)
+AM-modulated 25 MHz Morse beacon, sending CQ calls (showing the use of subroutines)
 ```
  0 "freq=25000; level=0; rfon; sleep 100"
  1 "c = 200; gosub 12"
@@ -221,7 +221,8 @@ Calculating and printing prime numbers between 3 and 1000, without any RF functi
  9 "if n < f \"goto 1\""
 ```
 
-Number guessing game
+Number guessing game, demonstrating online input prompt within a program: line `g = $"Guess [0-99]?"` prints the given message and waits for an online input expression and stores the result in variable 'g'. The expression is pre-evaluated prior to storage, therefore it can range from a single integer number to any compound expression, including all the variables.
+
 ```
  0 "rnd = ticks"
  1 "n = rnd % 100"
