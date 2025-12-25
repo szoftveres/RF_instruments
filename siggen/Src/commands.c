@@ -1,13 +1,16 @@
-#include "keyword.h"
 #include "instances.h"
-#include "functions.h"
-#include "parser.h"
+#include "hal_plat.h"  // t_malloc
+#include "parser.h"  // lcl parsers
 #include "resource.h"
 #include "keyword.h"
 #include <stddef.h> //NULL
 #include <string.h> //strcpy
-#include <stdlib.h> //malloc/free
-#include "stm32f4xx_hal.h" // HAL_Delay
+
+#include "pcmstream.h"
+
+
+
+#include "stm32f4xx_hal.h" // xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
 static const char* invalid_val = "Invalid value \'%i\'";
@@ -17,52 +20,61 @@ static const char* malloc_fail = "out of memory";
 
 
 // Recursive "parser within parser"
-int parse_str_cmd (parser_t *parser, char* cmdstr) {
+int parse_str_cmd (char* cmdstr, fifo_t* in, fifo_t* out) {
 	int rc = 1;
-	parser_t *lcl_parser = parser_create(parser->line_length);
+	parser_t *lcl_parser = parser_create(strlen(cmdstr) + 2); // XXX
 	if (!lcl_parser) {
 		console_printf(malloc_fail);
 		return 0;
 	}
 
-	rc = cmd_line_parser(lcl_parser, cmdstr);
+	rc = cmd_line_parser(lcl_parser, cmdstr, in, out);
 
 	parser_destroy(lcl_parser);
 	return rc;
 }
 
 
-int parser_if (parser_t *parser) {
+int parser_if (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int n;
-	if (!parser_expect_expression(parser->lex, &n) ) {
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	if (!parser_string(parser->lex)) {
+	n = (*params)->n;
+	cmd_param_consume(params);
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		return 0;
 	}
 	if (!n) {
+		cmd_param_consume(params);
 		return 1; // condition is false
 	}
-	if (!parse_str_cmd(parser, parser->lex->lexeme)) {
+	if (!parse_str_cmd((*params)->str, in, out)) {
 		return 0;
 	}
-	next_token(parser->lex);
+	cmd_param_consume(params);
 	return 1;
 }
 
 
-int cmd_show_cfg (parser_t *parser) {
+int cmd_show_cfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	print_cfg();
 	return 1;
 }
 
 
-int cmd_sleep (parser_t *parser) {
+int cmd_sleep (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int ms;
-	if (!parser_expect_expression(parser->lex, &ms) ) {
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
+	ms = (*params)->n;
+	cmd_param_consume(params);
+
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		console_printf(invalid_val, ms);
 		return 0;
@@ -80,23 +92,23 @@ int cmd_sleep (parser_t *parser) {
 }
 
 
-int cmd_print (parser_t *parser) {
+int cmd_print (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int res;
 	int rc = 0;
-
-	int n;
 
 	do {
 		res = 0;
 
-		if (parser_expression(parser->lex, &n) ) {
-			console_printf_e("%i", n);
+		if (get_cmd_arg_type(params) == CMD_ARG_TYPE_NUM) {
+			console_printf_e("%i", (*params)->n);
 			res = 1;
+			cmd_param_consume(params);
 		}
-		if (parser_string(parser->lex) ) {
-			console_printf_e("%s", parser->lex->lexeme);
-			next_token(parser->lex);
+
+		if (get_cmd_arg_type(params) == CMD_ARG_TYPE_STR) {
+			console_printf_e("%s", (*params)->str);
 			res = 1;
+			cmd_param_consume(params);
 		}
 		rc |= res;
 	} while (res);
@@ -108,7 +120,7 @@ int cmd_print (parser_t *parser) {
 }
 
 
-int cmd_savecfg (parser_t *parser) {
+int cmd_savecfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int rc = save_devicecfg();
 	if (rc) {
 		console_printf("%i bytes", rc);
@@ -119,7 +131,7 @@ int cmd_savecfg (parser_t *parser) {
 }
 
 
-int cmd_loadcfg (parser_t *parser) {
+int cmd_loadcfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int rc = load_devicecfg();
 	if (rc) {
 		console_printf("%i bytes", rc);
@@ -130,17 +142,17 @@ int cmd_loadcfg (parser_t *parser) {
 }
 
 
-int cmd_saveprg (parser_t *parser) {
+int cmd_saveprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int fd;
 	int rc;
 
-	if (!parser_string(parser->lex)) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, parser->lex->lexeme, FS_O_CREAT | FS_O_TRUNC);
-	next_token(parser->lex);
+	fd = fs_open(eepromfs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
+	cmd_param_consume(params);
 
 	if (fd < 0) {
 		console_printf("open fail");
@@ -158,17 +170,17 @@ int cmd_saveprg (parser_t *parser) {
 }
 
 
-int cmd_loadprg (parser_t *parser) {
+int cmd_loadprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int fd;
 	int rc;
 
-	if (!parser_string(parser->lex)) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, parser->lex->lexeme, FS_O_READONLY);
-	next_token(parser->lex);
+	fd = fs_open(eepromfs, (*params)->str, FS_O_READONLY);
+	cmd_param_consume(params);
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
@@ -185,7 +197,7 @@ int cmd_loadprg (parser_t *parser) {
 }
 
 
-int cmd_program_new (parser_t *parser) {
+int cmd_program_new (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	char* endstr = "";
 	char* line;
 
@@ -197,7 +209,7 @@ int cmd_program_new (parser_t *parser) {
 }
 
 
-int cmd_program_list (parser_t *parser) {
+int cmd_program_list (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	char *line;
 	for (int i = 0; i != program->header.fields.nlines; i++) {
 		line = program_line(program, i);
@@ -218,24 +230,26 @@ int cmd_program_list (parser_t *parser) {
 }
 
 
-int cmd_program_end (parser_t *parser) {
+int cmd_program_end (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	program_run = 0;
 	console_printf("Done");
 	return 1;
 }
 
 
-int cmd_program_run (parser_t *parser) {
-	execute_program(program);
+int cmd_program_run (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	execute_program(program, in, out);
 	return 1;
 }
 
 
-int cmd_program_goto (parser_t *parser) {
+int cmd_program_goto (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int line;
-	if (!parser_expect_expression(parser->lex, &line) ) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
+	line = (*params)->n;
+	cmd_param_consume(params);
 	if (line < 0 || line >= program->header.fields.nlines) {
 		console_printf(invalid_val, line);
 		return 0;
@@ -245,11 +259,13 @@ int cmd_program_goto (parser_t *parser) {
 }
 
 
-int cmd_program_gosub (parser_t *parser) {
+int cmd_program_gosub (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int line;
-	if (!parser_expect_expression(parser->lex, &line) ) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
+	line = (*params)->n;
+	cmd_param_consume(params);
 	if (line < 0 || line >= program->header.fields.nlines) {
 		console_printf(invalid_val, line);
 		return 0;
@@ -261,7 +277,7 @@ int cmd_program_gosub (parser_t *parser) {
 }
 
 
-int cmd_program_return (parser_t *parser) {
+int cmd_program_return (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	if (!subroutine_sp) {
 		console_printf("Not in a subroutine");
 		return 0;
@@ -272,7 +288,7 @@ int cmd_program_return (parser_t *parser) {
 }
 
 
-int cmd_vars (parser_t *parser) {
+int cmd_vars (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	for (resource_t* r = resource_it_start(); r; r = resource_it_next(r)) {
 		console_printf("%s : %i", r->name, r->get(r));
 	}
@@ -280,13 +296,19 @@ int cmd_vars (parser_t *parser) {
 }
 
 
-int cmd_ver (parser_t *parser) {
+int cmd_ver (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	console_printf("%s - %s", __DATE__ ,__TIME__);
 	return 1;
 }
 
 
-int cmd_fsinfo (parser_t *parser) {
+int cmd_mem (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	console_printf("chunks:%i", t_chunks());
+	return 1;
+}
+
+
+int cmd_fsinfo (void) {
 	int n;
 	//fs_dump_fat(eepromfs);
 	//console_printf("file_entry_t %i", sizeof(file_entry_t));
@@ -300,24 +322,25 @@ int cmd_fsinfo (parser_t *parser) {
 }
 
 
-int cmd_format (parser_t *parser) {
+int cmd_format (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
 	if (strcmp(line, "yes")) {
 		return 1;
 	}
 	fs_format(eepromfs, 16);
-	return cmd_fsinfo(parser);
+	return cmd_fsinfo();
 }
 
 
-int cmd_del (parser_t *parser) {
+int cmd_del (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int rc;
-	if (!parser_string(parser->lex)) {
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
-	rc = fs_delete(eepromfs, parser->lex->lexeme);
-	next_token(parser->lex);
+	rc = fs_delete(eepromfs, (*params)->str);
+	cmd_param_consume(params);
 	if (rc < 0) {
 		console_printf("delete fail");
 	}
@@ -326,7 +349,7 @@ int cmd_del (parser_t *parser) {
 }
 
 
-int cmd_dir (parser_t *parser) {
+int cmd_dir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int n = 0;
 	file_entry_t *entry;
 
@@ -343,25 +366,25 @@ int cmd_dir (parser_t *parser) {
 		leading_wspace(nlen, 20);
 		console_printf("n:%02i,attr:0x%04x,start:0x%04x", n, entry->attrib, entry->start);
 	}
-	return cmd_fsinfo(parser);
+	return cmd_fsinfo();
 }
 
 
 int
-cmd_hexdump (parser_t *parser) {
+cmd_hexdump (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	char buf[16];
 	int fd;
 	int rc = 16;
     int i;
     int addr = 0;
 
-	if (!parser_string(parser->lex)) {
+    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, parser->lex->lexeme, FS_O_READONLY);
-	next_token(parser->lex);
+	fd = fs_open(eepromfs, (*params)->str, FS_O_READONLY);
+	cmd_param_consume(params);
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
@@ -402,46 +425,47 @@ cmd_hexdump (parser_t *parser) {
 }
 
 
-int cmd_copy (parser_t *parser) {
+int cmd_copy (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int fdsrc;
 	int fdnew;
 	int totalbytes = 0;
 	void* buf;
 
-	buf = malloc(eepromfs->device->blocksize);
+	buf = t_malloc(eepromfs->device->blocksize);
 	if (!buf) {
 	    console_printf(malloc_fail);
 	    return 0;
 	}
 
-	if (!parser_string(parser->lex)) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
-		free(buf);
+		t_free(buf);
 		return 0;
 	}
 
-	fdsrc = fs_open(eepromfs, parser->lex->lexeme, FS_O_READONLY);
-	next_token(parser->lex);
+
+	fdsrc = fs_open(eepromfs, (*params)->str, FS_O_READONLY);
+	cmd_param_consume(params);
 	if (fdsrc < 0) {
 		console_printf("open fail");
-		free(buf);
+		t_free(buf);
 		return 0;
 	}
 
-	if (!parser_string(parser->lex)) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		fs_close(eepromfs, fdsrc);
-		free(buf);
+		t_free(buf);
 		return 0;
 	}
 
-	fdnew = fs_open(eepromfs, parser->lex->lexeme, FS_O_CREAT | FS_O_TRUNC);
-	next_token(parser->lex);
+	fdnew = fs_open(eepromfs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
+	cmd_param_consume(params);
 
 	if (fdnew < 0) {
 		console_printf("open fail");
 		fs_close(eepromfs, fdsrc);
-		free(buf);
+		t_free(buf);
 		return 0;
 	}
 
@@ -456,7 +480,7 @@ int cmd_copy (parser_t *parser) {
 
 	fs_close(eepromfs, fdnew);
 	fs_close(eepromfs, fdsrc);
-	free(buf);
+	t_free(buf);
 
 	console_printf("%i bytes copied", totalbytes);
 
@@ -465,32 +489,36 @@ int cmd_copy (parser_t *parser) {
 
 
 /*
-int cmd_fat (parser_t *parser) {
+int cmd_fat (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	fs_dump_fat(eepromfs);
 	return 1;
 }
 */
 
 
-int cmd_rfon (parser_t *parser) {
+int cmd_rfon (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	set_rf_output(1);
 	print_cfg();
 	return 1;
 }
 
 
-int cmd_rfoff (parser_t *parser) {
+int cmd_rfoff (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	set_rf_output(0);
 	print_cfg();
 	return 1;
 }
 
 
-int cmd_amtone (parser_t *parser) {
+int cmd_amtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int ms;
-	if (!parser_expect_expression(parser->lex, &ms) ) {
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
+	ms = (*params)->n;
+	cmd_param_consume(params);
+
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		console_printf(invalid_val, ms);
 		return 0;
@@ -517,21 +545,27 @@ int cmd_amtone (parser_t *parser) {
 }
 
 
-int cmd_fmtone (parser_t *parser) {
+int cmd_fmtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int ms;
 	int dev;
 
-	if (!parser_expect_expression(parser->lex, &dev) ) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
+	dev = (*params)->n;
+	cmd_param_consume(params);
+
 	if (dev < 10 || dev > 1000) { // 10 kHz - 1 MHz
 		console_printf(invalid_val, dev);
 		return 0;
 	}
 
-	if (!parser_expect_expression(parser->lex, &ms) ) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
+	ms = (*params)->n;
+	cmd_param_consume(params);
+
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		console_printf(invalid_val, ms);
 		return 0;
@@ -558,54 +592,54 @@ int cmd_fmtone (parser_t *parser) {
 }
 
 
-int cmd_help (parser_t *parser) {
+int cmd_help (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	keyword_t *kw = keyword_it_start();
 	while (kw) {
-		console_printf("%s %s", kw->token, kw->helpstr);
+		console_printf("  %s %s", kw->token, kw->helpstr);
 		kw = keyword_it_next(kw);
 	}
 	return 1;
 }
 
 
-int cmd_alias (parser_t *parser) {
+int cmd_alias (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	char *aliasname;
 	char *aliascmd;
-	if (!parser_string(parser->lex)) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		return 0;
 	}
-	aliasname = strdup(parser->lex->lexeme);
-	next_token(parser->lex);
+	aliasname = t_strdup((*params)->str);
+	cmd_param_consume(params);
 
-	if (parser->lex->token != T_STRING) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
-		free(aliasname);
+		t_free(aliasname);
 		return 0;
 	}
-	aliascmd = strdup(parser->lex->lexeme);
-	next_token(parser->lex);
+	aliascmd = t_strdup((*params)->str);
+	cmd_param_consume(params);
 
 	keyword_add(aliasname, aliascmd, NULL);
 	return 1;
 }
 
 
-int cmd_unalias (parser_t *parser) {
+int cmd_unalias (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	keyword_t *kw;
 	int rc = 0;
 
-	if (!parser_string(parser->lex)) {
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		return 0;
 	}
 	/* TODO check if it was an alias (i.e. not a regular cmd) */
-	kw = keyword_remove(parser->lex->lexeme);
-	next_token(parser->lex);
+	kw = keyword_remove((*params)->str);
+	cmd_param_consume(params);
 
 	if (kw) {
-		free(kw->token);
-		free(kw->helpstr);
+		t_free(kw->token);
+		t_free(kw->helpstr);
 		rc = 1;
 	}
 
@@ -613,7 +647,187 @@ int cmd_unalias (parser_t *parser) {
 }
 
 
+
+int cmd_nullsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	return nullsink_setup(in);
+}
+
+int cmd_decfir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int dec;
+	int bf = 1;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("dec needed");
+		return 0;
+	}
+	dec = (*params)->n;
+	cmd_param_consume(params);
+
+	if ((dec < 2) || (dec > 64)) {
+		console_printf("bf out of range %i", dec);
+		return 0;
+	}
+	if (get_cmd_arg_type(params) == CMD_ARG_TYPE_NUM) {
+		bf = (*params)->n;
+		cmd_param_consume(params);
+	}
+
+	if ((bf < 1) || ((bf * dec) > 1024)) {
+		console_printf("bf out of range %i", bf);
+		return 0;
+	}
+	return decfir_setup(in, out, dec, bf);
+}
+
+
+
+int cmd_txpkt (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int fs;
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("samples needed");
+		return 0;
+	}
+	fs = (*params)->n;
+	cmd_param_consume(params);
+	return txmodem_setup(out, fs);
+}
+
+int cmd_rxpkt (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	return rxmodem_setup(in);
+}
+
+
+/*-----------------------------------------*/
+
+typedef struct noise_pcm_src_s {
+	int samples;
+} noise_pcm_src_t;
+
+
+task_rc_t noise_sample_producer (void* c, uint16_t* sample_out) {
+	noise_pcm_src_t *lc = (noise_pcm_src_t*)c;
+	if (!(lc->samples)) {
+		return TASK_RC_END;
+	}
+	lc->samples -= 1;
+	*sample_out = (uint16_t)(rnd_getter(NULL) % 65536);
+	return TASK_RC_AGAIN;
+}
+
+
+int cmd_noise (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int fs;
+	int samples;
+	noise_pcm_src_t* c;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("fs needed");
+		return 0;
+	}
+	fs = (*params)->n;
+	cmd_param_consume(params);
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("samples needed");
+		return 0;
+	}
+	samples = (*params)->n;
+	cmd_param_consume(params);
+
+	c = (noise_pcm_src_t*)t_malloc(sizeof(noise_pcm_src_t));
+	if (!c) {
+		return 0;
+	}
+	c->samples = samples;
+	return pcmsrc_setup(out, fs, noise_sample_producer, NULL, c);
+}
+
+/*-----------------------------------------*/
+
+typedef struct sine_pcm_src_s {
+	int samples;
+	dds_t *dds;
+} sine_pcm_src_t;
+
+
+task_rc_t sine_sample_producer (void* c, uint16_t* sample_out) {
+	sine_pcm_src_t *lc = (sine_pcm_src_t*)c;
+	int i;
+	int q;
+	if (!(lc->samples)) {
+		return TASK_RC_END;
+	}
+	lc->samples -= 1;
+	dds_next_sample(lc->dds, &i, &q);
+	i *= (32768 / magnitude_const());
+	i += 32768;
+	*sample_out = (uint16_t)i;
+	return TASK_RC_AGAIN;
+}
+
+void sine_producer_cleanup (void* c)  {
+	sine_pcm_src_t *lc = (sine_pcm_src_t*)c;
+	dds_destroy(lc->dds);
+}
+
+int cmd_sine (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int fs;
+	int fc;
+	int samples;
+	sine_pcm_src_t* c;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("fs needed");
+		return 0;
+	}
+	fs = (*params)->n;
+	cmd_param_consume(params);
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("frequency needed");
+		return 0;
+	}
+	fc = (*params)->n;
+	cmd_param_consume(params);
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("samples needed");
+		return 0;
+	}
+	samples = (*params)->n;
+	cmd_param_consume(params);
+
+	c = (sine_pcm_src_t*)t_malloc(sizeof(sine_pcm_src_t));
+	if (!c) {
+		return 0;
+	}
+	c->samples = samples;
+	c->dds = dds_create(fs,fc); // Check is done in the worker
+	return pcmsrc_setup(out, fs, sine_sample_producer, sine_producer_cleanup, c);
+}
+
+/*-----------------------------------------*/
+
+/*-----------------------------------------*/
+
+#include <stdlib.h>
+
+int cmd_malloctest (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int i = 0;
+	const int size = 1024;
+	while (malloc(size)) {
+		i++;
+	}
+	console_printf("size:%i, total:%i", size, size*i);
+	cpu_halt();
+	return 1;
+}
+
+/* ================================================================== */
+
+
 int setup_commands (void) {
+
 
 	//keyword_add("unalias", " - name", cmd_unalias);
 	//keyword_add("alias", " - name \"commands\"", cmd_alias);
@@ -630,6 +844,19 @@ int setup_commands (void) {
 	keyword_add("cfg", "- print cfg", cmd_show_cfg);
 	keyword_add("savecfg", "- save config", cmd_savecfg);
 	keyword_add("loadcfg", "- load config", cmd_loadcfg);
+
+
+	keyword_add("malloctest", "", cmd_malloctest);
+
+
+	// DSP chain ===============================
+	keyword_add("rxpkt", "->rxpkt", cmd_rxpkt);
+	keyword_add("txpkt", "[fs]->", cmd_txpkt);
+
+	keyword_add("noise", "noise [fs] [samples]->", cmd_noise);
+	keyword_add("sine", "sine [fs] [freq] [samples]->", cmd_sine);
+	keyword_add("nullsnk", "->NULL", cmd_nullsink);
+	keyword_add("df", "->decimating filter [n] <[bf]>->", cmd_decfir);
 
 
 	// EEPROM FAT ==================================
@@ -657,6 +884,7 @@ int setup_commands (void) {
 	keyword_add("if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if);
 	keyword_add("sleep", "[millisecs] - sleep", cmd_sleep);
 	keyword_add("print", "[expr] \"str\"", cmd_print);
+	keyword_add("mem", "- mem info", cmd_mem);
 	keyword_add("ver", "- FW build", cmd_ver);
 	keyword_add("vars", "- print rsrc vars", cmd_vars);
 	keyword_add("help", "- print this help", cmd_help);

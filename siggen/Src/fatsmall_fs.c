@@ -1,5 +1,5 @@
 #include "fatsmall_fs.h"
-#include <stdlib.h> //malloc free
+#include "hal_plat.h" //malloc free
 #include <string.h> //memcpy
 
 #define BLOCK_VALID(b)  ((b) && ((b) != FS_FAT_END))
@@ -29,7 +29,7 @@ int fs_verify (fs_t* instance) {
 
 
 fs_t* fs_create (blockdevice_t* device) {
-	fs_t *instance = (fs_t*)malloc(sizeof(fs_t));
+	fs_t *instance = (fs_t*)t_malloc(sizeof(fs_t));
 	if (!instance) {
 		return instance;
 	}
@@ -39,9 +39,9 @@ fs_t* fs_create (blockdevice_t* device) {
 
 	instance->recent_fatblock = FS_FAT_END;
 	instance->recent_fatblock_dirty = 0;
-	instance->fatblock = (block_t*)malloc(instance->device->blocksize);
+	instance->fatblock = (block_t*)t_malloc(instance->device->blocksize);
 	if (!instance->fatblock) {
-		free(instance);
+		t_free(instance);
 		instance = NULL;
 		return instance;
 	}
@@ -64,8 +64,8 @@ void fs_destroy (fs_t* instance) {
 	if (!instance) {
 		return;
 	}
-	free(instance->fatblock);
-	free(instance);
+	t_free(instance->fatblock);
+	t_free(instance);
 }
 
 
@@ -466,6 +466,12 @@ int fs_delete (fs_t* instance, char* name) {
 }
 
 
+void fs_rewind (fs_t* instance, int fd) {
+	instance->fp[fd].rp = 0;
+	instance->fp[fd].wp = 0;
+}
+
+
 int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 	block_t block;
 	uint16_t pos_in_block = instance->fp[fd].rp % instance->device->blocksize;
@@ -504,6 +510,7 @@ int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
 	block_t block;
 	int reserve = 0;
+	int new_wp = instance->fp[fd].wp;
 	uint16_t pos_in_block = instance->fp[fd].wp % instance->device->blocksize;
 	uint16_t bytes = instance->device->blocksize - pos_in_block; // available bytes in the block at wp
 
@@ -523,11 +530,14 @@ int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
 		return bytes;
 	}
 
-	if (!((instance->fp[fd].wp + bytes) % instance->device->blocksize)) {
-		reserve = 1; // Reserve new block at the end
-	}
+	new_wp += bytes;
 
-	instance->fp[fd].size += bytes; // TODO undo if the operation falls through
+	if (new_wp > instance->fp[fd].size) {
+		if (!(new_wp % instance->device->blocksize)) {
+			reserve = 1; // Reserve new block at the end
+		}
+		instance->fp[fd].size = new_wp;
+	}
 
 	block = fs_file_pos_to_block(instance, fd, instance->fp[fd].wp);
 
@@ -538,9 +548,9 @@ int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
 	memcpy((fs_get_block(instance, block) + pos_in_block), buf, bytes);
 	instance->recent_block_dirty = 1;
 
-	instance->fp[fd].wp += bytes;
+	instance->fp[fd].wp = new_wp;
 
-	if (reserve) { // TODO no append case, do we really need a new block?
+	if (reserve) {
 		block_t newblock = fs_fat_find_empyt_block(instance); // TODO check disk full + TODO this writes FAT back to disk even if the same ends up being loaded again
 		fs_mark_fat(instance, block, newblock);
 		fs_mark_fat(instance, newblock, FS_FAT_END);

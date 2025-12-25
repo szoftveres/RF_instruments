@@ -92,6 +92,7 @@ int fs_open (fs_t* instance, char* name, int flags);
 void fs_close (fs_t* instance, int fd);
 int fs_delete (fs_t* instance, char* name);
 file_entry_t* fs_walk_dir (fs_t* instance, int *n);
+void fs_rewind (fs_t* instance, int fd);
 int fs_read (fs_t* instance, int fd, char* buf, int count);
 int fs_write (fs_t* instance, int fd, char* buf, int count);
 int fs_stats (fs_t* instance);

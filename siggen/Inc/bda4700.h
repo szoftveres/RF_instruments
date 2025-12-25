@@ -1,7 +1,7 @@
 #ifndef __BDA4700__H_
 #define __BDA4700__H_
 
-#include <stdint.h>
+#include <stdint.h>  // uin8_t
 
 
 typedef struct bda4700_s {

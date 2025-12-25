@@ -1,6 +1,6 @@
 #include "max2871.h"
 #include <math.h> // math functions, double
-#include <stdlib.h> // malloc
+#include "hal_plat.h" // malloc
 
 uint32_t max2871GetRegister (max2871_t* instance, uint8_t reg) {
 	return instance->registers[reg];
@@ -304,7 +304,7 @@ void max2871WriteRegisters (max2871_t* instance) {
 // Setup of the MAX2871 PLL, 50MHz, output off
 max2871_t* max2871_create (void (*register_write) (uint32_t), int (*check_ld) (void), void (*idle_wait) (void)) {
 
-	max2871_t* instance = (max2871_t*) malloc(sizeof(max2871_t));
+	max2871_t* instance = (max2871_t*) t_malloc(sizeof(max2871_t));
 	if (!instance) {
 		return instance;
 	}
@@ -394,7 +394,7 @@ void max2871_destroy (max2871_t* instance) {
 	if (!instance) {
 		return;
 	}
-	free(instance);
+	t_free(instance);
 }
 
 double max2871_freq (max2871_t* instance, double khz) {

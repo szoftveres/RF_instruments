@@ -1,24 +1,24 @@
 #include "instances.h"
-#include "functions.h"
+#include "analog.h"
 #include <string.h> // memcpy
-#include <stdlib.h> // malloc free rand
-#include "main.h" // HAL
+#include <stdio.h> // EOF
+#include "hal_plat.h" // malloc free
+#include "resource.h"
+#include "parser.h" // execute program
 
 max2871_t* rf_pll;
 
 bda4700_t *attenuator;
 
-blockdevice_t *eeprom;
-
 fs_t *eepromfs;
 
 config_t config;
 
-parser_t *online_parser;
-
 program_t* program;
 
 terminal_input_t* online_input;
+
+taskscheduler_t *scheduler;
 
 
 int	program_ip;
@@ -147,11 +147,18 @@ void print_cfg (void) {
 
 
 
-int execute_program (program_t *program) {
+int execute_program (program_t *program, fifo_t* in, fifo_t* out) {
 	int rc = 1;
 	program_ip = 0;
 	program_run = 1;
 	char* line;
+
+	if (in) {
+		in->readers++;
+	}
+	if (out) {
+		out->writers++;
+	}
 
 	while (program_run) {
 		if (switchbreak()) {
@@ -169,7 +176,7 @@ int execute_program (program_t *program) {
 			rc = 0;
 			break;
 		}
-		rc = cmd_line_parser(lcl_parser, line);
+		rc = cmd_line_parser(lcl_parser, line, in, out);
 		if (!rc) {
 			program_run = 0;
 		}
@@ -182,6 +189,14 @@ int execute_program (program_t *program) {
 			break;
 		}
 	}
+
+	if (in) {
+		in->readers--;
+	}
+	if (out) {
+		out->writers--;
+	}
+
 	return rc;
 }
 
@@ -217,18 +232,34 @@ int rflevel_getter (void * context) {
 	return config.fields.level;
 }
 
-int ticks_getter (void * context) {
-	return HAL_GetTick();
-}
 
 
-int rnd_setter (void * context, int rand_set) {
-	srand(rand_set);
+int fs_setter (void * context, int fs) {
+	if (!set_fs(fs)) {
+		console_printf(invalid_val, fs);
+		return 0;
+	}
+	console_printf("fs: %i Hz", fs);
 	return 1;
 }
 
-int rnd_getter (void * context) {
-	return rand();
+int fc_setter (void * context, int fc) {
+	if (!set_fc(fc)) {
+		console_printf(invalid_val, fc);
+		return 0;
+	}
+	console_printf("fc: %i Hz", fc);
+	return 1;
 }
 
+int dac1_setter (void * context, int aval) {
+	resource_t* resource = (resource_t*)context;
+	if (aval < 0 || aval >= dac_max()) {
+		console_printf(invalid_val, aval);
+		return 0;
+	}
+	resource->value = aval;
+	dac1_outv((uint32_t)aval);
+	return 1;
+}
 

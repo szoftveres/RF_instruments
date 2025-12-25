@@ -1,7 +1,6 @@
 #include "parser.h"
-#include "functions.h"
+#include "hal_plat.h" // malloc
 #include <string.h> // strcmp
-#include <stdlib.h> //malloc
 #include "instances.h"
 #include "resource.h"
 #include "keyword.h"
@@ -13,16 +12,7 @@ static const char* not_an_expression = "Not an expression";
 
 
 int parser_primary_expression (lex_instance_t *lex, int *n);
-
-
-int parser_string (lex_instance_t *lex) {
-	if (lex->token != T_STRING) {
-		return 0;
-	}
-	str_value(lex); // CMD in lexeme
-    return 1;
-}
-
+int parser_expression (lex_instance_t *lex, int *n);
 
 int parser_expect_expression (lex_instance_t *lex, int *n) {
 	if (!parser_expression(lex, n) ) {
@@ -30,6 +20,14 @@ int parser_expect_expression (lex_instance_t *lex, int *n) {
 		return 0;
 	}
 	return 1;
+}
+
+int parser_string (lex_instance_t *lex) {
+	if (lex->token != T_STRING) {
+		return 0;
+	}
+	str_value(lex); // CMD in lexeme
+    return 1;
 }
 
 
@@ -360,22 +358,22 @@ void parser_lex_error (lex_instance_t *instance, int c, const char *str) {
 parser_t* parser_create (int line_length) {
 	parser_t* instance;
 
-	instance = (parser_t*)malloc(sizeof(parser_t));
+	instance = (parser_t*)t_malloc(sizeof(parser_t));
 	if (!instance) {
 	    return (instance);
 	}
 	instance->line_length = line_length;
-	instance->cmdbuf = (char*)malloc(instance->line_length);
+	instance->cmdbuf = (char*)t_malloc(instance->line_length);
 	if (!instance->cmdbuf) {
-		free(instance);
+		t_free(instance);
 		instance = NULL;
 		return instance;
 	}
 	instance->cmd_op = 0;
 	instance->lex = lex_create(instance, instance->line_length, parser_lex_read, parser_lex_error, 0x00); // context of lex is the parser
 	if (!instance->lex) {
-		free(instance->cmdbuf);
-		free(instance);
+		t_free(instance->cmdbuf);
+		t_free(instance);
 	    return NULL;
 	}
 	return instance;
@@ -387,34 +385,116 @@ void parser_destroy (parser_t *parser) {
 		return;
 	}
 	lex_destroy(parser->lex);
-	free(parser->cmdbuf);
-	free(parser);
+	t_free(parser->cmdbuf);
+	t_free(parser);
 }
 
 
 //==============================================================
 
 
-int parser_keyword_statement (parser_t *parser) {
-	int rc = 0;
+int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
+	cmd_param_t *current = NULL;
+	int n;
+	int rc;
+
+	do {
+		rc = 0;
+		if (parser_string(parser->lex)) {
+			rc = 1;
+			current = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
+			if (!current) {
+				return 0;
+			}
+			current->type = CMD_ARG_TYPE_STR;
+			current->str = t_strdup(parser->lex->lexeme);
+			next_token(parser->lex);
+			cmd_param_insert_end(head, current);
+		} else if (parser_expression(parser->lex, &n)) {
+			rc = 1;
+			current = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
+			if (!current) {
+				return 0;
+			}
+			current->type = CMD_ARG_TYPE_NUM;
+			current->n = n;
+			cmd_param_insert_end(head, current);
+		}
+	} while (rc);
+
+
+	return rc;
+}
+
+
+keyword_t *parser_valid_keyword (parser_t *parser) {
+	keyword_t* keyword;
 
 	if (parser->lex->token != T_IDENTIFIER) {
-		return 0;
+		return NULL;
 	}
-	keyword_t* keyword = locate_keyword(parser->lex->lexeme);
+	keyword = locate_keyword(parser->lex->lexeme);
 	if (!keyword) {
 		console_printf("Bad cmd \'%s\'", parser->lex->lexeme);
 		next_token(parser->lex);
-		return 0;
+		return NULL;
 	}
 	next_token(parser->lex);
 	if (!keyword->exec) {
-		return rc;
+		console_printf("Invalid cmd");
+		return NULL;
 	}
-	rc = keyword->exec(parser);
-	if (rc < 1) {
-		console_printf("%s %s", keyword->token, keyword->helpstr);
+	return keyword;
+}
+
+
+int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
+	int rc;
+	int cont;
+	cmd_param_t *head = NULL;
+	keyword_t*  kw;
+	fifo_t* pipes = NULL;
+
+	do {
+		cont = 0;
+		fifo_t* out_new = out;
+		kw = parser_valid_keyword(parser);
+		if (!kw) {
+			rc = 0;
+			break;
+		}
+		parser_build_param_list(parser, &head);
+
+		if (lex_get(parser->lex, T_ARROW, NULL)) {
+			out_new = fifo_create(512, sizeof(uint16_t));
+			out_new->next = pipes;
+			pipes = out_new;
+			cont = 1;
+		}
+
+		rc = kw->exec(&head, in, out_new);
+		in = out_new;
+
+		if (rc < 1) {
+			console_printf("%s %s", kw->token, kw->helpstr);
+		}
+		while (cmd_param_consume(&(head))) {
+			console_printf("unused parameter");
+		}
+	} while (rc && cont);
+
+	while (scheduler_burst_run(scheduler)) {
+		if (switchbreak()) {
+			scheduler_killall(scheduler);
+		}
 	}
+
+	while (pipes) {
+		fifo_t* current = pipes;
+		pipes = current->next;
+		fifo_destroy(current);
+	}
+
 	return rc;
 }
 
@@ -447,7 +527,7 @@ int parser_programline_statement (parser_t *parser) {
 }
 
 
-int parser_statement (parser_t *parser) {
+int parser_statement (parser_t *parser, fifo_t* in, fifo_t* out) {
 	int rc = 0;
 	int n;
 
@@ -458,7 +538,7 @@ int parser_statement (parser_t *parser) {
 	} else if (parser_resource_expression(parser->lex, &n)) {
 		//console_printf("%i", n);
 		rc = 1;
-	} else if (parser_keyword_statement(parser)) {
+	} else if (parser_keyword_train(parser, in, out)) {
 		rc = 1;
 	}
 
@@ -466,7 +546,7 @@ int parser_statement (parser_t *parser) {
 }
 
 
-int cmd_line_parser (parser_t *parser, char* line) {
+int cmd_line_parser (parser_t *parser, char* line, fifo_t* in, fifo_t* out) {
 	int rc = 1;
 
 	if (!line) {
@@ -481,7 +561,7 @@ int cmd_line_parser (parser_t *parser, char* line) {
 		if (lex_get(parser->lex, T_EOF, NULL)) {
 			return 1; // Empty line is valid
 		}
-		rc = parser_statement(parser);
+		rc = parser_statement(parser, in, out);
 	} while (rc && lex_get(parser->lex, T_SEMICOLON, NULL));
 
 	return rc;

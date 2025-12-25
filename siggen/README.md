@@ -225,7 +225,7 @@ Number guessing game
 ```
  0 "rnd = ticks"
  1 "n = rnd % 100"
- 2 "i = 0"
+ 2 "i = 1"
  3 "g = $\"Guess [0-99]?\""
  4 "if g > n \"goto 7\""
  5 "if g < n \"goto 8\""

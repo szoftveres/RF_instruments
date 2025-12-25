@@ -23,10 +23,12 @@
 /* USER CODE BEGIN Includes */
 #include <string.h> // memcpy
 #include <unistd.h> // sbrk
-#include "functions.h"
+#include <stdio.h> // sprintf
+#include "hal_plat.h" // HAL
 #include "commands.h"
 #include "instances.h"
 #include "resource.h"
+#include "parser.h"
 
 /* USER CODE END Includes */
 
@@ -72,13 +74,6 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 
 
-void halt_wait (void) {
-
-	console_printf("System halted");
-	while(1) {HAL_Delay(1950);}
-}
-
-
 void rf_pll_register_write (uint32_t r) {
 	uint32_t n = u32_swap_endian(r); // max2871 needs big-endian
 	HAL_GPIO_WritePin(PLL1_CS_GPIO_Port, PLL1_CS_Pin, GPIO_PIN_RESET); // LE low
@@ -109,6 +104,9 @@ void attenuator_write (bda4700_t* instance, uint8_t n) {
 
 int
 at24c256_read_page (blockdevice_t* blockdevice, int pageaddress) {
+	int ret = AT24C256_PAGE;
+	HAL_StatusTypeDef rc;
+
 	if (pageaddress >= AT24C256_MAX_PAGEADDRESS) {
 		return 0;
 	}
@@ -116,14 +114,25 @@ at24c256_read_page (blockdevice_t* blockdevice, int pageaddress) {
 
 	wpayload[0] = ((pageaddress * AT24C256_PAGE) >> 8) & 0xFF; // MSB
 	wpayload[1] = (pageaddress * AT24C256_PAGE) & 0xFF; // LSB
-	HAL_I2C_Master_Transmit(&hi2c1, AT24C256_I2CADDR, wpayload, sizeof(wpayload), 500);
-	HAL_I2C_Master_Receive(&hi2c1, AT24C256_I2CADDR, (uint8_t*)blockdevice->buffer, AT24C256_PAGE, 500);
-	return AT24C256_PAGE;
+	rc = HAL_I2C_Master_Transmit(&hi2c1, AT24C256_I2CADDR, wpayload, sizeof(wpayload), 500);
+	if (rc) {
+		console_printf("i2c error 1 %i", rc);
+		ret = 0;
+	}
+	rc = HAL_I2C_Master_Receive(&hi2c1, AT24C256_I2CADDR, (uint8_t*)blockdevice->buffer, AT24C256_PAGE, 500);
+	if (rc) {
+		console_printf("i2c error 2 %i", rc);
+		ret = 0;
+	}
+	return ret;
 }
 
 
 int
 at24c256_write_page (blockdevice_t* blockdevice, int pageaddress) {
+	int ret = AT24C256_PAGE;
+	HAL_StatusTypeDef rc;
+
 	if (pageaddress >= AT24C256_MAX_PAGEADDRESS) {
 		return 0;
 	}
@@ -133,10 +142,14 @@ at24c256_write_page (blockdevice_t* blockdevice, int pageaddress) {
 	wpayload[1] = (pageaddress * AT24C256_PAGE) & 0xFF; // LSB
 	memcpy(&(wpayload[2]), blockdevice->buffer, AT24C256_PAGE);
 
-	HAL_I2C_Master_Transmit(&hi2c1, AT24C256_I2CADDR, wpayload, sizeof(wpayload), 500);
-	HAL_Delay(100);
+	rc = HAL_I2C_Master_Transmit(&hi2c1, AT24C256_I2CADDR, wpayload, sizeof(wpayload), 500);
+	if (rc) {
+		console_printf("i2c w error %i", rc);
+		ret = 0;
+	}
+	delay_ms(100);
 
-	return AT24C256_PAGE;
+	return ret;
 }
 
 
@@ -157,6 +170,8 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 
+  blockdevice_t *eeprom;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -168,7 +183,7 @@ int main(void)
 
   usart_stream = fifo_create(16, sizeof(char));
   if (!usart_stream) {
-	  halt_wait();
+	  cpu_halt();
   }
 
   /* USER CODE END Init */
@@ -191,6 +206,12 @@ int main(void)
 
   console_printf("");
 
+  scheduler = scheduler_create();
+  if (!scheduler) {
+	  console_printf("scheduler init error");
+	  cpu_halt();
+  }
+
   // Variables, resources
   for (int i = 'z'; i >= 'a'; i--) {
 	  char name[2];
@@ -207,7 +228,7 @@ int main(void)
   rf_pll = max2871_create(rf_pll_register_write, rf_pll_check_ld, rf_pll_idle_wait);
   if (!rf_pll) {
 	  console_printf("MAX2871 init error");
-	  halt_wait();
+	  cpu_halt();
   }
 
 
@@ -215,28 +236,36 @@ int main(void)
   attenuator = bda4700_create(attenuator_write);
   if (!attenuator) {
   	  console_printf("Attenuator init error");
-  	  halt_wait();
+  	  cpu_halt();
   }
+
   // EEPROM instance
   eeprom = blockdevice_create(AT24C256_PAGE, AT24C256_MAX_PAGEADDRESS, at24c256_read_page, at24c256_write_page);
   if (!eeprom) {
 	  console_printf("EEPROM init error");
-	  halt_wait();
+	  cpu_halt();
   }
+  //eeprom->read_block(eeprom, 0); // XXX This is to try to mitigate a rare I2C startup bug
+
   eepromfs = fs_create(eeprom);
   if (!eepromfs) {
   	  console_printf("FS init error");
-  	  halt_wait();
+  	  cpu_halt();
   }
+
   if (!fs_verify(eepromfs)) {
+	  delay_ms(2000);
+	  console_printf("m1:0x%04x m2:0x%04x entries:%i", eepromfs->params.magic1, eepromfs->params.magic2, eepromfs->params.rootdir_entries);
   	  console_printf("Formatting EEPROM");
-  	  fs_format(eepromfs, 16);
+  	  //fs_format(eepromfs, 16);
   }
+
   setup_commands();
+
   program = program_create(20, 80); // 20 lines, 80 characters each -> 1.6k max program size
   if (!program) {
   	  console_printf("program init error");
-  	  halt_wait();
+  	  cpu_halt();
   }
 
   ledflash(2);
@@ -258,21 +287,14 @@ int main(void)
   if (load_autorun_program()) {
   	  console_printf("program loaded");
   	  if (!switchbreak()) {
-  		  execute_program(program);
+  		  execute_program(program, NULL, NULL);
   	  }
-  }
-
-  // Online command parser
-  online_parser = parser_create(program->header.fields.linelen); // align to the program line length
-  if (!online_parser) {
-	  console_printf("parser init error");
-	  halt_wait();
   }
 
   online_input = terminal_input_create(get_online_char, program->header.fields.linelen - 2);
   if (!online_input) {
   	  console_printf("input init error");
-  	  halt_wait();
+  	  cpu_halt();
   }
 
   /* USER CODE END 2 */
@@ -281,8 +303,24 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  int chunks = t_chunks();
+	  // Online command parser
+	  parser_t* online_parser = parser_create(program->header.fields.linelen); // align to the program line length
+	  if (!online_parser) {
+		  console_printf("parser init error");
+		  cpu_halt();
+	  }
+	  int prompt_pidx = 0;
+	  char prompt[8];
+	  sprintf(&(prompt[prompt_pidx]), "%c:> ", 'e');
 	  // Interpreting and executing commands, till the eternity
-	  cmd_line_parser(online_parser, terminal_get_line(online_input, "> ", 1));
+	  cmd_line_parser(online_parser, terminal_get_line(online_input, prompt, 1), NULL, NULL);
+	  parser_destroy(online_parser);
+
+	  chunks -= t_chunks();
+	  if (chunks) { // simple memory leak check, normally shouldn't ever happen
+		  console_printf("t_malloc-t_free imbalance :%i", chunks);
+	  }
 
     /* USER CODE END WHILE */
 

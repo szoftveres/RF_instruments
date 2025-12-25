@@ -1,7 +1,7 @@
 #ifndef __MAX2871__H_
 #define __MAX2871__H_
 
-#include <stdint.h>
+#include <stdint.h> // uint32
 
 
 #define MAX2871_REGS (6)

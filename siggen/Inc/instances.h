@@ -1,32 +1,32 @@
 #ifndef __INSTANCES_H__
 #define __INSTANCES_H__
 
-#include <bda4700.h>
+#include "bda4700.h"
 #include "max2871.h"
-#include "blockdevice.h"
 #include "fatsmall_fs.h"
 #include "config.h"
 #include "program.h"
 #include "levelcal.h"
-#include "parser.h"
+#include "analog.h"
 #include "terminal_input.h"
+#include "taskscheduler.h"
+#include "fifo.h" // execute_program
+
 
 
 extern max2871_t *rf_pll;
 
 extern bda4700_t *attenuator;
 
-extern blockdevice_t *eeprom;
-
 extern fs_t *eepromfs;
 
 extern config_t config;
 
-extern parser_t *online_parser;
-
 extern program_t* program;
 
 extern terminal_input_t* online_input;
+
+extern taskscheduler_t *scheduler;
 
 extern int	program_ip;
 extern int	program_run;
@@ -49,16 +49,23 @@ int save_devicecfg (void);
 void apply_cfg (void);
 void print_cfg (void);
 
-int execute_program (program_t *program);
+int execute_program (program_t *program, fifo_t* in, fifo_t* out);
 
-int ticks_getter (void * context);
 
 int frequency_setter (void * context, int khz);
 int frequency_getter (void * context);
 int rflevel_setter (void * context, int dBm);
 int rflevel_getter (void * context);
+int fs_setter (void * context, int fs);
+int fs_getter (void * context);
+int fc_setter (void * context, int fc);
+int fc_getter (void * context);
 
-int rnd_setter (void * context, int rand_set);
-int rnd_getter (void * context);
+int dac1_setter (void * context, int aval);
+
+int baud_to_samples (int baud);
+
+int transmit_data (uint8_t* data, int len);
+int receive_data (uint8_t* data, int *len);
 
 #endif

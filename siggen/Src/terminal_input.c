@@ -1,19 +1,18 @@
 #include "terminal_input.h"
-#include "functions.h"
 #include <stddef.h> //NULL
-#include <stdlib.h> // malloc free
+#include "hal_plat.h" // malloc free
 
 
 terminal_input_t* terminal_input_create (char (*getchar) (void), int linelen) {
 	terminal_input_t* instance;
 
-	instance = (terminal_input_t*)malloc(sizeof(terminal_input_t));
+	instance = (terminal_input_t*)t_malloc(sizeof(terminal_input_t));
 	if (!instance) {
 		return instance;
 	}
-	instance->line = (char*)malloc(linelen);
+	instance->line = (char*)t_malloc(linelen);
 	if (!instance->line) {
-		free(instance);
+		t_free(instance);
 		instance = NULL;
 		return instance;
 	}
@@ -29,9 +28,9 @@ void terminal_input_destroy (terminal_input_t *instance) {
 		return;
 	}
 	if (instance->line) {
-		free(instance->line);
+		t_free(instance->line);
 	}
-	free(instance);
+	t_free(instance);
 }
 
 

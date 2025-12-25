@@ -1,6 +1,6 @@
 #include "resource.h"
-#include <stdlib.h> //malloc free
-#include <string.h> //malloc free
+#include "hal_plat.h" //malloc free
+#include <string.h> //strcmp
 
 
 static resource_t *resource_head = NULL;
@@ -8,7 +8,7 @@ static resource_t *resource_head = NULL;
 
 resource_t* resource_add (char* name, void* context, int (*setter) (void *, int), int (*getter) (void *)) {
 
-	resource_t* instance = (resource_t*)malloc(sizeof(resource_t));
+	resource_t* instance = (resource_t*)t_malloc(sizeof(resource_t));
 	if (!instance) {
 		return instance;
 	}

@@ -1,5 +1,5 @@
 #include "program.h"
-#include <stdlib.h> // malloc free
+#include "hal_plat.h" // malloc free
 #include <string.h> // strcpy memset
 
 
@@ -41,23 +41,23 @@ int verify_program (program_t* instance, struct program_header_s* header) {
 
 program_t *program_create (int nlines, int linelen) {
 	int bail = 0;
-	program_t *instance = (program_t*)malloc(sizeof(program_t));
+	program_t *instance = (program_t*)t_malloc(sizeof(program_t));
 	if (!instance) {
 		return instance;
 	}
 	instance->header.fields.nlines = nlines;
 	instance->header.fields.linelen = linelen;
 
-	instance->line = (char**)malloc(sizeof(char*) * instance->header.fields.nlines);  // an array of char*
+	instance->line = (char**)t_malloc(sizeof(char*) * instance->header.fields.nlines);  // an array of char*
 	if (!instance->line) {
-		free(instance);
+		t_free(instance);
 		instance = NULL;
 		return instance;
 	}
 	memset(instance->line, 0x00, sizeof(char*) * instance->header.fields.nlines);
 
 	for (int i = 0; i != instance->header.fields.nlines; i++) {
-		instance->line[i] = (char*)malloc(instance->header.fields.linelen); // allocating each line
+		instance->line[i] = (char*)t_malloc(instance->header.fields.linelen); // allocating each line
 		if (!instance->line[i]) {
 			bail = 1;
 			break;
@@ -69,15 +69,15 @@ program_t *program_create (int nlines, int linelen) {
 	if (bail) {
 		for (int i = 0; i != instance->header.fields.nlines; i++) {
 			if (instance->line[i]) {
-				free(instance->line[i]);
+				t_free(instance->line[i]);
 				instance->line[i] = NULL;
 			}
 		}
 		if (instance->line) {
-			free(instance->line);
+			t_free(instance->line);
 			instance->line = NULL;
 		}
-		free(instance);
+		t_free(instance);
 		instance = NULL;
 	}
 	return instance;
@@ -90,15 +90,15 @@ void program_destroy (program_t* instance) {
 	}
 	for (int i = 0; i != instance->header.fields.nlines; i++) {
 		if (instance->line[i]) {
-			free(instance->line[i]);
+			t_free(instance->line[i]);
 			instance->line[i] = NULL;
 		}
 	}
 	if (instance->line) {
-		free(instance->line);
+		t_free(instance->line);
 		instance->line = NULL;
 	}
-	free(instance);
+	t_free(instance);
 }
 
 
