@@ -10,12 +10,6 @@ int ticks_getter (void * context);
 int rnd_setter (void * context, int rand_set);
 int rnd_getter (void * context);
 
-
-void dac1_outv (uint32_t aval);
-int adc1_getter (void * context);
-int adc2_getter (void * context);
-int adc3_getter (void * context);
-
 int pushbutton_getter (void * context);
 
 void ledon (void);
@@ -42,9 +36,6 @@ int t_chunks (void);
 char level_to_color (int n, int range);
 
 
-int dac_max (void);
-void dac_sample_stream_callback (void* ctxt);
-void adc1_sample_stream_callback (void* ctxt);
 
 void cpu_sleep (void);
 void periodic_IT_off (void);
