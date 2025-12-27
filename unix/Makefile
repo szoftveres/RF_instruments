@@ -1,13 +1,14 @@
 OBJDIR = .
 SRCDIR = .
-INCLDIR = .
+INCLUDES = -I $(shell pwd)
+export UPPER_INCLUDES = $(INCLUDES)
 OUTDIR = .
 
 ## General Flags
 PROGRAM = instr_os_unix
 CC = gcc
 LD = gcc
-CFLAGS = -Wall -Wextra -O0 -I $(INCLDIR)
+CFLAGS = -Wall -Wextra -O0 $(INCLUDES)
 LDFLAGS = -lm
 
 ## Objects that must be built in order to link
@@ -49,7 +50,9 @@ SUBDIRS = os
 ## Build both compiler and program
 all: $(PROGRAM)
 
+
 $(SUBDIRS):
+	if test ! -f os/Makefile; then rm -rf os ; ln -s ../os os ; fi
 	$(MAKE) -C $@
 
 $(PROGRAM): $(SUBDIRS) $(OBJECTS)

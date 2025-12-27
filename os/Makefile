@@ -1,13 +1,13 @@
 OBJDIR = .
 SRCDIR = .
-INCLDIR = .. .
+INCLUDES = -I $(shell pwd) $(UPPER_INCLUDES)
 OUTDIR = .
 
 ## General Flags
 PROGRAM = instr_os
 CC = gcc
 LD = gcc
-CFLAGS = -Wall -Wextra -O0 -I $(INCLDIR)
+CFLAGS = -Wall -Wextra -O0 $(INCLUDES)
 
 ## Objects that must be built in order to link
 OBJECTS =                                               \
@@ -37,6 +37,7 @@ SUBDIRS = lex
 all: $(SUBDIRS) $(OBJECTS)
 
 $(SUBDIRS):
+	if test ! -f lex/Makefile; then rm -rf lex ; git clone https://github.com/szoftveres/lex.git ../lex; ln -s ../lex lex ; fi
 	$(MAKE) -C $@
 
 ## Compile source files
