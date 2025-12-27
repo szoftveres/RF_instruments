@@ -1,19 +1,12 @@
-#include "../os/hal_plat.h"
+#include "os/hal_plat.h"
 #include <string.h> // strlen
 #include <stdio.h> // vsprintf
 #include <stdlib.h> // malloc free
-#include "main.h"
-
-#include "../os/fifo.h" // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-#include "stm32f4xx_hal.h"
-
-
-extern UART_HandleTypeDef huart1;
+#include <unistd.h> // unix write
 
 
 int ticks_getter (void * context) {
-	return HAL_GetTick();
+	return 0;
 }
 
 
@@ -28,21 +21,21 @@ int rnd_getter (void * context) {
 
 
 int dac_max (void) {
-	return 4096;
+	return 0;
 }
 
 
 void ledon (void) {
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	;
 }
 
 void ledoff (void) {
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+	;
 }
 
 
 void delay_ms (uint32_t delay) {
-	HAL_Delay(delay);
+	;
 }
 
 void ledflash (int n) {
@@ -56,11 +49,12 @@ void ledflash (int n) {
 }
 
 int switchbreak (void) {
-	return HAL_GPIO_ReadPin(SWITCH_GPIO_Port, SWITCH_Pin);
+	return 0;
 }
 
 void console_putchar (const unsigned char c) {
-	HAL_UART_Transmit(&huart1, &c, 1, 1);
+    int out = (int)c;
+    putchar(out);
 }
 
 void console_printf (const char* fmt, ...) {
@@ -74,9 +68,10 @@ void console_printf (const char* fmt, ...) {
 
 	len = strlen(buf);
 	if (len) {
-		HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
+        write(1, buf, len);
 	}
-	HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n", 2, 1);
+    write(1, "\n", 1);
+	//puts("\n");
 }
 
 
@@ -91,7 +86,7 @@ int console_printf_e (const char* fmt, ...) {
 
 	len = strlen(buf);
 	if (len) {
-		HAL_UART_Transmit(&huart1, (uint8_t*)buf, len, len);
+        write(1, buf, len);
 	}
 	return len;
 }
@@ -166,15 +161,15 @@ char level_to_color (int n, int range) {
 /* ================================ */
 
 void cpu_sleep (void) {
-	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+	;
 }
 
 void periodic_IT_off (void) {
-	HAL_SuspendTick();
+	;
 }
 
 void periodic_IT_on (void) {
-	HAL_ResumeTick();
+	;
 }
 
 void cpu_halt (void) {

@@ -2,7 +2,7 @@
 #define __PARSER__H_
 
 
-#include "../lex/lex.h"  // This is somewhat annoying
+#include "lex/lex.h"  // This is somewhat annoying
 #include "fifo.h"  // fifo
 
 typedef struct {

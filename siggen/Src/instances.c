@@ -1,34 +1,19 @@
 #include "instances.h"
-#include "analog.h"
+#include "config_def.h"
+#include "../os/globals.h"  // config instance
 #include <string.h> // memcpy
 #include <stdio.h> // EOF
-#include "hal_plat.h" // malloc free
-#include "resource.h"
-#include "parser.h" // execute program
-#include "fs_broker.h"
+#include "../os/hal_plat.h" // malloc free
+#include "../os/keyword.h" // command structure
+
+#include "stm32f4xx_hal.h" // HAL_GetTick
+
 
 max2871_t* rf_pll;
 
 bda4700_t *attenuator;
 
-config_t config;
-
-program_t* program;
-
-terminal_input_t* online_input;
-
-taskscheduler_t *scheduler;
-
-fs_broker_t *fs;
-
 fs_t *eepromfs; // FORMAT
-
-
-
-int	program_ip;
-int	program_run;
-int subroutine_stack[8];
-int subroutine_sp;
 
 static const char* invalid_val = "Invalid value \'%i\'";
 
@@ -69,6 +54,13 @@ int set_rf_level (int dBm) {
 }
 
 
+
+void global_cfg_override (void) {
+	cfg_override();
+	apply_cfg();
+	print_cfg();
+}
+
 void apply_cfg (void) {
 	set_rf_level(config.fields.level);
 	set_rf_frequency(config.fields.khz);
@@ -82,127 +74,11 @@ void cfg_override (void) {
 }
 
 
-int load_autorun_program (void) {
-	int rc;
-	int fd;
-	fd = open_f(fs, "E:autoprg", FS_O_READONLY);
-	if (fd < 0) {
-		return 0;
-	}
-	rc = program_load(program, fs, fd);
-	close_f(fs, fd);
-
-	if (rc < 1) {
-		rc = 0;
-	}
-	return rc;
-}
-
-
-int load_devicecfg (void) {
-	config_t lcl_config;
-	int rc;
-	int fd;
-	fd = open_f(fs, "E:cfg", FS_O_READONLY);
-	if (fd < 0) {
-		return 0;
-	}
-
-	rc = config_load(&lcl_config, fs, fd);
-	close_f(fs, fd);
-
-	if (rc < 1) {
-		rc = 0;
-	}
-
-	if (rc) {
-		memcpy(&config, &lcl_config, (sizeof(config_t)));
-		cfg_override();
-		apply_cfg();
-		print_cfg();
-	}
-	return rc;
-}
-
-int save_devicecfg (void) {
-	int fd;
-	int rc;
-
-	fd = open_f(fs, "E:cfg", FS_O_CREAT | FS_O_TRUNC);
-	if (fd < 0) {
-		console_printf("conf save:open fail");
-		return 0;
-	}
-
-	rc = config_save(&config, fs, fd);
-	close_f(fs, fd);
-	if (rc < 1) {
-		rc = 0;
-	}
-	return rc;
-}
-
 
 void print_cfg (void) {
 	console_printf("RF: %i kHz, %i dBm, output %s", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
 }
 
-
-
-
-
-int execute_program (program_t *program, fifo_t* in, fifo_t* out) {
-	int rc = 1;
-	program_ip = 0;
-	program_run = 1;
-	char* line;
-
-	if (in) {
-		in->readers++;
-	}
-	if (out) {
-		out->writers++;
-	}
-
-	while (program_run) {
-		if (switchbreak()) {
-			program_run = 0;
-			console_printf("Break");
-			break;
-		}
-
-		line = program_line(program, program_ip);
-		program_ip += 1;
-
-		parser_t *lcl_parser = parser_create(program->header.fields.linelen); // line lenght is of the program's
-		if (!lcl_parser) {
-			program_run = 0;
-			rc = 0;
-			break;
-		}
-		rc = cmd_line_parser(lcl_parser, line, in, out);
-		if (!rc) {
-			program_run = 0;
-		}
-
-		parser_destroy(lcl_parser);
-
-		if (program_ip >= program->header.fields.nlines) {
-			program_run = 0;
-			console_printf("Done");
-			break;
-		}
-	}
-
-	if (in) {
-		in->readers--;
-	}
-	if (out) {
-		out->writers--;
-	}
-
-	return rc;
-}
 
 
 int frequency_setter (void * context, int khz) {
@@ -237,7 +113,7 @@ int rflevel_getter (void * context) {
 }
 
 
-
+/*
 int fs_setter (void * context, int fs) {
 	if (!set_fs(fs)) {
 		console_printf(invalid_val, fs);
@@ -266,4 +142,174 @@ int dac1_setter (void * context, int aval) {
 	dac1_outv((uint32_t)aval);
 	return 1;
 }
+*/
 
+
+
+/*-----------------------------------------*/
+
+#include <stdlib.h>
+
+int cmd_malloctest (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int i = 0;
+	const int size = 1024;
+	while (malloc(size)) {
+		i++;
+	}
+	console_printf("size:%i, total:%i", size, size*i);
+	cpu_halt();
+	return 1;
+}
+
+
+#include "../os/fatsmall_fs.h"
+int cmd_format (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
+	if (strcmp(line, "yes")) {
+		console_printf("aborted");
+		return 1;
+	}
+	fs_format(eepromfs, 16);
+	return cmd_fsinfo();
+}
+
+
+int cmd_sleep (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int ms;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	ms = (*params)->n;
+	cmd_param_consume(params);
+
+	if (ms < 0 || ms > 3600000) { // max 1 hour
+		console_printf(invalid_val, ms);
+		return 0;
+	}
+
+	uint32_t tickstart = HAL_GetTick();
+
+	while((HAL_GetTick() - tickstart) < ms) {
+		if (switchbreak()) {
+			console_printf("Break");
+			break;
+		}
+	}
+	return 1;
+}
+
+
+
+int cmd_amtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int ms;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	ms = (*params)->n;
+	cmd_param_consume(params);
+
+	if (ms < 0 || ms > 3600000) { // max 1 hour
+		console_printf(invalid_val, ms);
+		return 0;
+	}
+
+	uint32_t tickstart = HAL_GetTick();
+	uint32_t thistick;
+	int level = rflevel_getter(NULL);
+	int state = 0;
+
+	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
+		if (switchbreak()) {
+			console_printf("Break");
+			break;
+		}
+		if (!set_rf_level(state ? -30 : level)) {
+			break;
+		}
+		state += 1; state %= 2;
+		while (thistick == HAL_GetTick());
+	}
+
+	return (set_rf_level(level));
+}
+
+
+int cmd_fmtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int ms;
+	int dev;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	dev = (*params)->n;
+	cmd_param_consume(params);
+
+	if (dev < 10 || dev > 1000) { // 10 kHz - 1 MHz
+		console_printf(invalid_val, dev);
+		return 0;
+	}
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	ms = (*params)->n;
+	cmd_param_consume(params);
+
+	if (ms < 0 || ms > 3600000) { // max 1 hour
+		console_printf(invalid_val, ms);
+		return 0;
+	}
+
+	uint32_t tickstart = HAL_GetTick();
+	uint32_t thistick;
+	int freq = frequency_getter(NULL);
+	int state = 0;
+
+	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
+		if (switchbreak()) {
+			console_printf("Break");
+			break;
+		}
+		if (!set_rf_frequency(freq + (state ? dev : -dev))) {
+			break;
+		}
+		state += 1; state %= 2;
+		while (thistick == HAL_GetTick());
+	}
+
+	return (set_rf_frequency(freq));
+}
+
+
+
+
+int cmd_rfon (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	set_rf_output(1);
+	print_cfg();
+	return 1;
+}
+
+
+int cmd_rfoff (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	set_rf_output(0);
+	print_cfg();
+	return 1;
+}
+
+
+int setup_persona_commands (void) {
+
+	keyword_add("malloctest", "", cmd_malloctest);
+	keyword_add("sleep", "[millisecs] - sleep", cmd_sleep);
+	keyword_add("format", "- format EEPROM", cmd_format);
+
+	// RF GENERATOR ==================================
+	keyword_add("rfoff", "- RF off", cmd_rfoff);
+	keyword_add("rfon", "- RF on", cmd_rfon);
+	keyword_add("fmtone", " [dev] [ms] - FM tone", cmd_fmtone);
+	keyword_add("amtone", " [ms] - AM tone", cmd_amtone);
+
+	return 0;
+}

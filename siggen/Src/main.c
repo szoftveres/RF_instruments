@@ -24,11 +24,11 @@
 #include <string.h> // memcpy
 #include <unistd.h> // sbrk
 #include <stdio.h> // sprintf
-#include "hal_plat.h" // HAL
-#include "commands.h"
+#include "../os/hal_plat.h" // HAL
+#include "../os/commands.h"
 #include "instances.h"
-#include "resource.h"
-#include "parser.h"
+#include "../os/resource.h"
+#include "../os/parser.h"
 
 /* USER CODE END Includes */
 
@@ -153,6 +153,31 @@ at24c256_write_page (blockdevice_t* blockdevice, int pageaddress) {
 }
 
 
+#define RAMDRIVE_PAGE (64)
+#define RAMDRIVE_SIZE (32768)
+#define RAMDRIVE_MAX_PAGEADDRESS ((32768) / (RAMDRIVE_PAGE))
+
+
+int
+ramdrive_read_page (blockdevice_t* blockdevice, int pageaddress) {
+	if (pageaddress >= RAMDRIVE_MAX_PAGEADDRESS) {
+		return 0;
+	}
+	memcpy(blockdevice->buffer, blockdevice->context + (pageaddress * RAMDRIVE_PAGE), RAMDRIVE_PAGE);
+	return RAMDRIVE_PAGE;
+}
+
+
+int
+ramdrive_write_page (blockdevice_t* blockdevice, int pageaddress) {
+	if (pageaddress >= RAMDRIVE_MAX_PAGEADDRESS) {
+		return 0;
+	}
+	memcpy(blockdevice->context + (pageaddress * RAMDRIVE_PAGE), blockdevice->buffer, RAMDRIVE_PAGE);
+	return RAMDRIVE_PAGE;
+}
+
+
 char get_online_char (void) {
 	char c;
 	fifo_pop_or_sleep(usart_stream, &c);
@@ -171,6 +196,8 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   blockdevice_t *eeprom;
+  blockdevice_t *ramdrive;
+  fs_t *ramfs;
 
   /* USER CODE END 1 */
 
@@ -240,7 +267,7 @@ int main(void)
   }
 
   // EEPROM instance
-  eeprom = blockdevice_create(AT24C256_PAGE, AT24C256_MAX_PAGEADDRESS, at24c256_read_page, at24c256_write_page);
+  eeprom = blockdevice_create(AT24C256_PAGE, AT24C256_MAX_PAGEADDRESS, at24c256_read_page, at24c256_write_page, NULL);
   if (!eeprom) {
 	  console_printf("EEPROM init error");
 	  cpu_halt();
@@ -259,6 +286,26 @@ int main(void)
   	  console_printf("Formatting EEPROM");
   	  //fs_format(eepromfs, 16);
   }
+
+
+  void* ramdrvmem = t_malloc(RAMDRIVE_SIZE);
+  if (!ramdrvmem) {
+  	  console_printf("RAMDRIVE alloc error");
+  	  cpu_halt();
+    }
+  // RAM instance
+  ramdrive = blockdevice_create(RAMDRIVE_PAGE, RAMDRIVE_MAX_PAGEADDRESS, ramdrive_read_page, ramdrive_write_page, ramdrvmem);
+  if (!ramdrive) {
+	  console_printf("RAMDRIVE init error");
+	  cpu_halt();
+  }
+
+  ramfs = fs_create(ramdrive);
+  if (!ramfs) {
+  	  console_printf("ramFS init error");
+  	  cpu_halt();
+  }
+  fs_format(ramfs, 16); // Always format the ramdrive at each stratup
 
 
   fs = fs_broker_create();
@@ -280,7 +327,21 @@ int main(void)
 						(int (*) (void*, char**, int*)) fs_walkdir,
 						(int (*) (void*)) fs_closedir);
 
+  fs_broker_register_fs(fs,
+		  	  	  	    ramfs,
+						'M',
+		  	  	  	    (int (*)(void*, char*, int)) fs_open,
+						(void (*) (void*, int)) fs_close,
+						(void (*) (void*, int)) fs_rewind,
+						(int (*) (void*, int, char*, int)) fs_read,
+						(int (*) (void*, int, char*, int)) fs_write,
+						(int (*) (void*, char*)) fs_delete,
+						(int (*) (void*)) fs_opendir,
+						(int (*) (void*, char**, int*)) fs_walkdir,
+						(int (*) (void*)) fs_closedir);
+
   setup_commands();
+  setup_persona_commands();
 
   program = program_create(20, 80); // 20 lines, 80 characters each -> 1.6k max program size
   if (!program) {

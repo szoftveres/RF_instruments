@@ -23,8 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "hal_plat.h"
-#include "fifo.h"
+#include "../os/hal_plat.h"
+#include "../os/fifo.h"
 
 /* USER CODE END Includes */
 

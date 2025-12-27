@@ -1,7 +1,7 @@
 #ifndef __RESOURCE_H__
 #define __RESOURCE_H__
 
-#include "instances.h"
+#include "globals.h"
 
 
 #define MAX_LEN_RESOURCE_NAME (8)

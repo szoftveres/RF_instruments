@@ -1,0 +1,66 @@
+OBJDIR = .
+SRCDIR = .
+INCLDIR = .
+OUTDIR = .
+
+## General Flags
+PROGRAM = instr_os_unix
+CC = gcc
+LD = gcc
+CFLAGS = -Wall -Wextra -O0 -I $(INCLDIR)
+LDFLAGS = -lm
+
+## Objects that must be built in order to link
+OBJECTS =                                               \
+                        $(OBJDIR)/main.o                \
+                        $(OBJDIR)/instances.o           \
+                        $(OBJDIR)/hal_plat.o            \
+
+
+
+LD_OBJECTS =                                     \
+                        os/lex/lex.o             \
+                        os/analog.o              \
+                        os/bda4700.o             \
+                        os/blockdevice.o         \
+                        os/commands.o            \
+                        os/config.o              \
+                        os/fatsmall_fs.o         \
+                        os/fifo.o                \
+                        os/fs_broker.o           \
+                        os/globals.o             \
+                        os/keyword.o             \
+                        os/levelcal.o            \
+                        os/max2871.o             \
+                        os/parser.o              \
+                        os/pcmstream.o           \
+                        os/program.o             \
+                        os/resource.o            \
+                        os/taskscheduler.o       \
+                        os/terminal_input.o      \
+                        hal_plat.o               \
+                        instances.o              \
+                        main.o                   \
+
+
+SUBDIRS = os
+.PHONY : $(SUBDIRS)
+
+## Build both compiler and program
+all: $(PROGRAM)
+
+$(SUBDIRS):
+	$(MAKE) -C $@
+
+$(PROGRAM): $(SUBDIRS) $(OBJECTS)
+	$(LD) $(LDFLAGS) -o $(OBJDIR)/$(PROGRAM).bin $(LD_OBJECTS) $(LDFLAGS)
+
+
+## Compile source files
+$(OBJDIR)/%.o : $(SRCDIR)/%.c
+	$(CC) $(CFLAGS) -c -o $(OBJDIR)/$*.o $< 
+
+clean:
+	-rm -rf $(OBJECTS)
+	for dir in $(SUBDIRS); do $(MAKE) clean -C $$dir; done
+

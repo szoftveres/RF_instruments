@@ -39,7 +39,7 @@ char* terminal_get_line (terminal_input_t* instance, const char* prompt, int ech
 	int run = 1;
 
 	instance->line[n] = '\0';
-	if (echo && prompt) {
+	if (prompt) {
 		console_printf_e(prompt);
 	}
 	while (run) {

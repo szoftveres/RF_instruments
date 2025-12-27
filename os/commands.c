@@ -1,4 +1,5 @@
-#include "instances.h"
+#include "globals.h"
+#include "instances.h"  // print cofg def
 #include "hal_plat.h"  // t_malloc
 #include "parser.h"  // lcl parsers
 #include "resource.h"
@@ -10,7 +11,6 @@
 
 
 
-#include "stm32f4xx_hal.h" // xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
 static const char* invalid_val = "Invalid value \'%i\'";
@@ -62,32 +62,6 @@ int parser_if (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 int cmd_show_cfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	print_cfg();
-	return 1;
-}
-
-
-int cmd_sleep (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	int ms;
-
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
-		return 0;
-	}
-	ms = (*params)->n;
-	cmd_param_consume(params);
-
-	if (ms < 0 || ms > 3600000) { // max 1 hour
-		console_printf(invalid_val, ms);
-		return 0;
-	}
-
-	uint32_t tickstart = HAL_GetTick();
-
-	while((HAL_GetTick() - tickstart) < ms) {
-		if (switchbreak()) {
-			console_printf("Break");
-			break;
-		}
-	}
 	return 1;
 }
 
@@ -308,31 +282,6 @@ int cmd_mem (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_fsinfo (void) {
-	//int n;
-	return 1;
-	//fs_dump_fat(eepromfs);
-	//console_printf("file_entry_t %i", sizeof(file_entry_t));
-	//console_printf("device_params_t %i", sizeof(device_params_t));
-	leading_wspace(0, 20);
-	//console_printf("%i entries free", fs_count_empyt_direntries(eepromfs));
-	//n = fs_count_empyt_blocks(eepromfs);
-	leading_wspace(0, 20);
-	//console_printf("%i blocks (%i Bytes) free", n, (n * eepromfs->device->blocksize));
-	return 1;
-}
-
-#include "fatsmall_fs.h"
-int cmd_format (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
-	if (strcmp(line, "yes")) {
-		console_printf("aborted");
-		return 1;
-	}
-	fs_format(eepromfs, 16);
-	return cmd_fsinfo();
-}
-
 
 int cmd_del (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int rc;
@@ -507,109 +456,6 @@ int cmd_copy (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	return 1;
 }
 
-
-/*
-int cmd_fat (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	fs_dump_fat(eepromfs);
-	return 1;
-}
-*/
-
-
-int cmd_rfon (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	set_rf_output(1);
-	print_cfg();
-	return 1;
-}
-
-
-int cmd_rfoff (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	set_rf_output(0);
-	print_cfg();
-	return 1;
-}
-
-
-int cmd_amtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	int ms;
-
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
-		return 0;
-	}
-	ms = (*params)->n;
-	cmd_param_consume(params);
-
-	if (ms < 0 || ms > 3600000) { // max 1 hour
-		console_printf(invalid_val, ms);
-		return 0;
-	}
-
-	uint32_t tickstart = HAL_GetTick();
-	uint32_t thistick;
-	int level = rflevel_getter(NULL);
-	int state = 0;
-
-	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
-		if (switchbreak()) {
-			console_printf("Break");
-			break;
-		}
-		if (!set_rf_level(state ? -30 : level)) {
-			break;
-		}
-		state += 1; state %= 2;
-		while (thistick == HAL_GetTick());
-	}
-
-	return (set_rf_level(level));
-}
-
-
-int cmd_fmtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	int ms;
-	int dev;
-
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
-		return 0;
-	}
-	dev = (*params)->n;
-	cmd_param_consume(params);
-
-	if (dev < 10 || dev > 1000) { // 10 kHz - 1 MHz
-		console_printf(invalid_val, dev);
-		return 0;
-	}
-
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
-		return 0;
-	}
-	ms = (*params)->n;
-	cmd_param_consume(params);
-
-	if (ms < 0 || ms > 3600000) { // max 1 hour
-		console_printf(invalid_val, ms);
-		return 0;
-	}
-
-	uint32_t tickstart = HAL_GetTick();
-	uint32_t thistick;
-	int freq = frequency_getter(NULL);
-	int state = 0;
-
-	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
-		if (switchbreak()) {
-			console_printf("Break");
-			break;
-		}
-		if (!set_rf_frequency(freq + (state ? dev : -dev))) {
-			break;
-		}
-		state += 1; state %= 2;
-		while (thistick == HAL_GetTick());
-	}
-
-	return (set_rf_frequency(freq));
-}
 
 
 int cmd_help (cmd_param_t** params, fifo_t* in, fifo_t* out) {
@@ -964,20 +810,7 @@ int cmd_wavfilesrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	return pcmsrc_setup(out, samplerate, wav_pcm_producer, wav_pcm_producer_cleanup, c);
 }
 
-/*-----------------------------------------*/
 
-#include <stdlib.h>
-
-int cmd_malloctest (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	int i = 0;
-	const int size = 1024;
-	while (malloc(size)) {
-		i++;
-	}
-	console_printf("size:%i, total:%i", size, size*i);
-	cpu_halt();
-	return 1;
-}
 
 /* ================================================================== */
 
@@ -989,12 +822,6 @@ int setup_commands (void) {
 	//keyword_add("alias", " - name \"commands\"", cmd_alias);
 
 
-	// RF GENERATOR ==================================
-	keyword_add("rfoff", "- RF off", cmd_rfoff);
-	keyword_add("rfon", "- RF on", cmd_rfon);
-	keyword_add("fmtone", " [dev] [ms] - FM tone", cmd_fmtone);
-	keyword_add("amtone", " [ms] - AM tone", cmd_amtone);
-
 
 	// CONFIG ==================================
 	keyword_add("cfg", "- print cfg", cmd_show_cfg);
@@ -1002,7 +829,6 @@ int setup_commands (void) {
 	keyword_add("loadcfg", "- load config", cmd_loadcfg);
 
 
-	keyword_add("malloctest", "", cmd_malloctest);
 
 
 	// DSP chain ===============================
@@ -1018,7 +844,6 @@ int setup_commands (void) {
 
 
 	// FILE OPS  ==================================
-	keyword_add("format", "- format EEPROM", cmd_format);
 	keyword_add("del", "\"file\" - del file", cmd_del);
 	keyword_add("hexdump", "\"file\"", cmd_hexdump);
 	keyword_add("dir", "- list files", cmd_dir);
@@ -1041,7 +866,6 @@ int setup_commands (void) {
 
 	// BASIC FUNCTIONS ==================================
 	keyword_add("if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if);
-	keyword_add("sleep", "[millisecs] - sleep", cmd_sleep);
 	keyword_add("print", "[expr] \"str\"", cmd_print);
 	keyword_add("mem", "- mem info", cmd_mem);
 	keyword_add("ver", "- FW build", cmd_ver);

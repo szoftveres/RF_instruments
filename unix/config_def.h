@@ -1,8 +1,7 @@
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#ifndef __CONFIG_DEF_H__
+#define __CONFIG_DEF_H__
 
 #include <stdint.h>   // uint
-#include "fs_broker.h"    // fs
 
 
 typedef struct config_s {
@@ -19,10 +18,6 @@ typedef struct config_s {
 
 	uint32_t	checksum;
 } config_t;
-
-
-int config_save (config_t* instance, fs_broker_t *fs, int fd);
-int config_load (config_t* instance, fs_broker_t *fs, int fd);
 
 
 #endif

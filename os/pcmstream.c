@@ -1,5 +1,5 @@
 #include "pcmstream.h"
-#include "instances.h"
+#include "globals.h"
 #include "hal_plat.h" // malloc, DAC, sampler
 
 #include <string.h>
@@ -420,7 +420,7 @@ typedef struct modem_context_s {
 task_rc_t rxmodem_task (void* context) {
 	uint16_t sample;
 	modem_context_t *c = (modem_context_t*)context;
-	char byte;
+	uint8_t byte;
 	int pilot_i;
 	int pilot_q;
 

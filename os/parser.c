@@ -1,7 +1,7 @@
 #include "parser.h"
 #include "hal_plat.h" // malloc
 #include <string.h> // strcmp
-#include "instances.h"
+#include "globals.h"
 #include "resource.h"
 #include "keyword.h"
 
