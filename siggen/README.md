@@ -4,7 +4,7 @@ Basic specs:
  * Frequency range: 23.5 MHz - 6 GHz, in 10 kHz steps   (MAX2871 PLL)
  * Level setting dynamic range: 30 dB (approx. -35 dBm - -5 dBm)
  * Storage: 32 kB EEPROM (programs, calibration data and configuration)
- * Programming: Programming language with BASIC-like syntax
+ * Programming: scripting language with BASIC-like syntax
  * Communication interface: USB UART (FT230)
  * Power: +5V, 110mA (via USB)
 
