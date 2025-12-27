@@ -17,5 +17,7 @@
 
 Uses:
 
- * [https://github.com/szoftveres/RF_instruments/tree/main/siggen](Stored-program 6 GHz RF signal generator)
- * [https://github.com/szoftveres/RF_instruments/tree/main/unix](Unix runtime / development environment)
+ * [Stored-program 6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
+ * [Unix runtime / development environment](https://github.com/szoftveres/RF_instruments/tree/main/unix)
+
+

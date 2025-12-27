@@ -8,7 +8,7 @@ Basic specs:
  * Communication interface: USB UART (FT230)
  * Power: +5V, 110mA (via USB)
 
-
+The software is built upon the [generic OS library](https://github.com/szoftveres/RF_instruments/tree/main/os).
 
 -->> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/siggen/schematics.pdf) <<--
 
