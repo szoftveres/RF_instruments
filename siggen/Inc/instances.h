@@ -18,8 +18,6 @@ extern max2871_t *rf_pll;
 
 extern bda4700_t *attenuator;
 
-extern fs_t *eepromfs;
-
 extern config_t config;
 
 extern program_t* program;
@@ -27,6 +25,11 @@ extern program_t* program;
 extern terminal_input_t* online_input;
 
 extern taskscheduler_t *scheduler;
+
+extern fs_broker_t *fs;
+
+extern fs_t *eepromfs;  // FORMAT
+
 
 extern int	program_ip;
 extern int	program_run;

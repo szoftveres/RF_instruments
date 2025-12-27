@@ -151,16 +151,16 @@ int cmd_saveprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
+	fd = open_f(fs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
 	cmd_param_consume(params);
 
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
 	}
-	rc = program_save(program, eepromfs, fd);
+	rc = program_save(program, fs, fd);
 
-	fs_close(eepromfs, fd);
+	close_f(fs, fd);
 	if (rc > 0) {
 		console_printf("%i bytes", rc);
 	}
@@ -179,15 +179,15 @@ int cmd_loadprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, (*params)->str, FS_O_READONLY);
+	fd = open_f(fs, (*params)->str, FS_O_READONLY);
 	cmd_param_consume(params);
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
 	}
-	rc = program_load(program, eepromfs, fd);
+	rc = program_load(program, fs, fd);
 
-	fs_close(eepromfs, fd);
+	close_f(fs, fd);
 	if (rc > 0) {
 		console_printf("%i bytes", rc);
 	}
@@ -309,22 +309,24 @@ int cmd_mem (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 int cmd_fsinfo (void) {
-	int n;
+	//int n;
+	return 1;
 	//fs_dump_fat(eepromfs);
 	//console_printf("file_entry_t %i", sizeof(file_entry_t));
 	//console_printf("device_params_t %i", sizeof(device_params_t));
 	leading_wspace(0, 20);
-	console_printf("%i entries free", fs_count_empyt_direntries(eepromfs));
-	n = fs_count_empyt_blocks(eepromfs);
+	//console_printf("%i entries free", fs_count_empyt_direntries(eepromfs));
+	//n = fs_count_empyt_blocks(eepromfs);
 	leading_wspace(0, 20);
-	console_printf("%i blocks (%i Bytes) free", n, (n * eepromfs->device->blocksize));
+	//console_printf("%i blocks (%i Bytes) free", n, (n * eepromfs->device->blocksize));
 	return 1;
 }
 
-
+#include "fatsmall_fs.h"
 int cmd_format (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
 	if (strcmp(line, "yes")) {
+		console_printf("aborted");
 		return 1;
 	}
 	fs_format(eepromfs, 16);
@@ -339,7 +341,7 @@ int cmd_del (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 		console_printf(name_expected);
 		return 0;
 	}
-	rc = fs_delete(eepromfs, (*params)->str);
+	rc = delete_f(fs, (*params)->str);
 	cmd_param_consume(params);
 	if (rc < 0) {
 		console_printf("delete fail");
@@ -349,23 +351,42 @@ int cmd_del (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_dir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	int n = 0;
-	file_entry_t *entry;
+int
+cmd_change_fs (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int rc;
 
-	while (1) {
-		int nlen;
-		entry = fs_walk_dir(eepromfs, &n);
-		if (!entry) {
-			break;
-		}
-		nlen = strlen(entry->name);
-		console_printf_e("%s", entry->name);
-		leading_wspace(nlen, 20);
-		nlen = console_printf_e("%i", entry->size);
-		leading_wspace(nlen, 20);
-		console_printf("n:%02i,attr:0x%04x,start:0x%04x", n, entry->attrib, entry->start);
+    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+		console_printf(name_expected);
+		return 0;
 	}
+    rc = change_current_fs(fs, (*params)->str[0]);
+	cmd_param_consume(params);
+	if (!rc) {
+		console_printf("Invalid fs");
+	}
+	return rc;
+}
+
+
+
+int cmd_dir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+
+	int rc;
+	char* name;
+	int size;
+
+	opendir_f(fs);
+	while ((rc = walkdir_f(fs, &name, &size))) {
+		int nlen;
+		nlen = strlen(name);
+		console_printf_e("%s", name);
+		leading_wspace(nlen, 20);
+		nlen = console_printf_e("%i", size);
+		leading_wspace(nlen, 20);
+		//console_printf("attr:0x%04x,start:0x%04x", entry->attrib, entry->start);
+		console_printf("");
+	}
+	closedir_f(fs);
 	return cmd_fsinfo();
 }
 
@@ -383,7 +404,7 @@ cmd_hexdump (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 		return 0;
 	}
 
-	fd = fs_open(eepromfs, (*params)->str, FS_O_READONLY);
+	fd = open_f(fs, (*params)->str, FS_O_READONLY);
 	cmd_param_consume(params);
 	if (fd < 0) {
 		console_printf("open fail");
@@ -391,7 +412,7 @@ cmd_hexdump (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	}
 
     while (rc == 16) {
-    	rc = fs_read(eepromfs, fd, buf, 16);
+    	rc = read_f(fs, fd, buf, 16);
         console_printf_e("%04X  ", addr);
         for (i = 0; i != 16; i++) {
         	if (i < rc) {
@@ -419,19 +440,19 @@ cmd_hexdump (cmd_param_t** params, fifo_t* in, fifo_t* out) {
         console_printf("|");
     }
 
-	fs_close(eepromfs, fd);
+	close_f(fs, fd);
 
     return 1;
 }
 
-
+#define COPY_UNIT (32)   // XXX for now
 int cmd_copy (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int fdsrc;
 	int fdnew;
 	int totalbytes = 0;
 	void* buf;
 
-	buf = t_malloc(eepromfs->device->blocksize);
+	buf = t_malloc(COPY_UNIT);
 	if (!buf) {
 	    console_printf(malloc_fail);
 	    return 0;
@@ -443,43 +464,42 @@ int cmd_copy (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 		return 0;
 	}
 
-
-	fdsrc = fs_open(eepromfs, (*params)->str, FS_O_READONLY);
+	fdsrc = open_f(fs, (*params)->str, FS_O_READONLY);
 	cmd_param_consume(params);
 	if (fdsrc < 0) {
-		console_printf("open fail");
+		console_printf("src open fail");
 		t_free(buf);
 		return 0;
 	}
 
 	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
-		fs_close(eepromfs, fdsrc);
+		close_f(fs, fdsrc);
 		t_free(buf);
 		return 0;
 	}
 
-	fdnew = fs_open(eepromfs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
+	fdnew = open_f(fs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
 	cmd_param_consume(params);
 
 	if (fdnew < 0) {
-		console_printf("open fail");
-		fs_close(eepromfs, fdsrc);
+		console_printf("dst open fail");
+		close_f(fs, fdsrc);
 		t_free(buf);
 		return 0;
 	}
 
 	int b;
-	while ((b = fs_read(eepromfs, fdsrc, buf, eepromfs->device->blocksize)) > 0) {
-		if (fs_write(eepromfs, fdnew, buf, b) != b) {
+	while ((b = read_f(fs, fdsrc, buf, COPY_UNIT)) > 0) {
+		if (write_f(fs, fdnew, buf, b) != b) {
 			console_printf("disk full");
 			break;
 		}
 		totalbytes += b;
 	}
 
-	fs_close(eepromfs, fdnew);
-	fs_close(eepromfs, fdsrc);
+	close_f(fs, fdnew);
+	close_f(fs, fdsrc);
 	t_free(buf);
 
 	console_printf("%i bytes copied", totalbytes);
@@ -647,6 +667,24 @@ int cmd_unalias (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
+int cmd_wavfilesnk (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int fd;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+		console_printf(name_expected);
+		return 0;
+	}
+
+	fd = open_f(fs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
+	cmd_param_consume(params);
+	if (fd < 0) {
+		console_printf("open fail");
+		return 0;
+	}
+
+	return wavsink_setup(in, fd);
+}
+
 
 int cmd_nullsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	return nullsink_setup(in);
@@ -683,17 +721,31 @@ int cmd_decfir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 int cmd_txpkt (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int fs;
+	int fc;
 	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
-		console_printf("samples needed");
+		console_printf("fs needed");
 		return 0;
 	}
 	fs = (*params)->n;
 	cmd_param_consume(params);
-	return txmodem_setup(out, fs);
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("fc needed");
+		return 0;
+	}
+	fc = (*params)->n;
+	cmd_param_consume(params);
+	return txmodem_setup(out, fs, fc);
 }
 
 int cmd_rxpkt (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	return rxmodem_setup(in);
+	int fc;
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+		console_printf("fc needed");
+		return 0;
+	}
+	fc = (*params)->n;
+	cmd_param_consume(params);
+	return rxmodem_setup(in, fc);
 }
 
 
@@ -808,6 +860,110 @@ int cmd_sine (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 /*-----------------------------------------*/
 
+typedef struct wavsrc_context_s {
+	fs_broker_t* fs;
+	int fd;
+	int samples;
+	int channels;
+	int bytespersample;
+} wavsrc_context_t;
+
+
+task_rc_t wav_pcm_producer (void* c, uint16_t* sample_out)  {
+	uint32_t sample; // should be sufficient
+	wavsrc_context_t *lc = (wavsrc_context_t*)c;
+
+	if (!lc->samples) {
+		return TASK_RC_END;
+	}
+	void *channel_within_sample = &sample;
+	int final_sample = 0;
+	int bytesperchannelsample = lc->bytespersample / lc->channels;
+
+	if (read_f(lc->fs, lc->fd, (char*)&sample, lc->bytespersample) < lc->bytespersample) {
+		console_printf("read fail");
+		return TASK_RC_END;
+	}
+	lc->samples -=1;
+
+	for (int ct = 0; ct != lc->channels; ct++) {
+		switch (bytesperchannelsample) {
+		case 1:
+			final_sample += (int)*((int8_t*)channel_within_sample);
+			channel_within_sample += sizeof(int8_t);
+			break;
+		case 2:
+			final_sample += (int)*((int16_t*)channel_within_sample);
+			channel_within_sample += sizeof(int16_t);
+			break;
+		default:
+			console_printf("invalid bpcs %i", bytesperchannelsample);
+			return TASK_RC_END;
+		}
+	}
+
+	switch (bytesperchannelsample) {
+	case 1:
+		final_sample *= 256; // 8 bit >> 16 bit
+		break;
+	}
+	final_sample /= lc->channels;
+
+	*sample_out = (uint16_t)(final_sample + 32768); // signed -> unsigned
+	return TASK_RC_AGAIN;
+}
+
+
+void wav_pcm_producer_cleanup (void* c)  {
+	wavsrc_context_t *lc = (wavsrc_context_t*)c;
+	close_f(lc->fs, lc->fd);
+}
+
+
+int cmd_wavfilesrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int fd;
+	int samplerate;
+
+	if (!out) {
+		return 0;
+	}
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+		console_printf(name_expected);
+		return 0;
+	}
+
+	fd = open_f(fs, (*params)->str, FS_O_READONLY);
+	cmd_param_consume(params);
+	if (fd < 0) {
+		console_printf("open fail");
+		return 0;
+	}
+
+	wavsrc_context_t* c = (wavsrc_context_t*)t_malloc(sizeof(wavsrc_context_t));
+	if (!c) {
+		close_f(fs, fd);
+		return 0;
+	}
+	c->fs = fs;
+	c->fd = fd;
+
+	wav_read_header(c->fs, c->fd, &samplerate, &(c->channels), &(c->bytespersample), &(c->samples));
+	int time = c->samples / samplerate;
+
+	console_printf("fs:%i, ch:%i, bits:%i, samples:%i, length: %i:%02i",
+			samplerate, c->channels, 8 * (c->bytespersample / c->channels), c->samples, time / 60, time % 60);
+
+	if (c->bytespersample > sizeof(uint32_t)) {
+		console_printf("unsupported bps:%i", c->bytespersample);
+		wav_pcm_producer_cleanup(c);
+		t_free(c);
+		return 0;
+	}
+
+	return pcmsrc_setup(out, samplerate, wav_pcm_producer, wav_pcm_producer_cleanup, c);
+}
+
 /*-----------------------------------------*/
 
 #include <stdlib.h>
@@ -850,21 +1006,24 @@ int setup_commands (void) {
 
 
 	// DSP chain ===============================
-	keyword_add("rxpkt", "->rxpkt", cmd_rxpkt);
-	keyword_add("txpkt", "[fs]->", cmd_txpkt);
+	keyword_add("rxpkt", "->rxpkt [fc]", cmd_rxpkt);
+	keyword_add("txpkt", "[fs] [fc]->", cmd_txpkt);
 
 	keyword_add("noise", "noise [fs] [samples]->", cmd_noise);
 	keyword_add("sine", "sine [fs] [freq] [samples]->", cmd_sine);
 	keyword_add("nullsnk", "->NULL", cmd_nullsink);
 	keyword_add("df", "->decimating filter [n] <[bf]>->", cmd_decfir);
+	keyword_add("wavfilesnk", "\"file\" ->WAV", cmd_wavfilesnk);
+	keyword_add("wavfilesrc", "\"file\" WAV->", cmd_wavfilesrc);
 
 
-	// EEPROM FAT ==================================
+	// FILE OPS  ==================================
 	keyword_add("format", "- format EEPROM", cmd_format);
 	keyword_add("del", "\"file\" - del file", cmd_del);
 	keyword_add("hexdump", "\"file\"", cmd_hexdump);
 	keyword_add("dir", "- list files", cmd_dir);
 	keyword_add("copy", "\"src\" \"new\"", cmd_copy);
+	keyword_add("cd", "\"letter\"", cmd_change_fs);
 
 
 	// PROGRAM ==================================

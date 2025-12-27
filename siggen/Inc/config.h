@@ -1,8 +1,8 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-#include <stdint.h>
-#include "fatsmall_fs.h"
+#include <stdint.h>   // uint
+#include "fs_broker.h"    // fs
 
 
 typedef struct config_s {
@@ -21,8 +21,8 @@ typedef struct config_s {
 } config_t;
 
 
-int config_save (config_t* instance, fs_t *fs, int fd);
-int config_load (config_t* instance, fs_t *fs, int fd);
+int config_save (config_t* instance, fs_broker_t *fs, int fd);
+int config_load (config_t* instance, fs_broker_t *fs, int fd);
 
 
 #endif

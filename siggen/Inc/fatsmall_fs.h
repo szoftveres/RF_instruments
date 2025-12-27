@@ -2,6 +2,7 @@
 #define __FATSMALLFS_H__
 
 #include "blockdevice.h"
+#include "fs_broker.h"
 #include <stdint.h>
 
 
@@ -30,10 +31,7 @@ typedef struct __attribute__((packed)) device_params_s {
 #define FS_FAT_END    		(0xFFFF)
 
 
-#define FS_O_CREAT			(0x01)
-#define FS_O_APPEND			(0x02)
-#define FS_O_TRUNC			(0x04)
-#define FS_O_READONLY		(0x80)
+
 
 #define FILENAME_LEN (10)
 
@@ -77,6 +75,9 @@ typedef struct fs_s {
 	file_entry_t		direntry;
 
 	filehandle_t		fp[FS_MAX_FILES];
+	struct {
+		int n;
+	} dirwalk;
 } fs_t;
 
 
@@ -91,7 +92,12 @@ int fs_count_empyt_direntries (fs_t* instance);
 int fs_open (fs_t* instance, char* name, int flags);
 void fs_close (fs_t* instance, int fd);
 int fs_delete (fs_t* instance, char* name);
-file_entry_t* fs_walk_dir (fs_t* instance, int *n);
+
+
+int fs_opendir (fs_t* instance);
+int fs_walkdir (fs_t* instance, char** name, int* size);
+int fs_closedir (fs_t* instance);
+
 void fs_rewind (fs_t* instance, int fd);
 int fs_read (fs_t* instance, int fd, char* buf, int count);
 int fs_write (fs_t* instance, int fd, char* buf, int count);

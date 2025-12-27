@@ -5,12 +5,11 @@
 #include "hal_plat.h" // malloc free
 #include "resource.h"
 #include "parser.h" // execute program
+#include "fs_broker.h"
 
 max2871_t* rf_pll;
 
 bda4700_t *attenuator;
-
-fs_t *eepromfs;
 
 config_t config;
 
@@ -19,6 +18,11 @@ program_t* program;
 terminal_input_t* online_input;
 
 taskscheduler_t *scheduler;
+
+fs_broker_t *fs;
+
+fs_t *eepromfs; // FORMAT
+
 
 
 int	program_ip;
@@ -81,12 +85,12 @@ void cfg_override (void) {
 int load_autorun_program (void) {
 	int rc;
 	int fd;
-	fd = fs_open(eepromfs, "autoprg", FS_O_READONLY);
+	fd = open_f(fs, "E:autoprg", FS_O_READONLY);
 	if (fd < 0) {
 		return 0;
 	}
-	rc = program_load(program, eepromfs, fd);
-	fs_close(eepromfs, fd);
+	rc = program_load(program, fs, fd);
+	close_f(fs, fd);
 
 	if (rc < 1) {
 		rc = 0;
@@ -99,13 +103,13 @@ int load_devicecfg (void) {
 	config_t lcl_config;
 	int rc;
 	int fd;
-	fd = fs_open(eepromfs, "cfg", FS_O_READONLY);
+	fd = open_f(fs, "E:cfg", FS_O_READONLY);
 	if (fd < 0) {
 		return 0;
 	}
 
-	rc = config_load(&lcl_config, eepromfs, fd);
-	fs_close(eepromfs, fd);
+	rc = config_load(&lcl_config, fs, fd);
+	close_f(fs, fd);
 
 	if (rc < 1) {
 		rc = 0;
@@ -124,14 +128,14 @@ int save_devicecfg (void) {
 	int fd;
 	int rc;
 
-	fd = fs_open(eepromfs, "cfg", FS_O_CREAT | FS_O_TRUNC);
+	fd = open_f(fs, "E:cfg", FS_O_CREAT | FS_O_TRUNC);
 	if (fd < 0) {
 		console_printf("conf save:open fail");
 		return 0;
 	}
 
-	rc = config_save(&config, eepromfs, fd);
-	fs_close(eepromfs, fd);
+	rc = config_save(&config, fs, fd);
+	close_f(fs, fd);
 	if (rc < 1) {
 		rc = 0;
 	}

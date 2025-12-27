@@ -25,19 +25,20 @@ typedef struct dds_s {
 
 
 
+#define OFDM_BYTES_PER_SYMBOL (1)
+#define OFDM_CARRIER_PAIRS (2 * OFDM_BYTES_PER_SYMBOL)
+
 int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q_out, int samples, int dynamic_range);
 uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples);
-void cplx_upconvert (dds_t* dds, int *i, int *q, int* wave, int samples);
-void cplx_downconvert (dds_t* dds, int* wave, int *i, int *q, int samples);
-int halfband (int *i, int *q, int samples);
-
-
+uint8_t ofdm_cplx_decode_u8_2 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples, int start);
 
 dds_t* dds_create (int fs, int fc);
 void dds_destroy (dds_t* instance);
 void dds_reset (dds_t* instance);
 void dds_next_sample (dds_t* instance, int *i, int *q);
-
+void cplx_upconvert (dds_t* dds, int *i, int *q, int* wave, int samples);
+void cplx_downconvert (dds_t* dds, int* wave, int *i, int *q, int samples);
+void cplx_downconvert2 (dds_t* dds, int* wave, int *i, int *q, int samples, int startpos);
 
 
 

@@ -166,6 +166,28 @@ void dft_bucket_iq (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, in
 
 
 
+void dft_bucket_iq2 (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, int length, int startpos) {
+    int sample;
+    int mag = magnitude_const();
+
+	*i_out = 0;
+    *q_out = 0;
+
+	for (sample = 0; sample != length; sample++) {
+		 int sampleidx = (sample + startpos) % length;
+		 int s_idx = (bucket * sample) % length;
+
+		 *i_out += (in_i[sampleidx] * cos_func(s_idx, length));
+		 *i_out += (in_q[sampleidx] * sin_func(s_idx, length));
+		 *q_out -= (in_i[sampleidx] * sin_func(s_idx, length));
+		 *q_out += (in_q[sampleidx] * cos_func(s_idx, length));
+	 }
+	 *i_out /= (length * mag);
+	 *q_out /= (length * mag);
+}
+
+
+
 /* Complex Discrete Inverse Fourier Transform */
 void ift_sample_iq (int *in_i, int *in_q, int *i_out, int *q_out, int sample, int length) {
     int bucket;
@@ -223,8 +245,7 @@ int ofdm_carrier_to_idx (int n, int samples) {
 
 
 int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q_out, int samples, int dynamic_range) {
-	int carrier_pairs = 2;
-	int n_carriers = (carrier_pairs * 2) + 1; // 4 + pilot
+	int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
 	int symbolampl = (samples * dynamic_range) / (n_carriers  * 2 * (magnitude_const() * 2));
 
 	int *i = (int*)t_malloc(samples * sizeof(int));
@@ -233,7 +254,7 @@ int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q
 	memset(i, 0x00, samples * sizeof(int));
 	memset(q, 0x00, samples * sizeof(int));
 
-	for (int idx = -carrier_pairs; idx <= carrier_pairs; idx++) {
+	for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
 		int n = ofdm_carrier_to_idx(idx, samples);
 		if (!n) continue; // skip the pilot
 		i[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
@@ -253,11 +274,10 @@ int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q
 
 
 uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples) {
-	int carrier_pairs = 2;
 	uint8_t sample = 0x80;
 	uint8_t b = 0x00;
 
-    for (int idx = -carrier_pairs; idx <= carrier_pairs; idx++) {
+    for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
     	int i;
     	int q;
     	int n = ofdm_carrier_to_idx(idx, samples);
@@ -274,57 +294,28 @@ uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, i
 }
 
 
-void cplx_upconvert (dds_t* dds, int *i, int *q, int* wave, int samples) {
-	for (int n = 0; n != samples; n++) {
-		int i_mix;
-		int q_mix;
-		dds_next_sample(dds, &i_mix, &q_mix);
-		wave[n] = ((i[n] * i_mix) + (q[n] * q_mix)) / magnitude_const();
-	}
-}
+uint8_t ofdm_cplx_decode_u8_2 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples, int start) {
+	uint8_t sample = 0x80;
+	uint8_t b = 0x00;
 
-
-void cplx_downconvert (dds_t* dds, int* wave, int *i, int *q, int samples) {
-	for (int n = 0; n != samples; n++) {
-		int i_mix;
-		int q_mix;
-		dds_next_sample(dds, &i_mix, &q_mix);
-		i[n] = wave[n] * i_mix / magnitude_const();
-		q[n] = wave[n] * q_mix / magnitude_const();
-	}
-}
-
-
-/* The most basic halfband filter */
-int halfband (int *i, int *q, int samples) {
-	//int taps[] = {1024, 2048, 1024}; // sinc
-	int taps[] = {1024, 1024}; // brickwall
-	int tapcenter = (sizeof(taps))/(sizeof(taps[0])) / 2;
-	int norm = 0;
-	for (int tap = 0; tap != (sizeof(taps))/(sizeof(taps[0])); tap++) {
-		norm += taps[tap];
-	}
-
-	for (int s = 0; s < samples; s += 2) {
-		int v_i = 0;
-		int v_q = 0;
-		for (int tap = 0; tap != (sizeof(taps))/(sizeof(taps[0])); tap++) {
-			 v_i += (i[(s + tap) % samples] * taps[tap]);
-			 v_q += (q[(s + tap) % samples] * taps[tap]);
+    for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
+    	int i;
+    	int q;
+    	int n = ofdm_carrier_to_idx(idx, samples);
+    	dft_bucket_iq2(i_in, q_in, &i, &q, n, samples, start);
+		if (n) {
+			b |= (i > 0) ? sample : 0x00;  sample >>= 1;
+			b |= (q > 0) ? sample : 0x00;  sample >>= 1;
+		} else {
+			if (pilot_i) *pilot_i = i;
+			if (pilot_q) *pilot_q = q;
 		}
-		i[(s + tapcenter) % samples] = v_i / norm;
-		q[(s + tapcenter) % samples] = v_q / norm;
 	}
-	for (int s = 0; s < samples; s+= 2) {
-		i[s/2] = i[(s + tapcenter) % samples];
-		q[s/2] = q[(s + tapcenter) % samples];
-	}
-	return samples / 2;
+    return b;
 }
 
 
 /* ================================ */
-
 
 
 dds_t* dds_create (int fs, int fc) {
@@ -352,3 +343,37 @@ void dds_next_sample (dds_t* instance, int *i, int *q) {
 	*q = sinewave[(instance->phaseaccumulator + 0x40000000) >> 24];
 	instance->phaseaccumulator += instance->phaseshift;
 }
+
+
+void cplx_upconvert (dds_t* dds, int *i, int *q, int* wave, int samples) {
+	for (int n = 0; n != samples; n++) {
+		int i_mix;
+		int q_mix;
+		dds_next_sample(dds, &i_mix, &q_mix);
+		wave[n] = ((i[n] * i_mix) + (q[n] * q_mix)) / magnitude_const();
+	}
+}
+
+
+void cplx_downconvert (dds_t* dds, int* wave, int *i, int *q, int samples) {
+	for (int n = 0; n != samples; n++) {
+		int i_mix;
+		int q_mix;
+		dds_next_sample(dds, &i_mix, &q_mix);
+		i[n] = wave[n] * i_mix / magnitude_const();
+		q[n] = wave[n] * q_mix / magnitude_const();
+	}
+}
+
+
+void cplx_downconvert2 (dds_t* dds, int* wave, int *i, int *q, int samples, int startpos) {
+	for (int n = 0; n != samples; n++) {
+		int idx = (n + startpos) % samples;
+		int i_mix;
+		int q_mix;
+		dds_next_sample(dds, &i_mix, &q_mix);
+		i[n] = wave[idx] * i_mix / magnitude_const();
+		q[n] = wave[idx] * q_mix / magnitude_const();
+	}
+}
+

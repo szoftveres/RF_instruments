@@ -2,7 +2,7 @@
 #define __PROGRAM_H__
 
 #include <stdint.h>
-#include "fatsmall_fs.h"
+#include "fs_broker.h"
 
 typedef struct program_s {
 	struct program_header_s {
@@ -24,7 +24,7 @@ void program_destroy (program_t* instance);
 char* program_line (program_t* instance, int line);
 
 
-int program_save (program_t* instance, fs_t *fs, int fd);
-int program_load (program_t* instance, fs_t *fs, int fd);
+int program_save (program_t* instance, fs_broker_t *fs, int fd);
+int program_load (program_t* instance, fs_broker_t *fs, int fd);
 
 #endif

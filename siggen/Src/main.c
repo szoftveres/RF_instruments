@@ -249,7 +249,7 @@ int main(void)
 
   eepromfs = fs_create(eeprom);
   if (!eepromfs) {
-  	  console_printf("FS init error");
+  	  console_printf("eepromFS init error");
   	  cpu_halt();
   }
 
@@ -259,6 +259,26 @@ int main(void)
   	  console_printf("Formatting EEPROM");
   	  //fs_format(eepromfs, 16);
   }
+
+
+  fs = fs_broker_create();
+  if (!fs) {
+	  console_printf("FSbroker init error");
+	  cpu_halt();
+  }
+
+  fs_broker_register_fs(fs,
+		  	  	  	    eepromfs,
+						'E',
+		  	  	  	    (int (*)(void*, char*, int)) fs_open,
+						(void (*) (void*, int)) fs_close,
+						(void (*) (void*, int)) fs_rewind,
+						(int (*) (void*, int, char*, int)) fs_read,
+						(int (*) (void*, int, char*, int)) fs_write,
+						(int (*) (void*, char*)) fs_delete,
+						(int (*) (void*)) fs_opendir,
+						(int (*) (void*, char**, int*)) fs_walkdir,
+						(int (*) (void*)) fs_closedir);
 
   setup_commands();
 
@@ -312,7 +332,7 @@ int main(void)
 	  }
 	  int prompt_pidx = 0;
 	  char prompt[8];
-	  sprintf(&(prompt[prompt_pidx]), "%c:> ", 'e');
+	  sprintf(&(prompt[prompt_pidx]), "%c:> ", get_current_fs(fs));
 	  // Interpreting and executing commands, till the eternity
 	  cmd_line_parser(online_parser, terminal_get_line(online_input, prompt, 1), NULL, NULL);
 	  parser_destroy(online_parser);

@@ -31,21 +31,21 @@ int verify_config (config_t* instance) {
 
 
 
-int config_save (config_t* instance, fs_t *fs, int fd) {
+int config_save (config_t* instance, fs_broker_t *fs, int fd) {
 	int rc = 0;
 
 	validate_config(instance);
 
-	rc += fs_write(fs, fd, (char*)instance, sizeof(config_t));
+	rc += write_f(fs, fd, (char*)instance, sizeof(config_t));
 
 	return rc;
 }
 
 
-int config_load (config_t* instance, fs_t *fs, int fd) {
+int config_load (config_t* instance, fs_broker_t *fs, int fd) {
 	int rc = 0;
 
-	rc += fs_read(fs, fd, (char*)instance, sizeof(config_t));
+	rc += read_f(fs, fd, (char*)instance, sizeof(config_t));
 
 	if (!verify_config(instance)) {
 		rc = 0;

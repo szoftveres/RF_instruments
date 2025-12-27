@@ -212,20 +212,31 @@ void fs_format (fs_t* instance, int direntries) {
 }
 
 
-file_entry_t* fs_walk_dir (fs_t* instance, int *n) {
-	if ((*n >= instance->params.rootdir_entries) || (*n < 0)) {
-		return NULL;
-	}
-	*n += 1;
-	while (*n != instance->params.rootdir_entries) {
-		fs_load_direntry(instance, *n);
-		if (instance->direntry.attrib) {
-			return &(instance->direntry);
-		}
-		*n = *n + 1;
-	}
-	return NULL;
+int fs_opendir (fs_t* instance) {
+	instance->dirwalk.n = 0;
+	return 1;
 }
+
+
+int fs_walkdir (fs_t* instance, char** name, int* size) {
+	if ((instance->dirwalk.n >= instance->params.rootdir_entries) || (instance->dirwalk.n < 0)) {
+		return 0;
+	}
+	instance->dirwalk.n += 1;
+	while (instance->dirwalk.n != instance->params.rootdir_entries) {
+		fs_load_direntry(instance, instance->dirwalk.n);
+		if (instance->direntry.attrib) {
+			*name = instance->direntry.name;
+			*size = (int)instance->direntry.size;
+			return 1;
+		}
+		instance->dirwalk.n += 1;
+	}
+	return 0;
+}
+
+
+int fs_closedir (fs_t* instance) {return 1;}
 
 
 int fs_locate_direntry (fs_t* instance, char* name) {

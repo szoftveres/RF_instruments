@@ -4,6 +4,158 @@
 
 #include <string.h>
 
+
+int wav_read_header (fs_broker_t* fs, int fd, int* samplerate, int* channels, int* bytespersample, int* samples) {
+	riff_header_t riff;
+
+	if (read_f(fs, fd, (char*)&riff, sizeof(riff_header_t)) < sizeof(riff_header_t)) {
+		console_printf("read fail");
+		return 0;
+	}
+
+	if (memcmp(riff.riff_header, "RIFF", 4)) {
+		console_printf("RIFF header");
+		return 0;
+	}
+	if (memcmp(riff.wave.wave_header, "WAVE", 4)) {
+		console_printf("WAVE header");
+		return 0;
+	}
+	if (memcmp(riff.wave.fmt_header, "fmt ", 4)) {
+		console_printf("fmt header");
+		return 0;
+	}
+	if (riff.wave.fmt_chunk_size != 16) {
+		console_printf("chunk size:%i", riff.wave.fmt_chunk_size);
+		return 0;
+	}
+	if (riff.wave.audio_format != 1) {
+		console_printf("audio format:%i", riff.wave.audio_format);
+		return 0;
+	}
+
+	*samplerate = riff.wave.sample_rate;
+	*channels = riff.wave.num_channels;
+	*bytespersample = riff.wave.sample_alignment;
+	*samples = riff.wave.data_bytes / riff.wave.sample_alignment;
+
+	return 1;
+}
+
+
+int wav_write_header (fs_broker_t* fs, int fd, int samplerate, int channels, int bytespersample, int samples) {
+	riff_header_t riff;
+
+	memcpy(riff.riff_header, "RIFF", 4);
+	riff.wav_size = (bytespersample * samples) + sizeof(wave_header_t);
+
+	memcpy(riff.wave.wave_header, "WAVE", 4);
+
+	memcpy(riff.wave.fmt_header, "fmt ", 4);
+	riff.wave.fmt_chunk_size = 16;
+	riff.wave.audio_format = 1;
+	riff.wave.num_channels = channels;
+	riff.wave.sample_rate = samplerate;
+	riff.wave.byte_rate = bytespersample * samplerate;
+	riff.wave.sample_alignment = bytespersample;
+	riff.wave.bit_depth = (bytespersample / channels) * 8;
+
+	memcpy(riff.wave.data_header, "data", 4);
+	riff.wave.data_bytes = bytespersample * samples;
+
+	if (write_f(fs, fd, (char*)&riff, sizeof(riff_header_t)) < 0) {
+		console_printf("write fail");
+		return 0;
+	}
+
+	return 1;
+}
+
+/* ========================*/
+/* PCM audio WAV file sink */
+
+
+typedef struct wavsink_context_s {
+	uint16_t samplerate;
+	fs_broker_t *fs;
+	int fd;
+	int samples;
+	fifo_t* in_stream;
+} wavsink_context_t;
+
+
+task_rc_t wavsink_task (void* context) {
+	uint16_t sample;
+	wavsink_context_t *c = (wavsink_context_t*)context;
+
+	if (!c->in_stream->writers) {
+		return TASK_RC_END;
+	}
+
+	if (fifo_pop(c->in_stream, &sample)) {
+		int16_t fmt_sample = (int16_t)(((int)sample) - 32768);
+		if (!c->samplerate) {
+			c->samplerate = sample;
+			return TASK_RC_YIELD;
+		}
+		write_f(c->fs, c->fd, (char*)&fmt_sample, sizeof(int16_t));
+		c->samples += 1;
+	}
+
+	return TASK_RC_YIELD;
+}
+
+
+void wavsink_celanup (void* context) {
+	wavsink_context_t *c = (wavsink_context_t*)context;
+	c->in_stream->readers--;
+	rewind_f(c->fs, c->fd);
+	wav_write_header(c->fs, c->fd, (int)c->samplerate, 1, 2, c->samples);
+	close_f(c->fs, c->fd);
+	t_free(context);
+}
+
+
+int wavsink_setup (fifo_t* in_stream, int fd) {
+	if (!in_stream) {
+		close_f(fs, fd);
+		return 0;
+	}
+	wavsink_context_t* context = (wavsink_context_t*)t_malloc(sizeof(wavsink_context_t));
+	context->in_stream = in_stream;
+	context->in_stream->readers++;
+	context->samplerate = 0;
+	context->samples = 0;
+	context->fs = fs;
+	context->fd = fd;
+
+	wav_write_header(context->fs, context->fd, (int)context->samplerate, 1, 2, context->samples);
+
+	scheduler_install_task(scheduler, wavsink_task, wavsink_celanup, context);
+
+	return 1;
+}
+
+
+/* ==========================*/
+/* PCM audio DAC output sink */
+
+typedef struct pcmsnk_context_s {
+
+	int fs;
+	int pending_sample;
+	uint16_t pcmsample;
+	fifo_t* in_stream;
+	fifo_t* out_stream;
+
+	task_rc_t (*consumer_fn) (void*, uint16_t);
+	task_rc_t (*producer_fn) (void*, uint16_t*);
+	void (*cleanup) (void*);
+	void* function_context;
+} pcmsnk_context_t;
+
+
+
 /* ============================= */
 /* Generic decimating FIR filter */
 
@@ -61,6 +213,7 @@ task_rc_t firstream_task (void* context) {
 		if (!c->samplerate) {
 			c->samplerate = c->sample;
 			c->sample /= c->dec;
+			c->bp = 0;
 			c->stuck_sample = 1; // Communicating the output sample rate
 			return TASK_RC_AGAIN;
 		}
@@ -113,12 +266,10 @@ int decfir_setup (fifo_t* in_stream, fifo_t* out_stream, int n, int bf) {
 	context->out_stream->writers++;
 	context->samplerate = 0;
 
-	context->bp = 0;
+
 
 	context->dec = n;
-
 	nbf = n * bf;
-
 	context->taps = (2*nbf)-1;
 	console_printf("df: taps=%i", context->taps);
 	context->tap = (int*)t_malloc(context->taps * sizeof(int));
@@ -226,9 +377,11 @@ typedef union __attribute__((packed)) modem_packet_u {
 } modem_packet_t;
 
 
+#define MODEM_SPS (100)
+#define MODEM_BASEBAND_OVERSAMPLE_RATE (5)
+
 typedef struct modem_context_s {
-	int sps;
-	int len;
+	int fft_len;
 	int fc;
 	dds_t* mixer;
 	fifo_t* in_stream;
@@ -244,6 +397,20 @@ typedef struct modem_context_s {
 
 	modem_packet_t packet;
 	int pp;
+
+	struct {  //         Decimating filter
+		int *buf_i;
+		int *buf_q;
+		int bp;          // This tracks the incoming samples
+
+		int *tap;
+		int taps;
+		int norm; // sum of taps, for normalization
+
+		int target_fs;
+		int dec; // decimation factor
+	} ds;
+
 
 	int stuck_sample;
 	uint16_t sample;
@@ -261,80 +428,102 @@ task_rc_t rxmodem_task (void* context) {
 		return TASK_RC_END;
 	}
 
-	if (fifo_pop(c->in_stream, &sample)) {
-		if (!c->len) {
-			c->len = ((int)sample) / c->sps;
-			c->i = (int*)t_malloc(c->len * sizeof(int));
-			c->q = (int*)t_malloc(c->len * sizeof(int));
-			c->wave = (int*)t_malloc(c->len * sizeof(int));
-			c->pp = -1;
-			c->mixer = dds_create(((int)sample), c->fc);
-			console_printf("rx: fs:%i fc:%i len:%i", sample, c->fc, c->len);
-			return TASK_RC_YIELD;
-		}
+	if (!fifo_pop(c->in_stream, &sample)) {
+		return TASK_RC_YIELD;
+	}
+	if (!c->ds.dec) { // fs received
 
-		switch (c->pp) {
-			case -1: { // trying to sync to the preamble
-				memmove(c->wave, &(c->wave[1]), (c->len - 1) * sizeof(int)); // Shift the samples forward
-				c->wave[c->len - 1] = ((int)sample) - 32768;    // Put the new sample at the back of the stream
-				dds_reset(c->mixer);
-				cplx_downconvert(c->mixer, c->wave, c->i, c->q, c->len);
-				byte = ofdm_cplx_decode_u8(c->i, c->q, &pilot_i, &pilot_q, c->len);
-				if (byte == PKT_PREAMBLE1 && (pilot_i > 0)) {
-					c->wp = 0;
-					c->cm = pilot_i;
-					c->cmi = c->wp;
-					c->pp += 1;  // Advance to the next state
-					return TASK_RC_YIELD;
-				}
-				return TASK_RC_YIELD;
-			};
-			case 0: { // Found a valid preamble, let's find the max
-				c->wp += 1;
-				memmove(c->wave, &(c->wave[1]), (c->len - 1) * sizeof(int)); // Shift the samples forward
-				c->wave[c->len - 1] = ((int)sample) - 32768;    // Put the new sample at the back of the stream
-				dds_reset(c->mixer);
-				cplx_downconvert(c->mixer, c->wave, c->i, c->q, c->len);
-				byte = ofdm_cplx_decode_u8(c->i, c->q, &pilot_i, &pilot_q, c->len);
-				if ((byte == PKT_PREAMBLE1) && (pilot_i > c->cm)) { // Found a better peak
-					c->cm = pilot_i;
-					c->cmi = c->wp;
-				}
-				if (c->wp > (c->len - 2)) {
-					c->wp = c->len - (c->wp - c->cmi); // Samples to skip for best sync to the next symbol
-					c->pp += 1; // Advance to the next state
-					dds_reset(c->mixer);
-					for (int i = 0; i != c->len; i++) {
-						dds_next_sample(c->mixer, &pilot_i, &pilot_q); // replaying the mixer from the start
-					}
-					return TASK_RC_YIELD;
-				}
-				return TASK_RC_YIELD;
-			};
-			default: {
-				if (c->pp == sizeof(modem_packet_t)) { // We're done
-					console_printf("pkt (len:0x%02x, pilot:%i)", c->packet.len, c->cm/c->pp);
-					c->pp = -1;
-					return TASK_RC_YIELD;
-				}
-				memmove(c->wave, &(c->wave[1]), (c->len - 1) * sizeof(int)); // Shift the samples forward
-				c->wave[c->len - 1] = ((int)sample) - 32768;    // Put the new sample at the back of the stream
-				c->wp -= 1;
-				if (c->wp) { // Just sinking samples
-					return TASK_RC_YIELD;
-				}
-				//dds_reset(c->mixer); // XXX (wrong) assumption for now is that every symbol comes with an aligned carrier
-				cplx_downconvert(c->mixer, c->wave, c->i, c->q, c->len);
-				c->packet.byte[c->pp] = ofdm_cplx_decode_u8(c->i, c->q, &pilot_i, &pilot_q, c->len);
-				c->cm += pilot_i;
-				c->wp = c->len;
-				if ((c->pp == 1) && ((c->packet.byte[c->pp] != PKT_PREAMBLE2) || pilot_i < 0)) {
-					c->pp = -1; // We lost it
-					return TASK_RC_YIELD;
-				}
-				c->pp += 1; // Advance to the next stage
+		c->mixer = dds_create(((int)sample), c->fc);
+
+		c->ds.dec = ((int)sample) / c->ds.target_fs; //  dec =   fs / target fs
+		int nbf = c->ds.dec * 2; // n * BF
+		c->ds.taps = (2*nbf)-1;
+		console_printf("rx: fs:%i fc:%i len:%i dec:%i", ((int)sample), c->fc, c->fft_len, c->ds.dec);
+
+		console_printf("df: taps=%i", c->ds.taps);
+		c->ds.tap = (int*)t_malloc(c->ds.taps * sizeof(int));
+		int centertap = nbf-1;
+		for (int i = 0; i != nbf; i++) {
+			c->ds.tap[centertap+i] = sinc_func(i, c->ds.dec * 2);
+			c->ds.tap[centertap-i] = sinc_func(i, c->ds.dec * 2);
+		}
+		c->ds.norm = 0;
+		for (int i = 0; i != c->ds.taps; i++) {
+			c->ds.norm += c->ds.tap[i];
+		}
+		c->ds.buf_i = (int*)t_malloc(c->ds.taps * sizeof(int));
+		c->ds.buf_q = (int*)t_malloc(c->ds.taps * sizeof(int));
+
+		c->wp = 0;
+		c->ds.bp = 0;
+		c->pp = -1;
+		return TASK_RC_YIELD;
+	}
+
+	// Downconverting to baseband
+	int i_mix;
+	int q_mix;
+	dds_next_sample(c->mixer, &i_mix, &q_mix);
+	c->ds.buf_i[c->ds.bp] = (((int)sample) - 32768) * i_mix / magnitude_const();
+	c->ds.buf_q[c->ds.bp] = (((int)sample) - 32768) * q_mix / magnitude_const();
+
+	c->ds.bp++;
+	if (c->ds.bp < c->ds.taps) {
+		return TASK_RC_AGAIN;
+	}
+	c->ds.bp -= c->ds.dec;  // due to memmove
+
+	// Downsampling (lowpass and decimate)
+	c->wp = (c->wp + 1) % c->fft_len;              // move WP
+	c->i[c->wp] = fir_work(c->ds.buf_i, c->ds.tap, c->ds.taps, c->ds.dec) / c->ds.norm;
+	c->q[c->wp] = fir_work(c->ds.buf_q, c->ds.tap, c->ds.taps, c->ds.dec) / c->ds.norm;
+
+	switch (c->pp) {
+		case -1: { // trying to sync to the preamble
+			byte = ofdm_cplx_decode_u8_2(c->i, c->q, &pilot_i, &pilot_q, c->fft_len, c->wp);
+			if (byte == PKT_PREAMBLE1 && (pilot_i > 0)) {
+				c->sync = 0;
+				c->cm = pilot_i;
+				c->cmi = c->sync;
+				c->pp += 1;  // Advance to the next state
 				return TASK_RC_YIELD;
 			}
+			return TASK_RC_YIELD;
+		};
+		case 0: { // Found a valid preamble, let's find the max
+			c->sync += 1;
+			byte = ofdm_cplx_decode_u8_2(c->i, c->q, &pilot_i, &pilot_q, c->fft_len, c->wp);
+			if ((byte == PKT_PREAMBLE1) && (pilot_i > c->cm)) { // Found a better peak
+				c->cm = pilot_i;
+				c->cmi = c->sync;
+			}
+			if (c->sync > (c->fft_len - 2)) {
+				c->sync = c->fft_len - (c->sync - c->cmi); // Samples to skip for best sync to the next symbol
+				c->pp += 1; // Advance to the next state
+				return TASK_RC_YIELD;
+			}
+			return TASK_RC_YIELD;
+		};
+		default: {
+			if (c->pp == sizeof(modem_packet_t)) { // We're done
+				console_printf("pkt (len:0x%02x, pilot:%i)", c->packet.len, c->cm/c->pp);
+				c->pp = -1;
+				return TASK_RC_YIELD;
+			}
+			c->sync -= 1;
+			if (c->sync) { // Just sinking samples
+				return TASK_RC_YIELD;
+			}
+			c->packet.byte[c->pp] = ofdm_cplx_decode_u8_2(c->i, c->q, &pilot_i, &pilot_q, c->fft_len, c->wp);
+			c->cm += pilot_i;
+			c->sync = c->fft_len;
+			if ((c->pp == 1) && ((c->packet.byte[c->pp] != PKT_PREAMBLE2) || pilot_i < 0)) {
+				c->pp = -1; // We lost it
+				c->wp = 0;
+				return TASK_RC_YIELD;
+			}
+			c->pp += 1; // Advance to the next stage
+			return TASK_RC_YIELD;
 		}
 	}
 
@@ -357,24 +546,40 @@ void rxmodem_celanup (void* context) {
 	if (c->mixer) {
 		dds_destroy(c->mixer);
 	}
+	if (c->ds.tap) {
+		t_free(c->ds.tap);
+	}
+	if (c->ds.buf_i) {
+		t_free(c->ds.buf_i);
+	}
+	if (c->ds.buf_q) {
+		t_free(c->ds.buf_q);
+	}
 	t_free(context);
 }
 
-int rxmodem_setup (fifo_t* in_stream) {
+
+
+int rxmodem_setup (fifo_t* in_stream, int fc) {
 	if (!in_stream) {
 		return 0;
 	}
 	modem_context_t* context = (modem_context_t*)t_malloc(sizeof(modem_context_t));
+	memset(context, 0x00, sizeof(modem_context_t));
 	context->in_stream = in_stream;
 	context->in_stream->readers++;
-	context->sps = 125;
-	context->len = 0; // yet unknown, depends on the sample rate
-	context->fc = 750; // main carrier
+	context->fc = fc; // main carrier
 	context->mixer = NULL; // yet unknown, fs depends on the sample rate
 
-	context->i = NULL; // yet unknown, length depends on the sample rate
-	context->q = NULL; // yet unknown, length depends on the sample rate
-	context->wave = NULL; // yet unknown, length depends on the sample rate
+	context->fft_len = OFDM_CARRIER_PAIRS * 2 * MODEM_BASEBAND_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+
+	context->i = (int*)t_malloc(context->fft_len * sizeof(int));
+	context->q = (int*)t_malloc(context->fft_len * sizeof(int));
+
+	context->ds.target_fs = context->fft_len * MODEM_SPS;
+
+	context->ds.dec = 0;
+
 	scheduler_install_task(scheduler, rxmodem_task, rxmodem_celanup, context);
 
 	return 1;
@@ -400,7 +605,7 @@ task_rc_t txmodem_task (void* context) {
 		c->stuck_sample = 0;
 	}
 
-	if (c->wp >= c->len) {
+	if (c->wp >= c->fft_len) {
 		c->pp += 1;
 		c->wp = 0;
 	}
@@ -417,9 +622,9 @@ task_rc_t txmodem_task (void* context) {
 		if ((c->pp >= 0) && (c->pp < sizeof(modem_packet_t))) {
 			byte = c->packet.byte[c->pp];
 		}
-		c->cm = ofdm_cplx_encode_u8(byte, 1, 0, c->i, c->q, c->len, 65536);
+		c->cm = ofdm_cplx_encode_u8(byte, 1, 0, c->i, c->q, c->fft_len, 65536);
 		//dds_reset(c->mixer);
-		cplx_upconvert(c->mixer, c->i, c->q, c->wave, c->len);
+		cplx_upconvert(c->mixer, c->i, c->q, c->wave, c->fft_len);
 	}
 
 	c->sample = (uint16_t)(c->wave[c->wp] + 32768);
@@ -455,21 +660,22 @@ void txmodem_celanup (void* context) {
 }
 
 
-int txmodem_setup (fifo_t* out_stream, int fs) {
+
+int txmodem_setup (fifo_t* out_stream, int fs, int fc) {
 	if (!out_stream) {
 		return 0;
 	}
 	modem_context_t* context = (modem_context_t*)t_malloc(sizeof(modem_context_t));
-	context->sps = 125;
-	context->len = fs / context->sps;
-	context->fc = 750; // main carrier
+	memset(context, 0x00, sizeof(modem_context_t));
+	context->fft_len = fs / MODEM_SPS;
+	context->fc = fc; // main carrier
 	context->mixer = dds_create(fs, context->fc);
 	context->pp = -1;
-	context->wp = 0;
 
-	context->i = (int*)t_malloc(context->len * sizeof(int));
-	context->q = (int*)t_malloc(context->len * sizeof(int));
-	context->wave = (int*)t_malloc(context->len * sizeof(int));
+	context->i = (int*)t_malloc(context->fft_len * sizeof(int));
+	context->q = (int*)t_malloc(context->fft_len * sizeof(int));
+	context->wave = (int*)t_malloc(context->fft_len * sizeof(int));
+	context->wp = 0;
 
 	context->packet.preamble1 = PKT_PREAMBLE1;
 	context->packet.preamble2 = PKT_PREAMBLE2;
@@ -477,7 +683,7 @@ int txmodem_setup (fifo_t* out_stream, int fs) {
 	context->packet.chksum = 0xBE;
 	context->stuck_sample = 0;
 
-	console_printf("tx: fs:%i fc:%i len:%i", fs, context->fc, context->len);
+	console_printf("tx: fs:%i fc:%i len:%i", fs, context->fc, context->fft_len);
 
 	context->out_stream = out_stream;
 	context->out_stream->writers++;
