@@ -56,7 +56,7 @@ $(SUBDIRS):
 	$(MAKE) -C $@
 
 $(PROGRAM): $(SUBDIRS) $(OBJECTS)
-	$(LD) $(LDFLAGS) -o $(OBJDIR)/$(PROGRAM).bin $(LD_OBJECTS) $(LDFLAGS)
+	$(LD) -o $(OBJDIR)/$(PROGRAM).bin $(LD_OBJECTS) $(LDFLAGS)
 
 
 ## Compile source files

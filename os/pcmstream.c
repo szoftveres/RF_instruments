@@ -8,7 +8,7 @@
 int wav_read_header (fs_broker_t* fs, int fd, int* samplerate, int* channels, int* bytespersample, int* samples) {
 	riff_header_t riff;
 
-	if (read_f(fs, fd, (char*)&riff, sizeof(riff_header_t)) < sizeof(riff_header_t)) {
+	if (read_f(fs, fd, (char*)&riff, sizeof(riff_header_t)) < (int)sizeof(riff_header_t)) {
 		console_printf("read fail");
 		return 0;
 	}
@@ -378,7 +378,7 @@ typedef union __attribute__((packed)) modem_packet_u {
 
 
 #define MODEM_SPS (100)
-#define MODEM_BASEBAND_OVERSAMPLE_RATE (5)
+#define MODEM_RX_OVERSAMPLE_RATE (5)
 
 typedef struct modem_context_s {
 	int fft_len;
@@ -388,7 +388,6 @@ typedef struct modem_context_s {
 	fifo_t* out_stream;
 	int* i;
 	int* q;
-	int* wave;
 	int wp;
 	int sync;
 
@@ -531,17 +530,19 @@ task_rc_t rxmodem_task (void* context) {
 }
 
 
-void rxmodem_celanup (void* context) {
+void modemcontext_celanup (void* context) {
 	modem_context_t *c = (modem_context_t*)context;
-	c->in_stream->readers--;
+    if (c->in_stream) {
+	    c->in_stream->readers--;
+    }
+    if (c->out_stream) {
+	    c->out_stream->writers--;
+    }
 	if (c->i) {
 		t_free(c->i);
 	}
 	if (c->q) {
 		t_free(c->q);
-	}
-	if (c->wave) {
-		t_free(c->wave);
 	}
 	if (c->mixer) {
 		dds_destroy(c->mixer);
@@ -571,7 +572,7 @@ int rxmodem_setup (fifo_t* in_stream, int fc) {
 	context->fc = fc; // main carrier
 	context->mixer = NULL; // yet unknown, fs depends on the sample rate
 
-	context->fft_len = OFDM_CARRIER_PAIRS * 2 * MODEM_BASEBAND_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+	context->fft_len = OFDM_CARRIER_PAIRS * 2 * MODEM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
 
 	context->i = (int*)t_malloc(context->fft_len * sizeof(int));
 	context->q = (int*)t_malloc(context->fft_len * sizeof(int));
@@ -580,119 +581,111 @@ int rxmodem_setup (fifo_t* in_stream, int fc) {
 
 	context->ds.dec = 0;
 
-	scheduler_install_task(scheduler, rxmodem_task, rxmodem_celanup, context);
+	scheduler_install_task(scheduler, rxmodem_task, modemcontext_celanup, context);
 
 	return 1;
 }
-
 
 
 ///////////////////////////////////////////////////////////////////////////
 
 
-
-
 task_rc_t txmodem_task (void* context) {
-	modem_context_t *c = (modem_context_t*)context;
+    modem_context_t *c = (modem_context_t*)context;
 
-	if (c->stuck_sample) {
-		if (!c->out_stream->readers) {
-			return TASK_RC_END;
-		}
-		if (!fifo_push(c->out_stream, &(c->sample))) {
-			return TASK_RC_YIELD;
-		}
-		c->stuck_sample = 0;
-	}
+    if (c->stuck_sample) {
+        if (!c->out_stream->readers) {
+            return TASK_RC_END;
+        }
+        if (!fifo_push(c->out_stream, &(c->sample))) {
+            return TASK_RC_YIELD;
+        }
+        c->stuck_sample = 0;
+    }
 
-	if (c->wp >= c->fft_len) {
-		c->pp += 1;
-		c->wp = 0;
-	}
+    if (c->pp > (int)sizeof(modem_packet_t)) { // We're done with the packet
+        if (!fifo_isempty(c->out_stream)) {
+            return TASK_RC_YIELD; // Wait for all the samples to go out
+        }
+        return TASK_RC_END;
+    }
 
-	if (c->pp > (int)sizeof(modem_packet_t)) {
-		if (!fifo_isempty(c->out_stream)) {
-			return TASK_RC_YIELD; // Wait for all the samples to go out
-		}
-		return TASK_RC_END;
-	}
+    if (c->wp) { // Upconvert c->i[c->ds.bp] c->q[c->ds.bp] and send out
+        c->wp -= 1;
 
-	if (!c->wp) {
-		uint8_t byte = 0x00;
-		if ((c->pp >= 0) && (c->pp < sizeof(modem_packet_t))) {
-			byte = c->packet.byte[c->pp];
-		}
-		c->cm = ofdm_cplx_encode_u8(byte, 1, 0, c->i, c->q, c->fft_len, 65536);
-		//dds_reset(c->mixer);
-		cplx_upconvert(c->mixer, c->i, c->q, c->wave, c->fft_len);
-	}
+        int i_mix;
+        int q_mix;
+        dds_next_sample(c->mixer, &i_mix, &q_mix);
+        c->sample = (((c->i[c->ds.bp] * i_mix) + (c->q[c->ds.bp] * q_mix)) / magnitude_const()) + 32768;
 
-	c->sample = (uint16_t)(c->wave[c->wp] + 32768);
-	c->wp += 1;
-	if (!c->out_stream->readers) {
-		return TASK_RC_END;
-	}
-	if (fifo_push(c->out_stream, &(c->sample))) {
-		return TASK_RC_AGAIN;
-	}
-	c->stuck_sample = 1;
+        if (!c->out_stream->readers) {
+            return TASK_RC_END;
+        }
+        if (fifo_push(c->out_stream, &(c->sample))) {
+            return TASK_RC_AGAIN;
+        }
+        c->stuck_sample = 1;
+        return TASK_RC_YIELD;
+    }
+    c->wp = c->ds.dec;
 
-	return TASK_RC_YIELD;
+
+    c->ds.bp += 1;
+    if (c->ds.bp < c->fft_len) { // Go to the next baseband (oversampled) sample
+        return TASK_RC_AGAIN;
+    }
+    c->ds.bp = 0;
+
+    // Next symbol
+    c->pp += 1;
+    uint8_t byte = 0x00;
+    if ((c->pp >= 0) && (c->pp < (int)sizeof(modem_packet_t))) {
+        byte = c->packet.byte[c->pp];
+    }
+    c->cm = ofdm_cplx_encode_u8(byte, 1, 0, c->i, c->q, c->fft_len, 65536);
+
+    return TASK_RC_AGAIN;
 }
 
-
-void txmodem_celanup (void* context) {
-	modem_context_t *c = (modem_context_t*)context;
-	c->out_stream->writers--;
-	if (c->i) {
-		t_free(c->i);
-	}
-	if (c->q) {
-		t_free(c->q);
-	}
-	if (c->wave) {
-		t_free(c->wave);
-	}
-	if (c->mixer) {
-		dds_destroy(c->mixer);
-	}
-	t_free(context);
-}
 
 
 
 int txmodem_setup (fifo_t* out_stream, int fs, int fc) {
-	if (!out_stream) {
-		return 0;
-	}
-	modem_context_t* context = (modem_context_t*)t_malloc(sizeof(modem_context_t));
-	memset(context, 0x00, sizeof(modem_context_t));
-	context->fft_len = fs / MODEM_SPS;
-	context->fc = fc; // main carrier
-	context->mixer = dds_create(fs, context->fc);
-	context->pp = -1;
+    if (!out_stream) {
+        return 0;
+    }
+    modem_context_t* context = (modem_context_t*)t_malloc(sizeof(modem_context_t));
+    memset(context, 0x00, sizeof(modem_context_t));
+    context->out_stream = out_stream;
+    context->out_stream->writers++;
+    context->fc = fc; // main carrier
+    context->mixer = dds_create(fs, context->fc);
+    context->pp = -1;
+    context->fft_len = OFDM_CARRIER_PAIRS * 2 * MODEM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+    context->i = (int*)t_malloc(context->fft_len * sizeof(int));
+    context->q = (int*)t_malloc(context->fft_len * sizeof(int));
 
-	context->i = (int*)t_malloc(context->fft_len * sizeof(int));
-	context->q = (int*)t_malloc(context->fft_len * sizeof(int));
-	context->wave = (int*)t_malloc(context->fft_len * sizeof(int));
-	context->wp = 0;
+    context->ds.target_fs = context->fft_len * MODEM_SPS;
+    context->ds.dec = fs / context->ds.target_fs;
 
-	context->packet.preamble1 = PKT_PREAMBLE1;
-	context->packet.preamble2 = PKT_PREAMBLE2;
-	context->packet.len = 0x42;
-	context->packet.chksum = 0xBE;
-	context->stuck_sample = 0;
+    context->packet.preamble1 = PKT_PREAMBLE1;
+    context->packet.preamble2 = PKT_PREAMBLE2;
+    context->packet.len = 0x42;
+    context->packet.chksum = 0xBE;
+    context->stuck_sample = 0;
 
-	console_printf("tx: fs:%i fc:%i len:%i", fs, context->fc, context->fft_len);
+    context->wp = context->ds.dec;
+    context->ds.bp = 0;
 
-	context->out_stream = out_stream;
-	context->out_stream->writers++;
-	uint16_t u16samplerate = (uint16_t)fs;
-	fifo_push(context->out_stream, &u16samplerate);
+    console_printf("tx: fs:%i fc:%i len:%i", fs, context->fc, context->fft_len);
 
-	scheduler_install_task(scheduler, txmodem_task, txmodem_celanup, context);
+    uint16_t u16samplerate = (uint16_t)fs;
+    fifo_push(context->out_stream, &u16samplerate);
 
-	return 1;
+
+    scheduler_install_task(scheduler, txmodem_task, modemcontext_celanup, context);
+
+    return 1;
 }
 
 
