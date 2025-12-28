@@ -5,9 +5,8 @@ General purpose board with 480 MHz STM32H7 MCU, analog and digital in- outputs, 
 
 -->> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf) <<--
 
-<p align="center">
+
 ![photo](photo.jpg)
-</p>
  
 ### Basic specs
  * Analog

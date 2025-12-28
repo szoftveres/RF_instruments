@@ -99,27 +99,22 @@ Description: Downsampling filter with settable parameters and built-in FIR lowpa
 
 bf = 1:
 
-<p align="center">
-![bf1](doc/bf1.png)
-</p>
+ * ![bf1](doc/bf1.png)
+
 
 bf = 2:
 
-<p align="center">
-![bf2](doc/bf2.png)
-</p>
+ * ![bf2](doc/bf2.png)
+
 
 bf = 3:
 
-<p align="center">
-![bf3](doc/bf3.png)
-</p>
+ * ![bf3](doc/bf3.png)
+
 
 bf = 4:
 
-<p align="center">
-![bf4](doc/bf4.png)
-</p>
+ * ![bf4](doc/bf4.png)
 
 #### gain [dB]
 Type: through
@@ -133,9 +128,7 @@ Description: Audio OFDM TX modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 by
 
 Spectrum of one packet (pilot centered at 4 kHz):
 
-<p align="center">
 ![ofdm_spectrum](doc/ofdm.png)
-</p>
 
 #### rxpkt [carrier]
 Type: sink
