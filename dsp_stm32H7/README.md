@@ -1,6 +1,6 @@
 ## STM32H7 analog / DSP / controller
 
-Generic 480 MHz board with analog and digital in- outputs, SD card and EEPROM storage, and all the services provided by the [OS library](https://github.com/szoftveres/RF_instruments/tree/main/os). It can be used as a building block / peripheral controller and DSP platform for analog / RF systems.
+General purpose board with 480 MHz STM32 MCU, analog and digital in- outputs, SD card and EEPROM storage, and all the services provided by the [OS library](https://github.com/szoftveres/RF_instruments/tree/main/os). It can be used as a building block / peripheral controller and DSP platform for analog / RF systems.
 
 
 -->> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf) <<--
@@ -23,5 +23,4 @@ Generic 480 MHz board with analog and digital in- outputs, SD card and EEPROM st
  * Communication interface: USB UART (FT230)
  * Power: +5V via USB, or DC +9 - +18V
 
--->> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf) <<--
 

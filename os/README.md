@@ -39,29 +39,31 @@ The following line implements a simple WAV file player, playing the audio throug
 wavfilesrc "fraise.wav" -> dacsnk
 ```
 
-`wavfilesrc` opens a WAV file and reads its parameters, then then attaches to one end of the *inter-element pipe* (represented by the `->` symbol) and communicates the sample rate, then starts streaming the samples till it reaches the end of the file. The command `dacsnk` attaches to the other end of the *pipe*, reads the sample rate and starts the ADC, and plays the samples on the analog output until there's data to read from the pipe. When `wavfilesrc` finishes and detaches from the *pipe* (*EOF* condition), the reader also detaches from the other side and exits. When all *elements* detached from all pipes and exited, the command line interpreter cleans up all the pipes.
+`wavfilesrc` opens a WAV file and reads its parameters, then then attaches to one end of the *inter-element pipe* (represented by the `->` symbol) and communicates the sample rate, then streams the samples till it reaches the end of the file. The command `dacsnk` attaches to the other end of the *pipe*, reads the sample rate and starts the ADC, and plays the samples on the analog output until there's data to read from the pipe. When `wavfilesrc` finishes and detaches from the *pipe* (*EOF* condition), the reader also detaches from the other side and exits. When all *elements* detached from all pipes and exited, the command line interpreter cleans up all the pipes.
 
 ```
 wavfilesrc "wav44100.wav" -> df 2 4 -> wavfilesnk "wav22050.wav"
 ```
-This *job* opens up a WAV file, sends the samples into a downsampling (decimating by a factor of 2) halfband filter, which in turn sends the samples into a *wav file sink*, a job that creates a WAV file from the samples it received. The filter element calculates and communicates the correct (/2) sample rate to the next element.
+This *job* opens up a WAV file, sends the samples into a downsampling (decimating by a factor of 2) halfband filter, which in turn sends the samples into a *wav file sink*, a job that creates a WAV file from the samples it received. Hence, this job realizes a WAV file downsampling function. The filter element calculates and communicates the correct (/2) sample rate to the next element so that the new WAV file header will contain the correct new sample rate.
 
-Simple 8 kHz sample rate audio recorder. Moving the side-switch to the *Break* position on the [STM32H7 DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) signals the job elements to finish, in this case to end recording (i.e. identical to hitting a STOP button).
 ```
 adc1src 8000 -> wavfilesnk "audio1.wav"
 ```
+Simple 8 kHz sample rate audio recorder. Moving the side-switch to the *Break* position on the [STM32H7 DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) signals the job elements to finish, in this case to end recording (i.e. identical to hitting a STOP button).
 
 ### DSP chain elements
 
 #### wavfilesrc "file"
 Type: source
 
-Description: Opens up a WAV file and streams its samples out. The samples are always converted to 16-bit mono (i.e. the two channels of a stereo file are mixed).
+Description: Opens up a WAV file and streams its samples out. The samples are always converted to 16-bit mono (e.g. two channels of a stereo file are mixed into one).
 
 #### adc1src [samplerate]
 Type: source
 
 Description: Starts ADC1 at the sample rate (max: 65535) and streams its samples out.
+
+Note: platform-dependent (e.g. implemented in the [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7))
 
 #### wavfilesnk "file"
 Type: sink
@@ -72,6 +74,8 @@ Description: Writes the incoming samples into a mono 16-bit WAV file. The WAV fi
 Type: sink
 
 Description: Starts the DAC at the received sample rate and plays the samples on the analog output.
+
+Note: platform-dependent (e.g. implemented in the [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7))
 
 #### nullsnk
 Type: sink
@@ -108,14 +112,13 @@ Type: source
 
 Description: Audio OFDM TX modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 byte) per symbol, 100 sybols per second. The first parameter is the sample rate, the second parameter is frequency of the center carrier (pilot).
 
+Spectrum of one packet (pilot centered at 4 kHz):
+
+![ofdm_spectrum](doc/ofdm.png)
+
 #### rxpkt [carrier]
 Type: sink
 
 Description: Audio OFDM RX modem
-
-Spectrum of one packet of the OFDM modem (pilot centered at 4kHz):
-
-![ofdm_spectrum](doc/ofdm.png)
-
 
 
