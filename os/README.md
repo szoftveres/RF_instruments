@@ -20,7 +20,7 @@ Features:
 
 Projects using this library:
  * [6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
- * [STM32H7 DSP borad / controller](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7)
+ * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7)
  * [Unix runtime / development environment](https://github.com/szoftveres/RF_instruments/tree/main/unix)
 
 
@@ -46,8 +46,9 @@ wavfilesrc "wav44100.wav" -> df 2 4 -> wavfilesnk "wav22050.wav"
 ```
 This *job* opens up a WAV file, sends the samples into a downsampling (decimating by a factor of 2) halfband filter, which in turn sends the samples into a *wav file sink*, a job that creates a WAV file from the samples it received. The filter element calculates and communicates the correct (/2) sample rate to the next element.
 
+Simple 8 kHz sample rate audio recorder. Moving the side-switch to the *Break* position on the [STM32H7 DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) signals the job elements to finish, in this case to end recording (i.e. identical to hitting a STOP button).
 ```
-adc1src 8000 -> wavfilesnk "wav22050.wav"
+adc1src 8000 -> wavfilesnk "audio1.wav"
 ```
 
 ### DSP chain elements
