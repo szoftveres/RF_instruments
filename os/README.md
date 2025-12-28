@@ -1,15 +1,15 @@
 ## Generic single-threaded OS library for small embedded systems
 
-This library was made to be used on small single-CPU embedded systems as the main human access and programming layer.
+This software was made to be used on small single-CPU embedded systems as the main human access- and programming library.
 
 Features:
  * Command line interpreter
-   * BASIC-like scripting language, syntax- and expression evaluation
+   * BASIC-like scripting language, syntax- and expression evaluation (see details [here](https://github.com/szoftveres/RF_instruments/tree/main/siggen))
    * Ability to store, save, load and run programs
    * Ability to add platform- and application specific commands
- * File system abstraction layer integrates different filesystems under a single, unified programming interface
-   * [FAT-like filesystem](https://github.com/szoftveres/RF_instruments/blob/main/os/fatsmall_fs.c)
-   * STM32 SD FAT
+ * File system abstraction layer that integrates many different filesystems under a single, unified programming interface
+   * [minimalist FAT-like filesystem](https://github.com/szoftveres/RF_instruments/blob/main/os/fatsmall_fs.c) for extremely small (e.g. 32kB EEPROM) devices.
+   * STM32 SD FATFS
    * Unix FS
  * Block device abstraction layer
    * RAM block
@@ -44,12 +44,12 @@ wavfilesrc "fraise.wav" -> dacsnk
 ```
 wavfilesrc "wav44100.wav" -> df 2 4 -> wavfilesnk "wav22050.wav"
 ```
-This *job* opens up a WAV file, sends the samples into a downsampling (decimating by a factor of 2) halfband filter, which in turn sends the samples into a *wav file sink*, a job that creates a WAV file from the samples it received. Hence, this job realizes a WAV file downsampling function. The filter element calculates and communicates the correct (/2) sample rate to the next element so that the new WAV file header will contain the correct new sample rate.
+This *job* opens up a WAV file, sends the samples into a downsampling (decimating by a factor of 2) halfband filter, which in turn sends the samples into a *wav file sink*, an element that creates a WAV file from the samples it received. Hence, this job realizes a WAV file downsampling function. The filter element calculates and communicates the correct (/2) sample rate to the next element so that the new WAV file header will contain the correct new sample rate.
 
 ```
 adc1src 8000 -> wavfilesnk "audio1.wav"
 ```
-Simple 8 kHz sample rate audio recorder. Moving the side-switch to the *Break* position on the [STM32H7 DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) signals the job elements to finish, in this case to end recording (i.e. identical to hitting a STOP button).
+Simple 8 kHz sample rate audio recorder. Moving the side-switch to the *Break* position on the [STM32H7 DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) signals the job elements to finish, in this case to stop recording.
 
 ### DSP chain elements
 
@@ -61,51 +61,55 @@ Description: Opens up a WAV file and streams its samples out. The samples are al
 #### adc1src [samplerate]
 Type: source
 
-Description: Starts ADC1 at the sample rate (max: 65535) and streams its samples out.
+Description: Starts ADC1 at the given sample rate (max: 65535) and streams its samples out.
 
-Note: platform-dependent (e.g. implemented in the [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7))
+Note: platform-dependent (e.g. [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) implements it).
 
 #### wavfilesnk "file"
 Type: sink
 
-Description: Writes the incoming samples into a mono 16-bit WAV file. The WAV file header contains the sample rate at which the element received the samples.
+Description: Records incoming samples into a mono 16-bit WAV file. At the end it updates the WAV file header with the up-to-date WAV file information (lenght, sample rate, etc..).
 
 #### dacsnk
 Type: sink
 
 Description: Starts the DAC at the received sample rate and plays the samples on the analog output.
 
-Note: platform-dependent (e.g. implemented in the [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7))
+Note: platform-dependent (e.g. [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) implements it).
 
 #### nullsnk
 Type: sink
 
-Description: Receives samples, then prints out statistics (sample rate, nnumber of samples, min, max, etc..)
+Description: Receives samples, then prints out statistics (sample rate, number of samples, min, max, etc..)
 
 #### df [decimation factor] [bf]
 Type: through
 
 Description: Downsampling filter with settable parameters and built-in FIR lowpass filter synthesis. The first parameter sets the decimation factor, the second parameter (bf - beautiness factor, min: 1 max: 24) is the number of zero-crossings of the impulse-response of the synthesized FIR filter (i.e. how close it is to an ideal brickwall lowpass filter), and consequently the number of taps required to realize it.
 
-bf=1:
+bf = 1:
 
-![bf1](doc/bf1.png)
-
-
-bf=2:
-
-![bf2](doc/bf2.png)
+ * ![bf1](doc/bf1.png)
 
 
-bf=3:
+bf = 2:
 
-![bf3](doc/bf3.png)
+ * ![bf2](doc/bf2.png)
 
 
-bf=4:
+bf = 3:
 
-![bf4](doc/bf4.png)
+ * ![bf3](doc/bf3.png)
 
+
+bf = 4:
+
+ * ![bf4](doc/bf4.png)
+
+#### gain [dB]
+Type: through
+
+Description: Attenuates (negative dB) or amplifies (positive dB) at 1 dB granularity.
 
 #### txpkt [samplerate] [carrier]
 Type: source
