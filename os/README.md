@@ -4,11 +4,11 @@ This software was made to be used on small single-CPU embedded systems as the ma
 
 Features:
  * Command line interpreter
-   * BASIC-like scripting language, syntax- and expression evaluation (see details [here](https://github.com/szoftveres/RF_instruments/tree/main/siggen))
+   * BASIC-like scripting language, syntax- and expression evaluation (examples [here](https://github.com/szoftveres/RF_instruments/tree/main/siggen))
    * Ability to store, save, load and run programs
    * Ability to add platform- and application specific commands
  * File system abstraction layer that integrates many different filesystems under a single, unified programming interface
-   * [minimalist FAT-like filesystem](https://github.com/szoftveres/RF_instruments/blob/main/os/fatsmall_fs.c) for extremely small (e.g. 32kB EEPROM) devices.
+   * [minimalist FAT-like filesystem](https://github.com/szoftveres/RF_instruments/blob/main/os/fatsmall_fs.c) for extremely small (e.g. several kB EEPROM) devices.
    * STM32 SD FATFS
    * Unix FS
  * Block device abstraction layer
