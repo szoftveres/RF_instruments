@@ -7,6 +7,7 @@
 #include "os/globals.h"
 #include "os/resource.h"
 #include "os/parser.h"
+#include "unixfs_wrapper.h"
 
 
 
@@ -49,6 +50,7 @@ int main(void)
 
   blockdevice_t *ramdrive;
   fs_t *ramfs;
+  unixfs_wrapper_t unixfs;
 
 
   console_printf("");
@@ -89,7 +91,7 @@ int main(void)
   fs_format(ramfs, 16); // Always format the ramdrive at each stratup
 
 
-
+  unixfswrapper_init(&unixfs);
 
   fs = fs_broker_create();
   if (!fs) {
@@ -98,9 +100,9 @@ int main(void)
   }
 
   fs_broker_register_fs(fs,
-		  	  	  	    ramfs,
+                        ramfs,
 						'M',
-		  	  	  	    (int (*)(void*, char*, int)) fs_open,
+                        (int (*)(void*, char*, int)) fs_open,
 						(void (*) (void*, int)) fs_close,
 						(void (*) (void*, int)) fs_rewind,
 						(int (*) (void*, int, char*, int)) fs_read,
@@ -109,6 +111,19 @@ int main(void)
 						(int (*) (void*)) fs_opendir,
 						(int (*) (void*, char**, int*)) fs_walkdir,
 						(int (*) (void*)) fs_closedir);
+
+  fs_broker_register_fs(fs,
+                        &unixfs,
+						'U',
+                        (int (*)(void*, char*, int)) unixfswrapper_open,
+						(void (*) (void*, int)) unixfswrapper_close,
+						(void (*) (void*, int)) unixfswrapper_rewind,
+						(int (*) (void*, int, char*, int)) unixfswrapper_read,
+						(int (*) (void*, int, char*, int)) unixfswrapper_write,
+						(int (*) (void*, char*)) unixfswrapper_delete,
+						(int (*) (void*)) unixfswrapper_opendir,
+						(int (*) (void*, char**, int*)) unixfswrapper_walkdir,
+						(int (*) (void*)) unixfswrapper_closedir);
 
   setup_commands();
 

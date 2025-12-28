@@ -15,6 +15,7 @@ LDFLAGS = -lm
 OBJECTS =                                               \
                         $(OBJDIR)/main.o                \
                         $(OBJDIR)/instances.o           \
+                        $(OBJDIR)/unixfs_wrapper.o      \
                         $(OBJDIR)/hal_plat.o            \
 
 
@@ -41,6 +42,7 @@ LD_OBJECTS =                                     \
                         os/terminal_input.o      \
                         hal_plat.o               \
                         instances.o              \
+                        unixfs_wrapper.o         \
                         main.o                   \
 
 
