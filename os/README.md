@@ -39,12 +39,12 @@ The following line implements a simple WAV file player, playing the audio throug
 wavfilesrc "fraise.wav" -> dacsnk
 ```
 
-`wavfilesrc` opens a WAV file and reads its parameters, then then attaches to one end of the *inter-element pipe* (represented by the `->` symbol) and communicates the sample rate, then streams the samples till it reaches the end of the file. The command `dacsnk` attaches to the other end of the *pipe*, reads the sample rate and starts the ADC, and plays the samples on the analog output until there's data to read from the pipe. When `wavfilesrc` finishes and detaches from the *pipe* (*EOF* condition), the reader also detaches from the other side and exits. When all *elements* detached from all pipes and exited, the command line interpreter cleans up all the pipes.
+`wavfilesrc` opens a WAV file and reads its parameters, then then attaches to one end of the *inter-element pipe* (represented by the `->` symbol) and communicates the sample rate, then streams the samples till it reaches the end of the file. The command `dacsnk` attaches to the other end of the *pipe*, reads the sample rate and starts the DAC, and plays the samples on the analog output until there's data to read from the pipe. When `wavfilesrc` finishes and detaches from the *pipe* (*EOF* condition), the reader also detaches from the other side and exits. When all *elements* detached from all pipes and exited, the command line interpreter cleans up all the pipes.
 
 ```
-wavfilesrc "wav44100.wav" -> df 2 4 -> wavfilesnk "wav22050.wav"
+wavfilesrc "wav44100.wav" -> df 2 4 -> gain -6 -> wavfilesnk "wav22050.wav"
 ```
-This *job* opens up a WAV file, sends the samples into a downsampling (decimating by a factor of 2) halfband filter, which in turn sends the samples into a *wav file sink*, an element that creates a WAV file from the samples it received. Hence, this job realizes a WAV file downsampling function. The filter element calculates and communicates the correct (/2) sample rate to the next element so that the new WAV file header will contain the correct new sample rate.
+This *job* opens up a WAV file, sends the samples into a downsampling (decimating by a factor of 2) halfband filter, followed by an attenuator element, which in turn sends the samples into a *wav file sink*, an element that creates a WAV file from the samples it received. Hence, this job realizes a WAV file downsampling and amplitude halving function. The filter element calculates and communicates the correct (/2) sample rate downstream so that the WAV file header of the *new* file will contain the correct new sample rate.
 
 ```
 adc1src 8000 -> wavfilesnk "audio1.wav"
@@ -81,6 +81,16 @@ Note: platform-dependent (e.g. [STM32H7 analog / DSP / controller board](https:/
 Type: sink
 
 Description: Receives samples, then prints out statistics (sample rate, number of samples, min, max, etc..)
+
+#### sine [samplerate] [frequency] [samples]
+Type: source
+
+Description: Generates a full-amplitude pure sine tone for the given number of samples. 
+
+#### noise [samplerate] [samples]
+Type: source
+
+Description: Generates full-amplitude noise for the given number of samples. 
 
 #### df [decimation factor] [bf]
 Type: through
