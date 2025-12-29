@@ -76,7 +76,11 @@ int unixfswrapper_open (unixfs_wrapper_t* instance, char* name, int flags) {
 		return fd;
 	}
 
-	instance->fp[fd].fd = open(name, mode);
+    if (mode & O_CREAT) {
+        instance->fp[fd].fd = open(name, mode, 0666);
+    } else {
+	    instance->fp[fd].fd = open(name, mode);
+    }
 	if (instance->fp[fd].fd < 0) {
 		instance->fp[fd].reserved = 0;
 		return -1;

@@ -245,8 +245,8 @@ int ofdm_carrier_to_idx (int n, int samples) {
 
 
 int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q_out, int samples, int dynamic_range) {
-	int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
-	int symbolampl = (samples * dynamic_range) / (n_carriers  * 2 * (magnitude_const() * 2));
+	const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
+	int symbolampl = (samples * dynamic_range) / (n_carriers * (magnitude_const() * 2));
 
 	int *i = (int*)t_malloc(samples * sizeof(int));
 	int *q = (int*)t_malloc(samples * sizeof(int));
@@ -256,9 +256,10 @@ int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q
 
 	for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
 		int n = ofdm_carrier_to_idx(idx, samples);
-		if (!n) continue; // skip the pilot
-		i[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
-		q[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
+		if (n) {
+		    i[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
+		    q[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
+        }
 	}
     i[0] = pilot_i * symbolampl;
     q[0] = pilot_q * symbolampl;
