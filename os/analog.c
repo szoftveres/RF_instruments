@@ -246,7 +246,7 @@ int ofdm_carrier_to_idx (int n, int samples) {
 
 int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q_out, int samples, int dynamic_range) {
 	const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
-	int symbolampl = (samples * dynamic_range) / (n_carriers * (magnitude_const() * 2));
+	int symbolampl = (samples * dynamic_range) / (n_carriers * 2 * (magnitude_const() * 2));
 
 	int *i = (int*)t_malloc(samples * sizeof(int));
 	int *q = (int*)t_malloc(samples * sizeof(int));
@@ -345,6 +345,13 @@ void dds_next_sample (dds_t* instance, int *i, int *q) {
 	instance->phaseaccumulator += instance->phaseshift;
 }
 
+void dds_skip_forward (dds_t* instance) {
+    instance->phaseaccumulator += instance->phaseshift;
+}
+
+void dds_skip_back (dds_t* instance) {
+    instance->phaseaccumulator -= instance->phaseshift;
+}
 
 void cplx_upconvert (dds_t* dds, int *i, int *q, int* wave, int samples) {
 	for (int n = 0; n != samples; n++) {
@@ -377,4 +384,26 @@ void cplx_downconvert2 (dds_t* dds, int* wave, int *i, int *q, int samples, int 
 		q[n] = wave[idx] * q_mix / magnitude_const();
 	}
 }
+
+
+
+
+int fir_normf (int tap[], int taps) {
+    int n = 0;
+    for (int i = 0; i != taps; i++) {
+        n += tap[i];
+    }
+    return n;
+}
+
+
+int fir_work (int buf[], int tap[], int taps, int dec) {
+    int result = 0;
+    for (int t = 0; t != taps; t += 1) {
+        result += buf[t] * tap[t];
+    }
+    memmove(buf, &(buf[dec]), (taps-dec)*sizeof(int));
+    return result;
+}
+
 

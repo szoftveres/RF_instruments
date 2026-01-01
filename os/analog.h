@@ -36,11 +36,16 @@ dds_t* dds_create (int fs, int fc);
 void dds_destroy (dds_t* instance);
 void dds_reset (dds_t* instance);
 void dds_next_sample (dds_t* instance, int *i, int *q);
+
+void dds_skip_forward (dds_t* instance);
+void dds_skip_back (dds_t* instance);
+
 void cplx_upconvert (dds_t* dds, int *i, int *q, int* wave, int samples);
 void cplx_downconvert (dds_t* dds, int* wave, int *i, int *q, int samples);
 void cplx_downconvert2 (dds_t* dds, int* wave, int *i, int *q, int samples, int startpos);
 
-
+int fir_normf (int tap[], int taps);
+int fir_work (int buf[], int tap[], int taps, int dec);
 
 
 #endif

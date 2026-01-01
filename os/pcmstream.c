@@ -178,16 +178,6 @@ typedef struct firstream_context_s {
 } firstream_context_t;
 
 
-int fir_work (int buf[], int tap[], int taps, int dec) {
-	int result = 0;
-	for (int t = 0; t != taps; t += 1) {
-		result += buf[t] * tap[t];
-	}
-	memmove(buf, &(buf[dec]), (taps-dec)*sizeof(int));
-
-	return result;
-}
-
 
 task_rc_t firstream_task (void* context) {
 	firstream_context_t *c = (firstream_context_t*)context;
@@ -279,10 +269,7 @@ int decfir_setup (fifo_t* in_stream, fifo_t* out_stream, int n, int bf) {
 		context->tap[centertap-i] = sinc_func(i, n*2);
 		//console_printf("tap %i", context->tap[centertap+i]);
 	}
-	context->norm = 0;
-	for (int i = 0; i != context->taps; i++) {
-		context->norm += context->tap[i];
-	}
+	context->norm = fir_normf(context->tap, context->taps);
 	context->buf = (int*)t_malloc(context->taps * sizeof(int));
 	memset(context->buf, 0x00, context->taps * sizeof(int));
 
@@ -361,23 +348,65 @@ int nullsink_setup (fifo_t* in_stream) {
 /*    RXMODEM sink     */
 
 
-#define PKT_PREAMBLE1 (0xCA)
-#define PKT_PREAMBLE2 (0xB2)
+// (Barker 4) x -(Barker 4)
+#define PKT_PREAMBLE1 (0xB4)
+// (Barker 5) x -(Barker 3)
+#define PKT_PREAMBLE2 (0xE9)
 
+
+#define PACKET_PAYLOAD_MAX (16)
 
 typedef union __attribute__((packed)) modem_packet_u {
 	uint8_t byte[0];
-	struct {
+	struct __attribute__((packed)) {
 		uint8_t preamble1;
 		uint8_t preamble2;
 		uint8_t len;
 		uint8_t chksum;
-		char payload[16];
+		char payload[PACKET_PAYLOAD_MAX];
 	};
 } modem_packet_t;
 
+#define PACKET_TOTAL_LEN(l) ((int)(l) + ((int)sizeof(modem_packet_t) - PACKET_PAYLOAD_MAX))
 
-#define MODEM_SPS (100)
+int packetize (modem_packet_t* p, void *data, int len) {
+    uint8_t checksum = 0;
+    if (len >= PACKET_PAYLOAD_MAX) {
+        return 0;
+    }
+    p->len = (uint8_t)len;
+    p->chksum = 0;
+    p->preamble1 = PKT_PREAMBLE1;
+    p->preamble2 = PKT_PREAMBLE2;
+    if (len) {
+        memcpy(p->payload, data, len);
+    }
+    for (int i = 0; i != PACKET_TOTAL_LEN(len); i++) {
+        checksum += p->byte[i];
+    }
+    p->chksum = -checksum;
+    return len;
+}
+
+int depacketize (modem_packet_t* p, void **data) {
+    uint8_t checksum = 0;
+    if (p->len >= PACKET_PAYLOAD_MAX) {
+        return -1;
+    }
+    if (data) {
+        *data = p->payload;
+    }
+    for (int i = 0; i != PACKET_TOTAL_LEN(p->len); i++) {
+        checksum += p->byte[i];
+    }
+    if (checksum) {
+        return -1;
+    }
+    return p->len;
+}
+
+
+#define MODEM_BPSK_BAUDRATE (400)
 #define MODEM_RX_OVERSAMPLE_RATE (5)
 
 typedef struct modem_context_s {
@@ -397,6 +426,9 @@ typedef struct modem_context_s {
 	modem_packet_t packet;
 	int pp;
 
+    uint8_t byte[MODEM_RX_OVERSAMPLE_RATE]; // XXX malloc
+    int bitcounter;
+
 	struct {  //         Decimating filter
 		int *buf_i;
 		int *buf_q;
@@ -410,18 +442,20 @@ typedef struct modem_context_s {
 		int dec; // decimation factor
 	} ds;
 
+    struct {
+	    int* bitval;
+    };
 
 	int stuck_sample;
 	uint16_t sample;
 } modem_context_t;
 
 
-task_rc_t rxmodem_task (void* context) {
+
+task_rc_t bpsk_rxmodem_task (void* context) {
 	uint16_t sample;
 	modem_context_t *c = (modem_context_t*)context;
-	uint8_t byte;
-	int pilot_i;
-	int pilot_q;
+	int rss;
 
 	if (!c->in_stream->writers) {
 		return TASK_RC_END;
@@ -437,98 +471,126 @@ task_rc_t rxmodem_task (void* context) {
 		c->ds.dec = ((int)sample) / c->ds.target_fs; //  dec =   fs / target fs
 		int nbf = c->ds.dec * 2; // n * BF
 		c->ds.taps = (2*nbf)-1;
-		console_printf("rx: fs:%i fc:%i len:%i dec:%i", ((int)sample), c->fc, c->fft_len, c->ds.dec);
-
-		console_printf("df: taps=%i", c->ds.taps);
+		console_printf("rx: fs:%i fc:%i len:%i dec:%i taps:%i", ((int)sample), c->fc, c->fft_len, c->ds.dec, c->ds.taps);
 		c->ds.tap = (int*)t_malloc(c->ds.taps * sizeof(int));
 		int centertap = nbf-1;
 		for (int i = 0; i != nbf; i++) {
 			c->ds.tap[centertap+i] = sinc_func(i, c->ds.dec * 2);
 			c->ds.tap[centertap-i] = sinc_func(i, c->ds.dec * 2);
 		}
-		c->ds.norm = 0;
-		for (int i = 0; i != c->ds.taps; i++) {
-			c->ds.norm += c->ds.tap[i];
-		}
+		c->ds.norm = fir_normf(c->ds.tap, c->ds.taps);
 		c->ds.buf_i = (int*)t_malloc(c->ds.taps * sizeof(int));
 		c->ds.buf_q = (int*)t_malloc(c->ds.taps * sizeof(int));
 
 		c->wp = 0;
 		c->ds.bp = 0;
 		c->pp = -1;
+
 		return TASK_RC_YIELD;
 	}
 
+    if (c->pp == PACKET_TOTAL_LEN(c->packet.len)) { // We're done
+        int len = depacketize(&(c->packet), NULL);
+        if (len >= 0) {
+            console_printf("pkt:[%s]", c->packet.payload);
+        }
+        c->pp = -1;
+        c->packet.len = PACKET_PAYLOAD_MAX;
+        return TASK_RC_YIELD;
+    }
+
 	// Downconverting to baseband
-	int i_mix;
-	int q_mix;
-	dds_next_sample(c->mixer, &i_mix, &q_mix);
-	c->ds.buf_i[c->ds.bp] = (((int)sample) - 32768) * i_mix / magnitude_const();
-	c->ds.buf_q[c->ds.bp] = (((int)sample) - 32768) * q_mix / magnitude_const();
+	int i_a;
+	int q_a;
+	dds_next_sample(c->mixer, &i_a, &q_a);
+	c->ds.buf_i[c->ds.bp] = (((int)sample) - 32768) * i_a / magnitude_const();
+	c->ds.buf_q[c->ds.bp] = (((int)sample) - 32768) * q_a / magnitude_const();
+
 
 	c->ds.bp++;
 	if (c->ds.bp < c->ds.taps) {
-		return TASK_RC_AGAIN;
+		return TASK_RC_YIELD;
 	}
-	c->ds.bp -= c->ds.dec;  // due to memmove
+	c->ds.bp -= c->ds.dec;  // due to memmove in fir_work
 
 	// Downsampling (lowpass and decimate)
 	c->wp = (c->wp + 1) % c->fft_len;              // move WP
+
+    i_a = c->i[c->wp];              // Delayed conjugate
+    q_a = -(c->q[c->wp]);           // Delayed conjugate
 	c->i[c->wp] = fir_work(c->ds.buf_i, c->ds.tap, c->ds.taps, c->ds.dec) / c->ds.norm;
 	c->q[c->wp] = fir_work(c->ds.buf_q, c->ds.tap, c->ds.taps, c->ds.dec) / c->ds.norm;
 
+    // Polar discriminator
+    c->bitval[c->wp] = ((i_a * c->i[c->wp]) - (q_a * c->q[c->wp])) / magnitude_const();
+    // We only care about the real part after the polar discriminator
+
+    int bit = 0;
+    // matched filter
+    for (int i = 0; i != c->fft_len; i++) {
+        bit += c->bitval[i];
+    }
+    bit /= c->fft_len;
+    rss = ((bit < 0) ? -bit : bit);
+    c->byte[c->wp] <<= 1;
+    c->byte[c->wp] |= (bit > 0 ? 0x00 : 0x01);
+
 	switch (c->pp) {
 		case -1: { // trying to sync to the preamble
-			byte = ofdm_cplx_decode_u8_2(c->i, c->q, &pilot_i, &pilot_q, c->fft_len, c->wp);
-			if (byte == PKT_PREAMBLE1 && (pilot_i > 0)) {
+			if (c->byte[c->wp] == PKT_PREAMBLE1) {
+                //console_printf("sync start, rss:%i", rss);
 				c->sync = 0;
-				c->cm = pilot_i;
+				c->cm = rss;
 				c->cmi = c->sync;
 				c->pp += 1;  // Advance to the next state
-				return TASK_RC_YIELD;
+                c->packet.byte[c->pp] = c->byte[c->wp];
 			}
 			return TASK_RC_YIELD;
 		};
 		case 0: { // Found a valid preamble, let's find the max
 			c->sync += 1;
-			byte = ofdm_cplx_decode_u8_2(c->i, c->q, &pilot_i, &pilot_q, c->fft_len, c->wp);
-			if ((byte == PKT_PREAMBLE1) && (pilot_i > c->cm)) { // Found a better peak
-				c->cm = pilot_i;
+			if ((c->byte[c->wp] == PKT_PREAMBLE1) && (rss > c->cm)) { // Found a better peak
+                //console_printf("sync        rss:%i", rss);
+				c->cm = rss;
 				c->cmi = c->sync;
 			}
 			if (c->sync > (c->fft_len - 2)) {
-				c->sync = c->fft_len - (c->sync - c->cmi); // Samples to skip for best sync to the next symbol
+                //console_printf("sync end    sync:%i", c->sync);
+				c->sync = (c->fft_len - c->sync) + c->cmi; // Samples to skip for best sync to the next symbol
+                c->bitcounter = 0;
+                //console_printf("sync end best sync:%i", c->sync);
 				c->pp += 1; // Advance to the next state
-				return TASK_RC_YIELD;
 			}
 			return TASK_RC_YIELD;
 		};
-		default: {
-			if (c->pp == sizeof(modem_packet_t)) { // We're done
-				console_printf("pkt (len:0x%02x, pilot:%i)", c->packet.len, c->cm/c->pp);
-				c->pp = -1;
-				return TASK_RC_YIELD;
-			}
-			c->sync -= 1;
-			if (c->sync) { // Just sinking samples
-				return TASK_RC_YIELD;
-			}
-			c->packet.byte[c->pp] = ofdm_cplx_decode_u8_2(c->i, c->q, &pilot_i, &pilot_q, c->fft_len, c->wp);
-			c->cm += pilot_i;
-			c->sync = c->fft_len;
-			if ((c->pp == 1) && ((c->packet.byte[c->pp] != PKT_PREAMBLE2) || pilot_i < 0)) {
-				c->pp = -1; // We lost it
-				c->wp = 0;
-				return TASK_RC_YIELD;
-			}
-			c->pp += 1; // Advance to the next stage
-			return TASK_RC_YIELD;
-		}
+    }
+
+	c->sync -= 1;
+	if (c->sync) { // Just sinking samples
+		return TASK_RC_YIELD;
 	}
+
+	c->sync = c->fft_len;
+    c->bitcounter++;
+    if (c->bitcounter < 8) {
+        return TASK_RC_YIELD;
+    }
+    c->bitcounter = 0;
+
+	c->packet.byte[c->pp] = c->byte[c->wp];
+	c->cm += rss;
+	c->sync = c->fft_len;
+	if (((c->pp == 1) && (c->packet.byte[c->pp] != PKT_PREAMBLE2)) ||
+        (c->packet.len > PACKET_PAYLOAD_MAX)) {
+        //console_printf("lost it: :0x%02X, rss:%i", c->packet.byte[c->pp], rss);
+		c->pp = -1; // We lost it
+		c->wp = 0;
+		return TASK_RC_YIELD;
+	}
+	c->pp += 1; // Advance to the next stage
 
 	return TASK_RC_YIELD;
 }
-
 
 void modemcontext_celanup (void* context) {
 	modem_context_t *c = (modem_context_t*)context;
@@ -543,6 +605,9 @@ void modemcontext_celanup (void* context) {
 	}
 	if (c->q) {
 		t_free(c->q);
+	}
+	if (c->bitval) {
+		t_free(c->bitval);
 	}
 	if (c->mixer) {
 		dds_destroy(c->mixer);
@@ -560,7 +625,7 @@ void modemcontext_celanup (void* context) {
 }
 
 
-
+//  MODEM_BPSK_BAUDRATE
 int rxmodem_setup (fifo_t* in_stream, int fc) {
 	if (!in_stream) {
 		return 0;
@@ -572,16 +637,18 @@ int rxmodem_setup (fifo_t* in_stream, int fc) {
 	context->fc = fc; // main carrier
 	context->mixer = NULL; // yet unknown, fs depends on the sample rate
 
-	context->fft_len = OFDM_CARRIER_PAIRS * 2 * MODEM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+	context->fft_len = MODEM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
 
 	context->i = (int*)t_malloc(context->fft_len * sizeof(int));
 	context->q = (int*)t_malloc(context->fft_len * sizeof(int));
+	context->bitval = (int*)t_malloc(context->fft_len * sizeof(int));
 
-	context->ds.target_fs = context->fft_len * MODEM_SPS;
+	context->ds.target_fs = context->fft_len * MODEM_BPSK_BAUDRATE;
 
 	context->ds.dec = 0;
+    context->packet.len = PACKET_PAYLOAD_MAX;
 
-	scheduler_install_task(scheduler, rxmodem_task, modemcontext_celanup, context);
+	scheduler_install_task(scheduler, bpsk_rxmodem_task, modemcontext_celanup, context);
 
 	return 1;
 }
@@ -590,7 +657,7 @@ int rxmodem_setup (fifo_t* in_stream, int fc) {
 ///////////////////////////////////////////////////////////////////////////
 
 
-task_rc_t txmodem_task (void* context) {
+task_rc_t bpsk_txmodem_task (void* context) {
     modem_context_t *c = (modem_context_t*)context;
 
     if (c->stuck_sample) {
@@ -603,7 +670,7 @@ task_rc_t txmodem_task (void* context) {
         c->stuck_sample = 0;
     }
 
-    if (c->pp > (int)sizeof(modem_packet_t)) { // We're done with the packet
+    if (c->pp > PACKET_TOTAL_LEN(c->packet.len) + 1) { // We're done with the packet
         if (!fifo_isempty(c->out_stream)) {
             return TASK_RC_YIELD; // Wait for all the samples to go out
         }
@@ -636,18 +703,35 @@ task_rc_t txmodem_task (void* context) {
     }
     c->ds.bp = 0;
 
-    // Next symbol
-    c->pp += 1;
-    uint8_t byte = 0x00;
-    if ((c->pp >= 0) && (c->pp < (int)sizeof(modem_packet_t))) {
-        byte = c->packet.byte[c->pp];
+
+    uint8_t nextbit = c->byte[c->ds.bp] & 0x80;
+    c->byte[c->ds.bp] <<= 1;
+    if (nextbit) { // differential encoding
+        c->i[c->ds.bp] *= -1;
     }
-    c->cm = ofdm_cplx_encode_u8(byte, 1, 0, c->i, c->q, c->fft_len, 65536);
+
+    c->bitcounter++;
+    if (c->bitcounter < 8) {
+        return TASK_RC_YIELD;
+    }
+    c->bitcounter = 0;
+
+    // Next byte
+    c->pp += 1;
+
+    if (c->pp < 0) {
+        c->byte[c->ds.bp] = 0;
+        c->i[c->ds.bp] = 16384;
+        c->q[c->ds.bp] = 0;
+    } else if (c->pp < PACKET_TOTAL_LEN(c->packet.len)) {
+        c->byte[c->ds.bp] = c->packet.byte[c->pp];
+        //console_printf("  -->  Tx encoding symbol %i", c->pp);
+    } else {
+        c->byte[c->ds.bp] = 0;
+    }
 
     return TASK_RC_AGAIN;
 }
-
-
 
 
 int txmodem_setup (fifo_t* out_stream, int fs, int fc) {
@@ -660,22 +744,24 @@ int txmodem_setup (fifo_t* out_stream, int fs, int fc) {
     context->out_stream->writers++;
     context->fc = fc; // main carrier
     context->mixer = dds_create(fs, context->fc);
-    context->pp = -1;
-    context->fft_len = OFDM_CARRIER_PAIRS * 2 * MODEM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+    context->fft_len = 1; // carrier pairs * Nyquist * Oversample rate
     context->i = (int*)t_malloc(context->fft_len * sizeof(int));
+    memset(context->i, 0x00, context->fft_len * sizeof(int));
     context->q = (int*)t_malloc(context->fft_len * sizeof(int));
+    memset(context->q, 0x00, context->fft_len * sizeof(int));
 
-    context->ds.target_fs = context->fft_len * MODEM_SPS;
+    context->ds.target_fs = context->fft_len * MODEM_BPSK_BAUDRATE;
     context->ds.dec = fs / context->ds.target_fs;
 
-    context->packet.preamble1 = PKT_PREAMBLE1;
-    context->packet.preamble2 = PKT_PREAMBLE2;
-    context->packet.len = 0x42;
-    context->packet.chksum = 0xBE;
+    char* payload = "Hello World";
+    packetize(&(context->packet), payload, strlen(payload)+1);
+
     context->stuck_sample = 0;
 
-    context->wp = context->ds.dec;
-    context->ds.bp = 0;
+    context->pp = -2;   // XXX should be -2
+    context->bitcounter = 7;
+    context->wp = 0;
+    context->ds.bp = context->fft_len;
 
     console_printf("tx: fs:%i fc:%i len:%i", fs, context->fc, context->fft_len);
 
@@ -683,7 +769,7 @@ int txmodem_setup (fifo_t* out_stream, int fs, int fc) {
     fifo_push(context->out_stream, &u16samplerate);
 
 
-    scheduler_install_task(scheduler, txmodem_task, modemcontext_celanup, context);
+    scheduler_install_task(scheduler, bpsk_txmodem_task, modemcontext_celanup, context);
 
     return 1;
 }
