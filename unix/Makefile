@@ -9,11 +9,12 @@ PROGRAM = instr_os_unix
 CC = gcc
 LD = gcc
 CFLAGS = -Wall -Wextra -O0 $(INCLUDES)
-LDFLAGS = -lm
+LDFLAGS = -lm -lpulse-simple
 
 ## Objects that must be built in order to link
 OBJECTS =                                               \
                         $(OBJDIR)/main.o                \
+                        $(OBJDIR)/adcdac.o              \
                         $(OBJDIR)/instances.o           \
                         $(OBJDIR)/unixfs_wrapper.o      \
                         $(OBJDIR)/hal_plat.o            \
@@ -40,6 +41,7 @@ LD_OBJECTS =                                     \
                         os/resource.o            \
                         os/taskscheduler.o       \
                         os/terminal_input.o      \
+                        adcdac.o                 \
                         hal_plat.o               \
                         instances.o              \
                         unixfs_wrapper.o         \

@@ -48,7 +48,7 @@ int nullsink_setup (fifo_t* in_stream);
 
 int decfir_setup (fifo_t* in_stream, fifo_t* out_stream, int n, int bf);
 
-int txmodem_setup (fifo_t* out_stream, int fs, int fc);
+int txmodem_setup (fifo_t* out_stream, int fs, int fc, char* msg);
 int rxmodem_setup (fifo_t* in_stream, int fc);
 
 struct pcmsrc_context_s;

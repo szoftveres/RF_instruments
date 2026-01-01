@@ -7,6 +7,7 @@
 #include "os/globals.h"
 #include "os/resource.h"
 #include "os/parser.h"
+#include "instances.h"
 #include "unixfs_wrapper.h"
 
 
@@ -126,6 +127,7 @@ int main(void)
 						(int (*) (void*)) unixfswrapper_closedir);
 
   setup_commands();
+  setup_persona_commands();
 
   program = program_create(20, 80); // 20 lines, 80 characters each -> 1.6k max program size
   if (!program) {

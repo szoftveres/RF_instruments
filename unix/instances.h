@@ -39,4 +39,6 @@ int baud_to_samples (int baud);
 int transmit_data (uint8_t* data, int len);
 int receive_data (uint8_t* data, int *len);
 
+int setup_persona_commands (void);
+
 #endif

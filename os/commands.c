@@ -565,9 +565,11 @@ int cmd_decfir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_txpkt (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_txmsg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int fs;
 	int fc;
+    int rc;
+    char* msg;
 	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		console_printf("fs needed");
 		return 0;
@@ -580,10 +582,20 @@ int cmd_txpkt (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	}
 	fc = (*params)->n;
 	cmd_param_consume(params);
-	return txmodem_setup(out, fs, fc);
+
+    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+		console_printf("msg needed");
+		return 0;
+    }
+    msg = t_strdup((*params)->str);
+    cmd_param_consume(params);
+
+	rc = txmodem_setup(out, fs, fc, msg);
+    t_free(msg);
+    return rc;
 }
 
-int cmd_rxpkt (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_rxmsg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	int fc;
 	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
 		console_printf("fc needed");
@@ -832,8 +844,8 @@ int setup_commands (void) {
 
 
 	// DSP chain ===============================
-	keyword_add("rxpkt", "->rxpkt [fc]", cmd_rxpkt);
-	keyword_add("txpkt", "[fs] [fc]->", cmd_txpkt);
+	keyword_add("rxmsg", "->rxmsg [fc]", cmd_rxmsg);
+	keyword_add("txmsg", "[fs] [fc]->", cmd_txmsg);
 
 	keyword_add("noise", "noise [fs] [samples]->", cmd_noise);
 	keyword_add("sine", "sine [fs] [freq] [samples]->", cmd_sine);

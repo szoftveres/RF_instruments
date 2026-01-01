@@ -362,44 +362,57 @@ typedef union __attribute__((packed)) modem_packet_u {
 		uint8_t preamble1;
 		uint8_t preamble2;
 		uint8_t len;
-		uint8_t chksum;
+		//uint8_t ctrl;
+        uint8_t crc;
 		char payload[PACKET_PAYLOAD_MAX];
 	};
 } modem_packet_t;
 
+
+uint8_t crc8 (uint8_t byte[], int len) {
+    uint8_t crc = 0;
+
+    for (int n = 0; n != len; n++) {
+        crc ^= byte[n];
+
+        for (int i = 0; i != 8; i++) {
+            crc <<= 1;
+            if (crc & 0x80) {
+                crc ^= 0xE7;  // generator polynomial
+            }
+        }
+    }
+    return crc;
+}
+
 #define PACKET_TOTAL_LEN(l) ((int)(l) + ((int)sizeof(modem_packet_t) - PACKET_PAYLOAD_MAX))
 
 int packetize (modem_packet_t* p, void *data, int len) {
-    uint8_t checksum = 0;
-    if (len >= PACKET_PAYLOAD_MAX) {
+    if (len > PACKET_PAYLOAD_MAX) {
         return 0;
     }
     p->len = (uint8_t)len;
-    p->chksum = 0;
+    p->crc = 0;
     p->preamble1 = PKT_PREAMBLE1;
     p->preamble2 = PKT_PREAMBLE2;
     if (len) {
         memcpy(p->payload, data, len);
     }
-    for (int i = 0; i != PACKET_TOTAL_LEN(len); i++) {
-        checksum += p->byte[i];
-    }
-    p->chksum = -checksum;
+    p->crc = crc8(p->byte, PACKET_TOTAL_LEN(p->len));
     return len;
 }
 
 int depacketize (modem_packet_t* p, void **data) {
-    uint8_t checksum = 0;
-    if (p->len >= PACKET_PAYLOAD_MAX) {
+    uint8_t crc = 0;
+    if (p->len > PACKET_PAYLOAD_MAX) {
         return -1;
     }
     if (data) {
         *data = p->payload;
     }
-    for (int i = 0; i != PACKET_TOTAL_LEN(p->len); i++) {
-        checksum += p->byte[i];
-    }
-    if (checksum) {
+    crc = p->crc;
+    p->crc = 0;
+    if (crc8(p->byte, PACKET_TOTAL_LEN(p->len)) != crc) {
         return -1;
     }
     return p->len;
@@ -671,7 +684,7 @@ task_rc_t bpsk_txmodem_task (void* context) {
     }
 
     if (c->pp > PACKET_TOTAL_LEN(c->packet.len) + 1) { // We're done with the packet
-        if (!fifo_isempty(c->out_stream)) {
+        if (c->out_stream->readers && !fifo_isempty(c->out_stream)) {
             return TASK_RC_YIELD; // Wait for all the samples to go out
         }
         return TASK_RC_END;
@@ -734,7 +747,7 @@ task_rc_t bpsk_txmodem_task (void* context) {
 }
 
 
-int txmodem_setup (fifo_t* out_stream, int fs, int fc) {
+int txmodem_setup (fifo_t* out_stream, int fs, int fc, char* msg) {
     if (!out_stream) {
         return 0;
     }
@@ -753,8 +766,7 @@ int txmodem_setup (fifo_t* out_stream, int fs, int fc) {
     context->ds.target_fs = context->fft_len * MODEM_BPSK_BAUDRATE;
     context->ds.dec = fs / context->ds.target_fs;
 
-    char* payload = "Hello World";
-    packetize(&(context->packet), payload, strlen(payload)+1);
+    packetize(&(context->packet), msg, strlen(msg)+1);
 
     context->stuck_sample = 0;
 

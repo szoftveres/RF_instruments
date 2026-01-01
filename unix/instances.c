@@ -1,6 +1,8 @@
+#include "adcdac.h"
 #include "instances.h"
 #include "config_def.h"
 #include "os/globals.h"  // config instance
+#include "os/keyword.h"  // cmd_params_t
 #include <string.h> // memcpy
 #include <stdio.h> // EOF
 #include "os/hal_plat.h" // malloc free
@@ -134,4 +136,31 @@ int dac1_setter (void * context, int aval) {
 	return 1;
 }
 */
+
+int cmd_dacsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	return dacsink_setup(in);
+}
+
+
+int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+    int fs;
+    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+        console_printf("fs needed");
+        return 0;
+    }
+    fs = (*params)->n;
+    cmd_param_consume(params);
+
+    return adcsrc_setup(out, fs);
+}
+
+
+
+int setup_persona_commands (void) {
+
+	keyword_add("dacsnk", "->DAC", cmd_dacsink);
+	keyword_add("adcsrc", "ADC [fs]->", cmd_adcsrc);
+
+	return 0;
+}
 
