@@ -243,8 +243,6 @@ void firstream_celanup (void* context) {
 
 
 int decfir_setup (fifo_t* in_stream, fifo_t* out_stream, int n, int bf) {
-	int nbf;
-
 	if (!in_stream || !out_stream) {
 		return 0;
 	}
@@ -256,20 +254,12 @@ int decfir_setup (fifo_t* in_stream, fifo_t* out_stream, int n, int bf) {
 	context->out_stream->writers++;
 	context->samplerate = 0;
 
-
-
 	context->dec = n;
-	nbf = n * bf;
-	context->taps = (2*nbf)-1;
-	console_printf("df: taps=%i", context->taps);
-	context->tap = (int*)t_malloc(context->taps * sizeof(int));
-	int centertap = nbf-1;
-	for (int i = 0; i != nbf; i++) {
-		context->tap[centertap+i] = sinc_func(i, n*2);
-		context->tap[centertap-i] = sinc_func(i, n*2);
-		//console_printf("tap %i", context->tap[centertap+i]);
-	}
+	context->taps = fir_ntaps(n, bf);
+    context->tap = fir_create_taps(n, bf);
 	context->norm = fir_normf(context->tap, context->taps);
+	console_printf("df: taps=%i", context->taps);
+
 	context->buf = (int*)t_malloc(context->taps * sizeof(int));
 	memset(context->buf, 0x00, context->taps * sizeof(int));
 
@@ -482,16 +472,11 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 		c->mixer = dds_create(((int)sample), c->fc);
 
 		c->ds.dec = ((int)sample) / c->ds.target_fs; //  dec =   fs / target fs
-		int nbf = c->ds.dec * 2; // n * BF
-		c->ds.taps = (2*nbf)-1;
+
+        c->ds.taps = fir_ntaps(c->ds.dec, 2);
+        c->ds.tap = fir_create_taps(c->ds.dec, 2);
+        c->ds.norm = fir_normf(c->ds.tap, c->ds.taps);
 		console_printf("rx: fs:%i fc:%i len:%i dec:%i taps:%i", ((int)sample), c->fc, c->fft_len, c->ds.dec, c->ds.taps);
-		c->ds.tap = (int*)t_malloc(c->ds.taps * sizeof(int));
-		int centertap = nbf-1;
-		for (int i = 0; i != nbf; i++) {
-			c->ds.tap[centertap+i] = sinc_func(i, c->ds.dec * 2);
-			c->ds.tap[centertap-i] = sinc_func(i, c->ds.dec * 2);
-		}
-		c->ds.norm = fir_normf(c->ds.tap, c->ds.taps);
 		c->ds.buf_i = (int*)t_malloc(c->ds.taps * sizeof(int));
 		c->ds.buf_q = (int*)t_malloc(c->ds.taps * sizeof(int));
 
@@ -535,7 +520,9 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 	c->q[c->wp] = fir_work(c->ds.buf_q, c->ds.tap, c->ds.taps, c->ds.dec) / c->ds.norm;
 
     // Polar discriminator
-    c->bitval[c->wp] = ((i_a * c->i[c->wp]) - (q_a * c->q[c->wp])) / magnitude_const();
+    cplx_mul(&i_a, &q_a, c->i[c->wp], c->q[c->wp], magnitude_const());
+    c->bitval[c->wp] = i_a;
+    //c->bitval[c->wp] = ((i_a * c->i[c->wp]) - (q_a * c->q[c->wp])) / magnitude_const();
     // We only care about the real part after the polar discriminator
 
     int bit = 0;

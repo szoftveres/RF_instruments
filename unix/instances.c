@@ -156,8 +156,128 @@ int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
+
+int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+
+
+	int fs = 40000;
+	int fc = 2000; // main carrier
+	int sps = 125; // symbols per second
+	int samples = fs / sps;
+    int wp = 0;
+    int symbolampl = ofdm_cplx_u8_symbolampl(samples, 32768);
+    dds_t *mixer = dds_create(fs, fc);
+
+	console_printf("samples:%i", samples);
+
+
+	int *i_symbol = (int*)t_malloc(samples * sizeof(int));
+	int *q_symbol = (int*)t_malloc(samples * sizeof(int));
+    memset(i_symbol, 0x00, samples * sizeof(int));
+    memset(q_symbol, 0x00, samples * sizeof(int));
+	int *i_eq = (int*)t_malloc(samples * sizeof(int));
+	int *q_eq = (int*)t_malloc(samples * sizeof(int));
+
+	int *i_baseband = (int*)t_malloc(samples * sizeof(int));
+	int *q_baseband = (int*)t_malloc(samples * sizeof(int));
+
+	int *wave = (int*)t_malloc(samples * sizeof(int) * 2);
+
+
+    // training symbol
+    for (int n = -2; n != 3; n++) {
+        i_symbol[ofdm_carrier_to_idx(n, samples)] = symbolampl;
+        q_symbol[ofdm_carrier_to_idx(n, samples)] = 0;
+    }
+    i_symbol[ofdm_carrier_to_idx(2, samples)] /= 2;  // some amplitude imbalance
+    q_symbol[ofdm_carrier_to_idx(2, samples)] /= 2;
+    ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, samples); // Training
+
+    cplx_upconvert(mixer, i_baseband, q_baseband, &(wave[wp]), samples);
+    wp += samples;
+
+    memset(i_symbol, 0x00, samples * sizeof(int));
+    memset(q_symbol, 0x00, samples * sizeof(int));
+
+	ofdm_u8_to_symbol('a', 0, 0, i_symbol, q_symbol, samples, symbolampl);
+    i_symbol[ofdm_carrier_to_idx(2, samples)] /= 2;  // some amplitude imbalance
+    q_symbol[ofdm_carrier_to_idx(2, samples)] /= 2;
+    ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, samples); // Training
+
+	cplx_upconvert(mixer, i_baseband, q_baseband, &(wave[wp]), samples);
+    wp += samples;
+
+	console_printf("main carrier ampl per symbol:%i", symbolampl);
+
+    // =================================================
+    memset(i_symbol, 0x00, samples * sizeof(int));
+    memset(q_symbol, 0x00, samples * sizeof(int));
+    memset(i_baseband, 0x00, samples * sizeof(int));
+    memset(q_baseband, 0x00, samples * sizeof(int));
+    wp = 0;
+    // =================================================
+
+	// Downconverting from main carrier
+    dds_reset(mixer);
+
+    int randskip = rand()%24; while (randskip--) { dds_skip_forward(mixer);}
+
+
+	cplx_downconvert(mixer, &(wave[wp]), i_baseband, q_baseband, samples);
+    wp += samples;
+    ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, samples);
+    for (int n = -2; n != 3; n++) {
+        int ii = i_symbol[ofdm_carrier_to_idx(n, samples)];
+        int qq = q_symbol[ofdm_carrier_to_idx(n, samples)];
+        console_printf_e("n:%i [i:%i ", n, ii);
+        console_printf_e("q:%i]", qq);
+        console_printf("");
+
+
+        // https://www.youtube.com/watch?v=CJsmsBUhW3c
+        cplx_inv(&ii, &qq, symbolampl);
+
+        i_eq[ofdm_carrier_to_idx(n, samples)] = ii;
+        q_eq[ofdm_carrier_to_idx(n, samples)] = qq;
+    }
+    console_printf("");
+
+	cplx_downconvert(mixer, &(wave[wp]), i_baseband, q_baseband, samples);
+    wp += samples;
+    ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, samples);
+    for (int n = -2; n != 3; n++) {
+        int ii = i_symbol[ofdm_carrier_to_idx(n, samples)];
+        int qq = q_symbol[ofdm_carrier_to_idx(n, samples)];
+
+        cplx_mul(&ii, &qq, i_eq[ofdm_carrier_to_idx(n, samples)],
+                           q_eq[ofdm_carrier_to_idx(n, samples)], symbolampl);
+        console_printf_e("n:%i [i:%i ", n, ii);
+        console_printf_e("q:%i]", qq);
+        console_printf("");
+    }
+//	uint8_t c = ofdm_cplx_decode_u8(i, q, NULL, NULL, samples);
+//	console_printf("0x%02x, [%c]", c, c);
+
+
+	t_free(i_eq);
+	t_free(q_eq);
+	t_free(i_symbol);
+	t_free(q_symbol);
+	t_free(i_baseband);
+	t_free(q_baseband);
+	t_free(wave);
+    dds_destroy(mixer);
+
+	return 1;
+}
+
+
+
+
+
 int setup_persona_commands (void) {
 
+	keyword_add("ofdm", "- test", cmd_ofdm);
 	keyword_add("dacsnk", "->DAC", cmd_dacsink);
 	keyword_add("adcsrc", "ADC [fs]->", cmd_adcsrc);
 

@@ -1,7 +1,7 @@
 #include "adcdac.h"
 #include <string.h> // memset
 #include <stdlib.h> // rand
-#include <pulse/error.h>
+#include <pulse/error.h> // 'apt-get install libpulse-dev'
 #include <pulse/simple.h>
 #include "os/globals.h"
 #include "os/taskscheduler.h"   // task_rc

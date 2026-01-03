@@ -11,7 +11,7 @@ int isqrt (int y) {
         long long int mid = (left + right) / 2;
 
         if ((mid * mid) <= y) {
-        	left = mid;
+            left = mid;
         } else {
             right = mid;
         }
@@ -244,44 +244,43 @@ int ofdm_carrier_to_idx (int n, int samples) {
 }
 
 
-int ofdm_cplx_encode_u8 (uint8_t c, int pilot_i, int pilot_q, int *i_out, int *q_out, int samples, int dynamic_range) {
-	const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
-	int symbolampl = (samples * dynamic_range) / (n_carriers * 2 * (magnitude_const() * 2));
+int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range) {
+    const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
+    return (samples * dynamic_range) / (n_carriers * 2 * (magnitude_const() * 2));
+}
 
-	int *i = (int*)t_malloc(samples * sizeof(int));
-	int *q = (int*)t_malloc(samples * sizeof(int));
 
-	memset(i, 0x00, samples * sizeof(int));
-	memset(q, 0x00, samples * sizeof(int));
+void ofdm_u8_to_symbol (uint8_t c, int pilot_i, int pilot_q, int *i_symbol, int *q_symbol, int samples, int symbolampl) {
+
+	memset(i_symbol, 0x00, samples * sizeof(int));
+	memset(q_symbol, 0x00, samples * sizeof(int));
 
 	for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
 		int n = ofdm_carrier_to_idx(idx, samples);
 		if (n) {
-		    i[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
-		    q[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
+		    i_symbol[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
+		    q_symbol[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
         }
 	}
-    i[0] = pilot_i * symbolampl;
-    q[0] = pilot_q * symbolampl;
-
-	for (int n = 0; n != samples; n++) {
-		ift_sample_iq(i, q, &(i_out[n]), &(q_out[n]), n, samples);
-	}
-	t_free(q);
-	t_free(i);
-
-	return symbolampl;
+    i_symbol[0] = pilot_i * symbolampl;
+    q_symbol[0] = pilot_q * symbolampl;
 }
 
+
+void ofdm_cplx_encode_symbol (int* i_symbol, int* q_symbol, int *i_out, int *q_out, int samples) {
+    for (int n = 0; n != samples; n++) {
+        ift_sample_iq(i_symbol, q_symbol, &(i_out[n]), &(q_out[n]), n, samples);
+    }
+}
 
 uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples) {
 	uint8_t sample = 0x80;
 	uint8_t b = 0x00;
 
     for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
-    	int i;
-    	int q;
-    	int n = ofdm_carrier_to_idx(idx, samples);
+        int i;
+        int q;
+        int n = ofdm_carrier_to_idx(idx, samples);
 		dft_bucket_iq(i_in, q_in, &i, &q, n, samples);
 		if (n) {
 			b |= (i > 0) ? sample : 0x00;  sample >>= 1;
@@ -295,15 +294,21 @@ uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, i
 }
 
 
+void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol, int samples) {
+    for (int n = 0; n != samples; n++) {
+        dft_bucket_iq(i_in, q_in, &(i_symbol[n]), &(q_symbol[n]), n, samples);
+    }
+}
+
 uint8_t ofdm_cplx_decode_u8_2 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples, int start) {
 	uint8_t sample = 0x80;
 	uint8_t b = 0x00;
 
     for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
-    	int i;
-    	int q;
-    	int n = ofdm_carrier_to_idx(idx, samples);
-    	dft_bucket_iq2(i_in, q_in, &i, &q, n, samples, start);
+        int i;
+        int q;
+        int n = ofdm_carrier_to_idx(idx, samples);
+        dft_bucket_iq2(i_in, q_in, &i, &q, n, samples, start);
 		if (n) {
 			b |= (i > 0) ? sample : 0x00;  sample >>= 1;
 			b |= (q > 0) ? sample : 0x00;  sample >>= 1;
@@ -315,6 +320,27 @@ uint8_t ofdm_cplx_decode_u8_2 (int *i_in, int *q_in, int *pilot_i, int *pilot_q,
     return b;
 }
 
+
+void cplx_mul (int *i, int *q, int i_b, int q_b, int norm) {
+    int dst_i = (*i * i_b) - (*q * q_b);
+    int dst_q = (*i * q_b) + (*q * i_b);
+    *i = dst_i / norm;
+    *q = dst_q / norm;
+}
+
+void cplx_div (int *i, int *q, int i_b, int q_b, int norm) {
+    int dst_i = ((*i * i_b) + (*q * q_b)) / ((i_b * i_b) + (q_b * q_b));
+    int dst_q = ((*q * i_b) - (*i * q_b)) / ((i_b * i_b) + (q_b * q_b));
+    *i = dst_i / norm;
+    *q = dst_q / norm;
+}
+
+void cplx_inv (int *i, int *q, int norm) {
+    int dst_i = (*i * norm) / ((*i * *i / norm) + (*q * *q / norm));
+    int dst_q = -(*q * norm) / ((*i * *i / norm) + (*q * *q / norm));
+    *i = dst_i;
+    *q = dst_q;
+}
 
 /* ================================ */
 
@@ -394,6 +420,23 @@ int fir_normf (int tap[], int taps) {
         n += tap[i];
     }
     return n;
+}
+
+
+int fir_ntaps (int n, int bf) {
+    return (2 * n * bf) - 1;
+}
+
+
+int* fir_create_taps (int n, int bf) {
+    int* tap;
+    int centertap = (n * bf) -1;
+    tap = (int*)t_malloc(fir_ntaps(n, bf) * sizeof(int));
+    for (int i = 0; i != (n * bf); i++) {
+        tap[centertap+i] = sinc_func(i, n*2);
+        tap[centertap-i] = sinc_func(i, n*2);
+    }
+    return tap;
 }
 
 

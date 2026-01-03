@@ -5,6 +5,9 @@
 #include <unistd.h> // unix write
 
 
+
+static int switchstate = 0;
+
 int ticks_getter (void * context) {
 	return 0;
 }
@@ -49,7 +52,11 @@ void ledflash (int n) {
 }
 
 int switchbreak (void) {
-	return 0;
+    int sw = switchstate;
+    if (sw) {
+        switchstate = 0;
+    }
+	return sw;
 }
 
 void console_putchar (const unsigned char c) {
