@@ -40,7 +40,7 @@ void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol
 
 void cplx_mul (int *i, int *q, int i_b, int q_b, int norm);
 void cplx_div (int *i, int *q, int i_b, int q_b, int norm);
-void cplx_inv (int *i, int *q, int norm);
+int cplx_inv (int *i, int *q, int norm);
 
 dds_t* dds_create (int fs, int fc);
 void dds_destroy (dds_t* instance);

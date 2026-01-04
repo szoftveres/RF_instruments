@@ -35,7 +35,7 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
     }
     crc = p->h.crc;
     p->h.crc = 0;
-    if (!crc || (crc16(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len)) != crc)) {
+    if ((!crc) || (crc16(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len)) != crc)) {
         rc = -1;
     }
     p->h.crc = crc;
@@ -132,7 +132,7 @@ int ofdm_txpkt (int fs, ofdm_pkt_t *p) {
 }
 
 
-void save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int symbolampl, int len) {
+int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int symbolampl, int len) {
     for (int n = -OFDM_CARRIER_PAIRS; n <= OFDM_CARRIER_PAIRS; n++) {
         int idx = ofdm_carrier_to_idx(n, len);
         int ii = i_symbol[idx];
@@ -140,17 +140,19 @@ void save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int s
 
         // Extracting the per-carrier equalization coefficients
         // https://www.youtube.com/watch?v=CJsmsBUhW3c
-        cplx_inv(&ii, &qq, symbolampl * 2); // This works with a broad amplitude range
-
+        if (cplx_inv(&ii, &qq, symbolampl * 2)) { // This works with a broad amplitude range
+            return -1;
+        }
         i_eq[idx] = ii;
         q_eq[idx] = qq;
     }
+    return 0;
 }
 
 
 
 int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
-
+    int rc;
     int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
     int dec = fs / target_fs;
@@ -235,12 +237,17 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
             if ((prevpeak > threshold) && (acc < (prevpeak*9/10))) {
                 ofdm_cplx_decode_symbol(i_eq, q_eq, i_symbol, q_symbol, fft_len);
                 // Last training symbol is in eq, let's save it
-                save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len);
+                if (save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len) < 0) {
+                    running = 0;
+                    rc = -1;
+                }
 
                 statemachine += 1;
                 wp = 0;
                 i_baseband[wp] = i_b;
                 q_baseband[wp] = q_b;
+                prevpeak = 0;
+                memset(avg, 0x00, fft_len * sizeof(int));
                 wp += 1;
                 pp = 0;
                 p->h.len = OFDM_PKT_PAYLOAD_MAX;
@@ -290,6 +297,7 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
                             statemachine = 0; // lost it due to CRC error
                         } else {
                             running = 0; // OK, return
+                            rc = p->h.len;
                             if (ampl) {
                                 *ampl = max - min;
                             }
@@ -315,7 +323,7 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
     t_free(q_baseband);
     dds_destroy(mixer);
 
-    return 1;
+    return rc;
 }
 
 

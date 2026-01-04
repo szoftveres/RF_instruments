@@ -171,6 +171,15 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     ofdm_packetize(&p, data, strlen(data)+1);
     ofdm_txpkt(fs, &p);
 
+    for (int i = 0; i != OFDM_FS/4; i++) {
+        play_int16_sample(0);
+    }
+
+    data = "Es sok boldogsagot az ujevhez";
+    ofdm_packetize(&p, data, strlen(data)+1);
+    ofdm_txpkt(fs, &p);
+
+
     stop_audio_out();
     return 1;
 }
@@ -182,8 +191,9 @@ int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     char* data;
     int ampl;
 
+    memset(&p, 0x00, sizeof(ofdm_pkt_t));
     start_audio_in(fs);
-    ofdm_rxpkt(fs, &p, &ampl);
+    while (ofdm_rxpkt(fs, &p, &ampl) < 0);
     stop_audio_in();
 
     console_printf_e("(ampl:%i)", ampl);

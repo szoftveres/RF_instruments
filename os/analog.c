@@ -354,16 +354,19 @@ void cplx_div (int *i, int *q, int i_b, int q_b, int norm) {
     *q = dst_q / norm;
 }
 
-void cplx_inv (int *i, int *q, int norm) {
+int cplx_inv (int *i, int *q, int norm) {
     int dst_i = 0;
     int dst_q = 0;
     int d = ((*i * *i / norm) + (*q * *q / norm));
     if (d) {
         dst_i = (*i * norm * norm) / d;
         dst_q = -(*q * norm * norm) / d;
+    } else {
+        return -1;
     }
     *i = dst_i;
     *q = dst_q;
+    return 0;
 }
 
 /* ================================ */
