@@ -180,11 +180,13 @@ int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
     ofdm_pkt_t p;
     char* data;
+    int ampl;
 
     start_audio_in(fs);
-    ofdm_rxpkt(fs, &p);
+    ofdm_rxpkt(fs, &p, &ampl);
     stop_audio_in();
 
+    console_printf_e("(ampl:%i)", ampl);
     if (ofdm_depacketize(&p, &data) >= 0) {
         console_printf("[%s]", data);
     }

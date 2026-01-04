@@ -35,7 +35,7 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
     }
     crc = p->h.crc;
     p->h.crc = 0;
-    if (crc16(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len)) != crc) {
+    if (!crc || (crc16(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len)) != crc)) {
         rc = -1;
     }
     p->h.crc = crc;
@@ -48,7 +48,7 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
 #define OFDM_MODEM_SPS (125)
 #define OFDM_CENTER_CARRIER (2000)
 
-#define OFDM_TRAINING_FREQUENCY (4)
+#define OFDM_TRAINING_FREQUENCY (3)
 
 
 void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband, int *q_baseband, int dec, int len) {
@@ -85,7 +85,7 @@ int ofdm_txpkt (int fs, ofdm_pkt_t *p) {
     int training = 3;
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
-    int training_due = 0;
+    int training_due = 1;
 
     dds_t *mixer = dds_create(fs, OFDM_CENTER_CARRIER);
 
@@ -109,14 +109,11 @@ int ofdm_txpkt (int fs, ofdm_pkt_t *p) {
         if (!training_due) {
             training_due = OFDM_TRAINING_FREQUENCY;
             generate_training_symbol(i_symbol, q_symbol, fft_len, symbolampl);
-            ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len);
         } else {
             training_due -= 1;
+            ofdm_u8_to_symbol(p->byte[pp++], 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
         }
-        ofdm_u8_to_symbol(p->byte[pp], 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
         ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len);
-
-        pp += 1;
     }
 
 
@@ -152,7 +149,7 @@ void save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int s
 
 
 
-int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
+int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
 
     int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
@@ -162,6 +159,8 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
     dds_t *mixer = dds_create(fs, OFDM_CENTER_CARRIER);
 
 
+    int min = 1024 * 1024;
+    int max = -min;
     int *i_symbol = (int*)t_malloc(fft_len * sizeof(int));
     int *q_symbol = (int*)t_malloc(fft_len * sizeof(int));
     int *i_eq = (int*)t_malloc(fft_len * sizeof(int));
@@ -171,7 +170,7 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
     int *i_baseband = (int*)t_malloc(fft_len * sizeof(int));
     int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
-    int training_due = 0;
+    int training_due = 1;
 
     int16_t sample_in;
     int wave;
@@ -203,6 +202,9 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
 
         dds_next_sample(mixer, &i_a, &q_a);
         record_int16_sample(&sample_in); wave = (int)sample_in;
+
+        if (wave < min) {min = wave;}
+        if (wave > max) {max = wave;}
 
         buf_i[bp] = wave * i_a / magnitude_const();
         buf_q[bp] = wave * q_a / magnitude_const();
@@ -288,6 +290,9 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
                             statemachine = 0; // lost it due to CRC error
                         } else {
                             running = 0; // OK, return
+                            if (ampl) {
+                                *ampl = max - min;
+                            }
                         }
                     }
                 }
