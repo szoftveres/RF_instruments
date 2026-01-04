@@ -8,6 +8,91 @@
 #include "os/hal_plat.h"   // dac_sample_stream_callback // This should live here btw..
 
 
+#define UNIX_ADCDAC_SAMPLEBUF (32768)
+
+
+static pa_simple *s_in = NULL;
+static int16_t in_samplebuf[UNIX_ADCDAC_SAMPLEBUF];
+static int in_rp = 0;
+
+
+static pa_simple *s_out = NULL;
+static int16_t out_samplebuf[UNIX_ADCDAC_SAMPLEBUF];
+static int out_wp = 0;
+
+
+int start_audio_in (int fs) {
+    pa_sample_spec ss = {
+        .format = PA_SAMPLE_S16LE,
+        .rate = fs,
+        .channels = 1
+    };
+    s_in = pa_simple_new(NULL, "os", PA_STREAM_RECORD, NULL, "record", &ss, NULL, NULL, NULL);
+    if (!s_in) {
+        return 0;
+    }
+    return 1;
+}
+
+
+void stop_audio_in (void) {
+    if (s_in) {
+        pa_simple_drain(s_in, NULL);
+        pa_simple_flush(s_in, NULL);
+        pa_simple_free(s_in);
+    }
+    s_in = NULL;
+}
+
+
+int start_audio_out (int fs) {
+    pa_sample_spec ss = {
+        .format = PA_SAMPLE_S16LE,
+        .rate = fs,
+        .channels = 1
+    };
+    s_out = pa_simple_new(NULL, "os", PA_STREAM_PLAYBACK, NULL, "playback", &ss, NULL, NULL, NULL);
+    if (!s_out) {
+        return 0;
+    }
+    return 1;
+}
+
+
+void stop_audio_out (void) {
+    if (s_out) {
+        pa_simple_drain(s_out, NULL);
+        pa_simple_flush(s_out, NULL);
+        pa_simple_free(s_out);
+    }
+    s_out = NULL;
+}
+
+
+int record_int16_sample (int16_t *s) {
+    if (!s_in) {
+        return 0;
+    }
+    if (!in_rp) {
+        pa_simple_read(s_in, in_samplebuf, UNIX_ADCDAC_SAMPLEBUF * sizeof(int16_t), NULL);
+    }
+    *s = in_samplebuf[in_rp];
+    in_rp = (in_rp + 1) % UNIX_ADCDAC_SAMPLEBUF;
+    return 1;
+}
+
+
+int play_int16_sample (int16_t *s) {
+    if (!s_out) {
+        return 0;
+    }
+    out_samplebuf[out_wp] = *s;
+    out_wp = (out_wp + 1) % UNIX_ADCDAC_SAMPLEBUF;
+    if (!out_wp) {
+        pa_simple_write(s_out, out_samplebuf, UNIX_ADCDAC_SAMPLEBUF * sizeof(int16_t), NULL);
+    }
+    return 1;
+}
 
 
 /* ==========================*/

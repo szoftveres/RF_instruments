@@ -160,6 +160,11 @@ int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 #define OFDM_FS (10000)
 #define OFDM_CENTER_CARRIER (2000)
 int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+
+    return 0;
+}
+
+int cmd_txpkt () {
     int fs = OFDM_FS;
 	int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
@@ -167,26 +172,21 @@ int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int training = 3;
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
-    int min = 1024 * 1024;
-    int max = -min;
-
     dds_t *mixer = dds_create(fs, OFDM_CENTER_CARRIER);
-    fifo_t *samples = fifo_create(1024, sizeof(int));
 
 
 	int *i_symbol = (int*)t_malloc(fft_len * sizeof(int));
 	int *q_symbol = (int*)t_malloc(fft_len * sizeof(int));
-	int *i_eq = (int*)t_malloc(fft_len * sizeof(int));
-	int *q_eq = (int*)t_malloc(fft_len * sizeof(int));
-	int *avg = (int*)t_malloc(fft_len * sizeof(int));
 
 	int *i_baseband = (int*)t_malloc(fft_len * sizeof(int));
 	int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
 	int wave;
+    int16_t sample_out;
     int i_a;
     int q_a;
-    int total_samples = 0;
+
+    start_audio_out(fs);
 
 
     // Sending training symbols
@@ -205,8 +205,8 @@ int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
             for (int d = 0; d != dec; d += 1) {
                 dds_next_sample(mixer, &i_a, &q_a);
                 wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
-                fifo_push_or_sleep(samples, &wave);
-                total_samples += 1;
+                sample_out = (int16_t)wave;
+                play_int16_sample(&sample_out);
             }
         }
     }
@@ -227,8 +227,8 @@ int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
         for (int d = 0; d != dec; d++) {
             dds_next_sample(mixer, &i_a, &q_a);
             wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
-            fifo_push_or_sleep(samples, &wave);
-            total_samples += 1;
+            sample_out = (int16_t)wave;
+            play_int16_sample(&sample_out);
         }
     }
 
@@ -244,154 +244,25 @@ int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
         for (int d = 0; d != dec; d++) {
             dds_next_sample(mixer, &i_a, &q_a);
             wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
-            fifo_push_or_sleep(samples, &wave);
-            total_samples += 1;
+            sample_out = (int16_t)wave;
+            play_int16_sample(&sample_out);
         }
     }
 
-    // =================================================
-    memset(i_symbol, 0x00, fft_len * sizeof(int));
-    memset(q_symbol, 0x00, fft_len * sizeof(int));
-    memset(i_baseband, 0x00, fft_len * sizeof(int));
-    memset(q_baseband, 0x00, fft_len * sizeof(int));
-    memset(i_eq, 0x00, fft_len * sizeof(int));
-    memset(q_eq, 0x00, fft_len * sizeof(int));
-    memset(avg, 0x00, fft_len * sizeof(int));
-    int randskip = rand()%240; while (randskip--) { dds_skip_forward(mixer);}
-    // =================================================
+    stop_audio_out();
 
-
-    // Setting up the decimating filter
-    int taps = fir_ntaps(dec, 2);
-    int *tap = fir_create_taps(dec, 2);
-    int norm = fir_normf(tap, taps);
-    int *buf_i = (int*)t_malloc(taps * sizeof(int));
-	int *buf_q = (int*)t_malloc(taps * sizeof(int));
-    int bp = 0;
-    int wp = 0;
-    int statemachine = 0;
-    int prevpeak = 0;
-    int threshold = symbolampl * symbolampl ;
-
-
-    for (;;) {
-        int acc;
-
-        dds_next_sample(mixer, &i_a, &q_a);
-        //fifo_pop_or_sleep(samples, &wave);
-        if (!fifo_pop(samples, &wave)) {
-            break;
-        }
-
-        if (wave < min) {min = wave;}
-        if (wave > max) {max = wave;}
-
-	    buf_i[bp] = wave * i_a / magnitude_const();
-	    buf_q[bp] = wave * q_a / magnitude_const();
-        bp++;
-	    if (bp < taps) {
-		    continue;
-	    }
-	    bp -= dec;  // due to memmove in fir_work
-        i_a = fir_work(buf_i, tap, taps, dec) / norm;
-	    q_a = fir_work(buf_q, tap, taps, dec) / norm;
-
-        switch (statemachine) {
-        case 0:     // Preamble detection, by autocorrelating the
-                    // first two (identical) preamble symbols
-                    // https://www.youtube.com/watch?v=ysgONmM6iKk
-            int i_b = i_a;
-            int q_b = q_a;
-            cplx_mul(&i_a, &q_a, i_eq[0], -q_eq[0], symbolampl);
-            avg[wp] = i_a;
-
-            acc = 0;
-            for (int n = 0; n != fft_len; n++) {
-                acc += avg[n];
-            }
-            acc /= fft_len;
-
-            //for (int i = 0; i != acc/10000; i++) {console_printf_e(" ");}console_printf("#");
-
-            if ((prevpeak > threshold) && (acc < (prevpeak*9/10))) {
-                ofdm_cplx_decode_symbol(i_eq, q_eq, i_symbol, q_symbol, fft_len);
-
-                for (int n = -2; n != 3; n++) {
-                    int idx = ofdm_carrier_to_idx(n, fft_len);
-                    int ii = i_symbol[idx];
-                    int qq = q_symbol[idx];
-
-                    // Extracting the per-carrier equalization coefficients
-                    // https://www.youtube.com/watch?v=CJsmsBUhW3c
-                    cplx_inv(&ii, &qq, symbolampl * 2); // This works with a broad amplitude range
-
-                    i_eq[idx] = ii;
-                    q_eq[idx] = qq;
-                }
-
-                statemachine += 1;
-                wp = 0;
-                i_baseband[wp] = i_b;
-                q_baseband[wp] = q_b;
-                wp += 1;
-
-            } else {
-
-                prevpeak = acc;
-                wp = (wp + 1) % fft_len;
-
-                memmove(i_eq, &(i_eq[1]), ((fft_len-1) * sizeof(int)));
-                memmove(q_eq, &(q_eq[1]), ((fft_len-1) * sizeof(int)));
-                i_eq[fft_len - 1] = i_b;
-                q_eq[fft_len - 1] = q_b;
-            }
-            break;
-
-        case 1:
-
-            i_baseband[wp] = i_a;
-            q_baseband[wp] = q_a;
-
-            wp += 1;
-            if (wp == fft_len) {
-                ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
-                for (int n = -2; n != 3; n++) {
-                    int idx = ofdm_carrier_to_idx(n, fft_len);
-
-                    cplx_mul(&(i_symbol[idx]),
-                             &(q_symbol[idx]),
-                                i_eq[idx],
-                                q_eq[idx],
-                                symbolampl);
-                }
-                uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
-                console_printf("0x%02x, [%c]", c, c);
-                wp = 0;
-            }
-            break;
-        }
-    }
-
-	t_free(tap);
-	t_free(buf_i);
-	t_free(buf_q);
-
-	t_free(avg);
-	t_free(i_eq);
-	t_free(q_eq);
 	t_free(i_symbol);
 	t_free(q_symbol);
 	t_free(i_baseband);
 	t_free(q_baseband);
     dds_destroy(mixer);
-    fifo_destroy(samples);
 
 	return 1;
 }
 
 
 
-int ofdm_rxpkt (fifo_t *samples) {
+int ofdm_rxpkt () {
     int fs = OFDM_FS;
 
 	int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
@@ -411,6 +282,7 @@ int ofdm_rxpkt (fifo_t *samples) {
 	int *i_baseband = (int*)t_malloc(fft_len * sizeof(int));
 	int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
+	int16_t sample_in;
 	int wave;
     int i_a;
     int q_a;
@@ -434,15 +306,13 @@ int ofdm_rxpkt (fifo_t *samples) {
     int prevpeak = 0;
     int threshold = symbolampl * symbolampl ;
 
+    start_audio_in(fs);
 
     for (;;) {
         int acc;
 
         dds_next_sample(mixer, &i_a, &q_a);
-        //fifo_pop_or_sleep(samples, &wave);
-        if (!fifo_pop(samples, &wave)) {
-            break;
-        }
+        record_int16_sample(&sample_in); wave = (int)sample_in;
 
 	    buf_i[bp] = wave * i_a / magnitude_const();
 	    buf_q[bp] = wave * q_a / magnitude_const();
@@ -505,7 +375,7 @@ int ofdm_rxpkt (fifo_t *samples) {
             }
             break;
 
-        case 1:
+        default:
 
             i_baseband[wp] = i_a;
             q_baseband[wp] = q_a;
@@ -529,6 +399,8 @@ int ofdm_rxpkt (fifo_t *samples) {
             break;
         }
     }
+
+    stop_audio_in();
 
 	t_free(tap);
 	t_free(buf_i);
