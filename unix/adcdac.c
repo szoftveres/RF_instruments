@@ -19,6 +19,7 @@ static int in_rp = 0;
 static pa_simple *s_out = NULL;
 static int16_t out_samplebuf[UNIX_ADCDAC_SAMPLEBUF];
 static int out_wp = 0;
+static int out_fs;
 
 
 int start_audio_in (int fs) {
@@ -52,16 +53,33 @@ int start_audio_out (int fs) {
         .rate = fs,
         .channels = 1
     };
+    out_fs = fs;
     s_out = pa_simple_new(NULL, "os", PA_STREAM_PLAYBACK, NULL, "playback", &ss, NULL, NULL, NULL);
     if (!s_out) {
         return 0;
     }
+
+    // XXX  This is a hack, 0.5sec of noise, to wake up the sound card:
+    for (int i = 0; i != fs / UNIX_ADCDAC_SAMPLEBUF / 2; i++) {
+        for (int n = 0; n != UNIX_ADCDAC_SAMPLEBUF; n += 1) {
+             int16_t sample_out = rand() % 32;
+             play_int16_sample(&sample_out);
+        }
+    }
+
     return 1;
 }
 
 
 void stop_audio_out (void) {
     if (s_out) {
+        // XXX  This is a hack, 0.1sec of graceful noise at the end
+        for (int i = 0; i != (out_fs / UNIX_ADCDAC_SAMPLEBUF) / 10; i++) {
+            for (int n = 0; n != UNIX_ADCDAC_SAMPLEBUF; n += 1) {
+                int16_t sample_out = rand() % 32;
+                play_int16_sample(&sample_out);
+            }
+        }
         if (out_wp) {
             pa_simple_write(s_out, out_samplebuf, out_wp * sizeof(int16_t), NULL);
         }

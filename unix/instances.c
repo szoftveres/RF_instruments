@@ -188,19 +188,6 @@ int cmd_txpkt () {
 
     start_audio_out(fs);
 
-
-    // This is a hack, 0.5sec of noise, to wake up the sound card:
-    for (int i = 0; i != fs / 256 / 2; i++) {
-        for (int n = 0; n != 256; n += 1) {
-             sample_out = rand() % 32;
-             play_int16_sample(&sample_out);
-        }
-    }
-
-
-
-
-
     // Sending training symbols
     for (int t = 0; t != training; t++) {
         // training symbol
@@ -261,15 +248,6 @@ int cmd_txpkt () {
         }
     }
 
-
-    // This is a hack, 0.5sec of noise, to wake up the sound card:
-    for (int i = 0; i != fs / 256 / 2; i++) {
-        for (int n = 0; n != 256; n += 1) {
-             sample_out = rand() % 32;
-             play_int16_sample(&sample_out);
-        }
-    }
-
     stop_audio_out();
 
 	t_free(i_symbol);
@@ -305,6 +283,7 @@ int ofdm_rxpkt () {
 
 	int16_t sample_in;
 	int wave;
+    int running;
     int i_a;
     int q_a;
 
@@ -329,7 +308,7 @@ int ofdm_rxpkt () {
 
     start_audio_in(fs);
 
-    for (;;) {
+    while (running) {
         int acc;
 
         dds_next_sample(mixer, &i_a, &q_a);
@@ -415,6 +394,7 @@ int ofdm_rxpkt () {
                 }
                 uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
                 console_printf("0x%02x, [%c]", c, c);
+                running = 0;
                 wp = 0;
             }
             break;
