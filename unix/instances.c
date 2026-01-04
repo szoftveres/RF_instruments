@@ -155,7 +155,7 @@ int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-#define OFDM_PKT_PAYLOAD_MAX (32)
+#define OFDM_PKT_PAYLOAD_MAX (64)
 #define OFDM_ANTIPREAMBLE (0x55)
 
 typedef struct __attribute__((packed)) {
@@ -225,13 +225,13 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     start_audio_out(fs);
 
 
-    data = "Boldog Karacsonyt kivan";
+    data = "Boldog Karacsonyt kivan onnek a Vodafone";
     ofdm_packetize(&p, data, strlen(data)+1);
     ofdm_txpkt(fs, &p);
 
-    data = " onnek a Vodafone";
-    ofdm_packetize(&p, data, strlen(data)+1);
-    ofdm_txpkt(fs, &p);
+    //data = " onnek a Vodafone";
+    //ofdm_packetize(&p, data, strlen(data)+1);
+    //ofdm_txpkt(fs, &p);
 
 
     stop_audio_out();
@@ -366,8 +366,6 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
     int q_a;
     int pp;
 
-    p->h.len = OFDM_PKT_PAYLOAD_MAX;
-
     memset(i_symbol, 0x00, fft_len * sizeof(int));
     memset(q_symbol, 0x00, fft_len * sizeof(int));
     memset(i_eq, 0x00, fft_len * sizeof(int));
@@ -441,6 +439,8 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
                 i_baseband[wp] = i_b;
                 q_baseband[wp] = q_b;
                 wp += 1;
+                pp = 0;
+                p->h.len = OFDM_PKT_PAYLOAD_MAX;
 
             } else {
 
@@ -475,10 +475,11 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
                 //console_printf("0x%02x, [%c]", c, c);
 
                 p->byte[pp++] = c;
-                if (pp > OFDM_PKT_TOTAL_LEN(p->h.len)) {
+                if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
                     statemachine = 0; // lost it due to invalid length
                     console_printf("invalid len");
-                } else if (pp == OFDM_PKT_TOTAL_LEN(p->h.len)) {
+                }
+                if (pp >= OFDM_PKT_TOTAL_LEN(p->h.len)) {
                     if (ofdm_depacketize(p, NULL) < 0) {
                         statemachine = 0; // lost it due to CRC error
                         console_printf("crc error");
