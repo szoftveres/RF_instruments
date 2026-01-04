@@ -8,7 +8,7 @@
 #include "os/hal_plat.h"   // dac_sample_stream_callback // This should live here btw..
 
 
-#define UNIX_ADCDAC_SAMPLEBUF (32768)
+#define UNIX_ADCDAC_SAMPLEBUF (256)
 
 
 static pa_simple *s_in = NULL;
@@ -41,6 +41,7 @@ void stop_audio_in (void) {
         pa_simple_flush(s_in, NULL);
         pa_simple_free(s_in);
     }
+    out_wp = 0;
     s_in = NULL;
 }
 
@@ -61,6 +62,9 @@ int start_audio_out (int fs) {
 
 void stop_audio_out (void) {
     if (s_out) {
+        if (out_wp) {
+            pa_simple_write(s_out, out_samplebuf, out_wp * sizeof(int16_t), NULL);
+        }
         pa_simple_drain(s_out, NULL);
         pa_simple_flush(s_out, NULL);
         pa_simple_free(s_out);
@@ -98,7 +102,6 @@ int play_int16_sample (int16_t *s) {
 /* ==========================*/
 /* PCM audio output sink */
 
-#define UNIX_ADCDAC_SAMPLEBUF (32768)
 
 typedef struct unix_adcdac_context_s {
 	uint16_t samplerate;

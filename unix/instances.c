@@ -157,11 +157,11 @@ int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 #define OFDM_MODEM_OVERSAMPLE_RATE (5)
 #define OFDM_MODEM_SPS (125)
-#define OFDM_FS (10000)
+#define OFDM_FS (20000)
 #define OFDM_CENTER_CARRIER (2000)
 int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-
-    return 0;
+    cmd_txpkt();
+    return 1;
 }
 
 int cmd_txpkt () {
@@ -187,6 +187,18 @@ int cmd_txpkt () {
     int q_a;
 
     start_audio_out(fs);
+
+
+    // This is a hack, 0.5sec of noise, to wake up the sound card:
+    for (int i = 0; i != fs / 256 / 2; i++) {
+        for (int n = 0; n != 256; n += 1) {
+             sample_out = rand() % 32;
+             play_int16_sample(&sample_out);
+        }
+    }
+
+
+
 
 
     // Sending training symbols
@@ -246,6 +258,15 @@ int cmd_txpkt () {
             wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
             sample_out = (int16_t)wave;
             play_int16_sample(&sample_out);
+        }
+    }
+
+
+    // This is a hack, 0.5sec of noise, to wake up the sound card:
+    for (int i = 0; i != fs / 256 / 2; i++) {
+        for (int n = 0; n != 256; n += 1) {
+             sample_out = rand() % 32;
+             play_int16_sample(&sample_out);
         }
     }
 
