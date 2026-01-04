@@ -62,8 +62,8 @@ int start_audio_out (int fs) {
     }
 
     // XXX  This is a hack, 0.5sec of noise, to wake up the sound card:
-    for (int i = 0; i != fs / UNIX_ADCDAC_SAMPLEBUF / 2; i++) {
-        for (int n = 0; n != UNIX_ADCDAC_SAMPLEBUF; n += 1) {
+    for (int n = 0; n != UNIX_ADCDAC_SAMPLEBUF; n += 1) {
+        for (int i = -1; i != fs / UNIX_ADCDAC_SAMPLEBUF / 2; i++) {
              int16_t sample_out = rand() % 32;
              play_int16_sample(&sample_out);
         }
@@ -76,8 +76,8 @@ int start_audio_out (int fs) {
 void stop_audio_out (void) {
     if (s_out) {
         // XXX  This is a hack, 0.1sec of graceful noise at the end
-        for (int i = 0; i != (out_fs / UNIX_ADCDAC_SAMPLEBUF) / 10; i++) {
-            for (int n = 0; n != UNIX_ADCDAC_SAMPLEBUF; n += 1) {
+        for (int n = 0; n != UNIX_ADCDAC_SAMPLEBUF; n += 1) {
+            for (int i = -1; i != out_fs / UNIX_ADCDAC_SAMPLEBUF / 2; i++) {
                 int16_t sample_out = rand() % 32;
                 play_int16_sample(&sample_out);
             }

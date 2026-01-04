@@ -16,6 +16,7 @@ OBJECTS =                                               \
                         $(OBJDIR)/main.o                \
                         $(OBJDIR)/adcdac.o              \
                         $(OBJDIR)/instances.o           \
+                        $(OBJDIR)/ofdmmodem.o           \
                         $(OBJDIR)/unixfs_wrapper.o      \
                         $(OBJDIR)/hal_plat.o            \
 
@@ -44,6 +45,7 @@ LD_OBJECTS =                                     \
                         adcdac.o                 \
                         hal_plat.o               \
                         instances.o              \
+                        ofdmmodem.o              \
                         unixfs_wrapper.o         \
                         main.o                   \
 
