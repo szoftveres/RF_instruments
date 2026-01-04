@@ -60,5 +60,6 @@ int fir_ntaps (int n, int bf);
 int* fir_create_taps (int n, int bf);
 
 uint8_t crc8 (uint8_t byte[], int len);
+uint16_t crc16 (uint8_t byte[], int len);
 
 #endif

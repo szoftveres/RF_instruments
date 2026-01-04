@@ -8,7 +8,7 @@
 typedef struct __attribute__((packed)) {
     uint8_t antipreamble; // To create a sharp boundary
     uint8_t len;
-    uint8_t crc;
+    uint16_t crc;
 } ofdm_pkt_header_t;
 
 

@@ -491,3 +491,19 @@ uint8_t crc8 (uint8_t byte[], int len) {
     return crc;
 }
 
+
+uint16_t crc16 (uint8_t byte[], int len) {
+    uint16_t crc = 0;
+
+    for (int n = 0; n != len; n++) {
+        crc ^= (uint16_t)byte[n];
+
+        for (int i = 0; i != 16; i++) {
+            crc <<= 1;
+            if (crc & 0x8000) {
+                crc ^= 0xac9a;  // generator polynomial
+            }
+        }
+    }
+    return crc;
+}

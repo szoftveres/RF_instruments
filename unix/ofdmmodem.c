@@ -19,13 +19,13 @@ int ofdm_packetize (ofdm_pkt_t* p, void *data, int len) {
     if (len) {
         memcpy(p->payload, data, len);
     }
-    p->h.crc = crc8(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len));
+    p->h.crc = crc16(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len));
     return len;
 }
 
 
 int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
-    uint8_t crc = 0;
+    uint16_t crc = 0;
     int rc = p->h.len;
     if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
         return -1;
@@ -35,7 +35,7 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
     }
     crc = p->h.crc;
     p->h.crc = 0;
-    if (crc8(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len)) != crc) {
+    if (crc16(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len)) != crc) {
         rc = -1;
     }
     p->h.crc = crc;
@@ -85,12 +85,14 @@ int ofdm_txpkt (int fs, ofdm_pkt_t *p) {
     int training = 3;
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
-    int training_due = OFDM_TRAINING_FREQUENCY;
+    int training_due = 0;
 
     dds_t *mixer = dds_create(fs, OFDM_CENTER_CARRIER);
 
     int *i_symbol = (int*)t_malloc(fft_len * sizeof(int));
     int *q_symbol = (int*)t_malloc(fft_len * sizeof(int));
+    memset(i_symbol, 0x00, fft_len * sizeof(int));
+    memset(q_symbol, 0x00, fft_len * sizeof(int));
 
     int *i_baseband = (int*)t_malloc(fft_len * sizeof(int));
     int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
@@ -98,29 +100,21 @@ int ofdm_txpkt (int fs, ofdm_pkt_t *p) {
     // Sending training symbols
     for (int t = 0; t != training; t++) {
         // training symbol
-        memset(i_symbol, 0x00, fft_len * sizeof(int));
-        memset(q_symbol, 0x00, fft_len * sizeof(int));
-
         generate_training_symbol(i_symbol, q_symbol, fft_len, symbolampl);
         ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len);
     }
 
     int pp = 0;
     while (pp != OFDM_PKT_TOTAL_LEN(p->h.len)) {
-        memset(i_symbol, 0x00, fft_len * sizeof(int));
-        memset(q_symbol, 0x00, fft_len * sizeof(int));
-
-        ofdm_u8_to_symbol(p->byte[pp], 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
-        ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len);
-
-        training_due -= 1;
         if (!training_due) {
             training_due = OFDM_TRAINING_FREQUENCY;
-            memset(i_symbol, 0x00, fft_len * sizeof(int));
-            memset(q_symbol, 0x00, fft_len * sizeof(int));
             generate_training_symbol(i_symbol, q_symbol, fft_len, symbolampl);
             ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len);
+        } else {
+            training_due -= 1;
         }
+        ofdm_u8_to_symbol(p->byte[pp], 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
+        ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len);
 
         pp += 1;
     }
@@ -177,7 +171,7 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
     int *i_baseband = (int*)t_malloc(fft_len * sizeof(int));
     int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
-    int training_due = OFDM_TRAINING_FREQUENCY;
+    int training_due = 0;
 
     int16_t sample_in;
     int wave;

@@ -123,10 +123,10 @@ Description: Attenuates (negative dB) or amplifies (positive dB) at 1 dB granula
 
 ### OFDM modem
 
-Description: Audio OFDM modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 byte) per symbol, 125 sybols per second. The center carrier frequency can be moved anywhere within the audio spectrum, both the Rx and Tx sides use down- and upsampling to achieve required (high) center frequency and sufficiently low baseband bandwidth for efficient processing (Fourier transform).
+Description: Audio OFDM modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 byte) per symbol, 125 sybols per second. The center carrier frequency can be moved anywhere within the audio spectrum, both the Rx and Tx sides use down- and upsampling to achieve required (high) center frequency and sufficiently low baseband sample rate for efficient processing (Fourier transform).
 
-The packet starts with 3 identical preamble symbols, the Rx modem does autocorrelation between adjacent packets to detect the trailing edge of the preamble pulse train and thereby the symbol boundary. Also, one of the preamble packets is used as training symbol for the per-carrier phase (and amplitude) correction.
-The rest of the packet follows a conventional packet structure (length, CRC and data, all encoded into OFDM symbols).
+The packet starts with 3 identical preamble symbols, the Rx modem autocorrelates them and detects the trailing edge of the preamble pulse train and thereby the symbol boundary. Also, one of the preamble packets is used as training symbol for the initial per-carrier phase (and amplitude) correction.
+The rest of the packet follows a conventional packet structure (length, CRC and data, all encoded into OFDM symbols) and the training symbol is periodically re-transmitted within the packet payload in order to give the receiver an opportunity to track and compensate for any phase shift during packet transmission time due to carrier frequency mismatch.
 
 Rx block diagram:
 
