@@ -167,15 +167,9 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
     start_audio_out(fs);
 
-
-    data = "Boldog Karacsonyt kivan onnek a Vodafone";
+    data = "Kellemes es Boldog Karacsonyt kivan onnek a Vodafone";
     ofdm_packetize(&p, data, strlen(data)+1);
     ofdm_txpkt(fs, &p);
-
-    //data = " onnek a Vodafone";
-    //ofdm_packetize(&p, data, strlen(data)+1);
-    //ofdm_txpkt(fs, &p);
-
 
     stop_audio_out();
     return 1;
@@ -191,8 +185,9 @@ int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     ofdm_rxpkt(fs, &p);
     stop_audio_in();
 
-    ofdm_depacketize(&p, &data);
-    console_printf("[%s]", data);
+    if (ofdm_depacketize(&p, &data) >= 0) {
+        console_printf("[%s]", data);
+    }
 
     return 1;
 }

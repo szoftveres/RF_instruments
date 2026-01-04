@@ -266,12 +266,12 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
 
             wp += 1;
             if (wp == fft_len) {
-                training_due -= 1;
                 ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
                 if (!training_due) {
                     save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len);
                     training_due = OFDM_TRAINING_FREQUENCY;
                 } else {
+                    training_due -= 1;
 
                     for (int n = -OFDM_CARRIER_PAIRS; n <= OFDM_CARRIER_PAIRS; n++) {
                         int idx = ofdm_carrier_to_idx(n, fft_len);
@@ -292,8 +292,6 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
                     if (pp >= OFDM_PKT_TOTAL_LEN(p->h.len)) {
                         if (ofdm_depacketize(p, NULL) < 0) {
                             statemachine = 0; // lost it due to CRC error
-                            console_printf(" *BAD CRC* ");
-                            running = 0; // OK, return
                         } else {
                             running = 0; // OK, return
                         }
