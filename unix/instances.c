@@ -158,21 +158,24 @@ int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 #define OFDM_PKT_PAYLOAD_MAX (32)
 #define OFDM_ANTIPREAMBLE (0x55)
 
+typedef struct __attribute__((packed)) {
+    uint8_t antipreamble; // To create a sharp boundary
+    uint8_t len;
+    uint8_t crc;
+} ofdm_pkt_header_t;
+
+
 typedef union __attribute__((packed)) ofdm_packet_u {
     uint8_t byte[0];
     struct __attribute__((packed)) {
-        struct __attribute__((packed)) {
-            uint8_t antipreamble; // To create a sharp boundary
-            uint8_t len;
-            uint8_t crc;
-        } h; // header
+        ofdm_pkt_header_t h;
         char payload[OFDM_PKT_PAYLOAD_MAX];
     };
-} ofdm_packet_t;
+} ofdm_pkt_t;
 
-#define OFDM_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(p->h)))
+#define OFDM_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(ofdm_pkt_header_t)))
 
-int ofdm_packetize (ofdm_packet_t* p, void *data, int len) {
+int ofdm_packetize (ofdm_pkt_t* p, void *data, int len) {
     if (len > OFDM_PKT_PAYLOAD_MAX) {
         return 0;
     }
@@ -186,7 +189,7 @@ int ofdm_packetize (ofdm_packet_t* p, void *data, int len) {
     return len;
 }
 
-int ofdm_depacketize (ofdm_packet_t* p, void **data) {
+int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
     uint8_t crc = 0;
     if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
         return -1;
@@ -210,19 +213,27 @@ int ofdm_depacketize (ofdm_packet_t* p, void **data) {
 #define OFDM_CENTER_CARRIER (2000)
 
 
-int ofdm_txpkt (int fs, ofdm_packet_t *p);
-int ofdm_rxpkt (int fs, ofdm_packet_t *p);
+int ofdm_txpkt (int fs, ofdm_pkt_t *p);
+int ofdm_rxpkt (int fs, ofdm_pkt_t *p);
 
 int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
-    ofdm_packet_t p;
+    ofdm_pkt_t p;
 
-    char* data = "Hello World";
-
-    ofdm_packetize(&p, data, strlen(data)+1);
+    char* data;
 
     start_audio_out(fs);
+
+
+    data = "Boldog Karacsonyt kivan";
+    ofdm_packetize(&p, data, strlen(data)+1);
     ofdm_txpkt(fs, &p);
+
+    data = " onnek a Vodafone";
+    ofdm_packetize(&p, data, strlen(data)+1);
+    ofdm_txpkt(fs, &p);
+
+
     stop_audio_out();
     return 1;
 }
@@ -230,7 +241,7 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
-    ofdm_packet_t p;
+    ofdm_pkt_t p;
     char* data;
 
     start_audio_in(fs);
@@ -245,7 +256,8 @@ int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int ofdm_txpkt (int fs, ofdm_packet_t *p) {
+
+int ofdm_txpkt (int fs, ofdm_pkt_t *p) {
 	int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
     int dec = fs / target_fs;
@@ -275,8 +287,6 @@ int ofdm_txpkt (int fs, ofdm_packet_t *p) {
             i_symbol[ofdm_carrier_to_idx(n, fft_len)] = symbolampl;
             q_symbol[ofdm_carrier_to_idx(n, fft_len)] = 0;
         }
-        //i_symbol[ofdm_carrier_to_idx(2, fft_len)] /= 2;  // some amplitude imbalance
-        //q_symbol[ofdm_carrier_to_idx(2, fft_len)] /= 2;
         ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, fft_len); // Training
         for (int f = 0; f != fft_len; f += 1) {
             for (int d = 0; d != dec; d += 1) {
@@ -288,39 +298,32 @@ int ofdm_txpkt (int fs, ofdm_packet_t *p) {
         }
     }
 
+    int pp = 0;
 
-    // Sending the actual data
-    memset(i_symbol, 0x00, fft_len * sizeof(int));
-    memset(q_symbol, 0x00, fft_len * sizeof(int));
+    while (pp != OFDM_PKT_TOTAL_LEN(p->h.len)) {
+        memset(i_symbol, 0x00, fft_len * sizeof(int));
+        memset(q_symbol, 0x00, fft_len * sizeof(int));
 
-    uint8_t data = 'a' + (rand()%26);
-    console_printf("0x%02x, [%c]", data, data);
-
-	ofdm_u8_to_symbol(data, 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
-    //i_symbol[ofdm_carrier_to_idx(2, fft_len)] /= 2;  // some amplitude imbalance
-    //q_symbol[ofdm_carrier_to_idx(2, fft_len)] /= 2;
-    ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, fft_len); // Training
-    for (int f = 0; f != fft_len; f += 1) {
-        for (int d = 0; d != dec; d++) {
-            dds_next_sample(mixer, &i_a, &q_a);
-            wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
-            sample_out = (int16_t)wave;
-            play_int16_sample(&sample_out);
+        ofdm_u8_to_symbol(p->byte[pp], 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
+        ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, fft_len); // Training
+        for (int f = 0; f != fft_len; f += 1) {
+            for (int d = 0; d != dec; d++) {
+                dds_next_sample(mixer, &i_a, &q_a);
+                wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
+                sample_out = (int16_t)wave;
+                play_int16_sample(&sample_out);
+            }
         }
+
+        pp += 1;
     }
 
-    // Sending the actual data
-    memset(i_symbol, 0x00, fft_len * sizeof(int));
-    memset(q_symbol, 0x00, fft_len * sizeof(int));
 
-	ofdm_u8_to_symbol('b', 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
-    //i_symbol[ofdm_carrier_to_idx(2, fft_len)] /= 2;  // some amplitude imbalance
-    //q_symbol[ofdm_carrier_to_idx(2, fft_len)] /= 2;
-    ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, fft_len); // Training
+    // Negative trailing symbol
     for (int f = 0; f != fft_len; f += 1) {
         for (int d = 0; d != dec; d++) {
             dds_next_sample(mixer, &i_a, &q_a);
-            wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
+            wave = ((-i_baseband[f] * i_a) + (-q_baseband[f] * q_a)) / magnitude_const();
             sample_out = (int16_t)wave;
             play_int16_sample(&sample_out);
         }
@@ -337,7 +340,7 @@ int ofdm_txpkt (int fs, ofdm_packet_t *p) {
 
 
 
-int ofdm_rxpkt (int fs, ofdm_packet_t *p) {
+int ofdm_rxpkt (int fs, ofdm_pkt_t *p) {
 
 	int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
@@ -361,6 +364,9 @@ int ofdm_rxpkt (int fs, ofdm_packet_t *p) {
     int running = 1;
     int i_a;
     int q_a;
+    int pp;
+
+    p->h.len = OFDM_PKT_PAYLOAD_MAX;
 
     memset(i_symbol, 0x00, fft_len * sizeof(int));
     memset(q_symbol, 0x00, fft_len * sizeof(int));
@@ -466,8 +472,20 @@ int ofdm_rxpkt (int fs, ofdm_packet_t *p) {
                                 symbolampl);
                 }
                 uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
-                console_printf("0x%02x, [%c]", c, c);
-                running = 0;
+                //console_printf("0x%02x, [%c]", c, c);
+
+                p->byte[pp++] = c;
+                if (pp > OFDM_PKT_TOTAL_LEN(p->h.len)) {
+                    statemachine = 0; // lost it due to invalid length
+                    console_printf("invalid len");
+                } else if (pp == OFDM_PKT_TOTAL_LEN(p->h.len)) {
+                    if (ofdm_depacketize(p, NULL) < 0) {
+                        statemachine = 0; // lost it due to CRC error
+                        console_printf("crc error");
+                    } else {
+                        running = 0; // OK, return
+                    }
+                }
                 wp = 0;
             }
             break;
