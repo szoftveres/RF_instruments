@@ -121,7 +121,7 @@ int sinc_func (int n, int samples) {
 	if (n) {
 		return (sin_func(n, samples) / n);
 	} else {
-		return (sin_func(n+1, samples) * ((samples * 2)+1) / (samples * 2)); // XXX this is not correct
+		return (sin_func(n+1, samples) * ((samples * 2)+1) / (samples * 2));  // XXX this is not correct
 	}
 }
 
@@ -267,6 +267,24 @@ void ofdm_u8_to_symbol (uint8_t c, int pilot_i, int pilot_q, int *i_symbol, int 
 }
 
 
+uint8_t ofdm_symbol_to_u8 (int *i_symbol, int *q_symbol, int *pilot_i, int *pilot_q, int samples) {
+    uint8_t sample = 0x80;
+    uint8_t b = 0x00;
+
+    for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
+        int n = ofdm_carrier_to_idx(idx, samples);
+        if (n) {
+            b |= (i_symbol[n] > 0) ? sample : 0x00;  sample >>= 1;
+            b |= (q_symbol[n] > 0) ? sample : 0x00;  sample >>= 1;
+        } else {
+            if (pilot_i) *pilot_i = i_symbol[n];
+            if (pilot_q) *pilot_q = q_symbol[n];
+        }
+    }
+    return b;
+
+}
+
 void ofdm_cplx_encode_symbol (int* i_symbol, int* q_symbol, int *i_out, int *q_out, int samples) {
     for (int n = 0; n != samples; n++) {
         ift_sample_iq(i_symbol, q_symbol, &(i_out[n]), &(q_out[n]), n, samples);
@@ -295,7 +313,8 @@ uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, i
 
 
 void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol, int samples) {
-    for (int n = 0; n != samples; n++) {
+    for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
+        int n = ofdm_carrier_to_idx(idx, samples);
         dft_bucket_iq(i_in, q_in, &(i_symbol[n]), &(q_symbol[n]), n, samples);
     }
 }
@@ -336,8 +355,8 @@ void cplx_div (int *i, int *q, int i_b, int q_b, int norm) {
 }
 
 void cplx_inv (int *i, int *q, int norm) {
-    int dst_i = (*i * norm) / ((*i * *i / norm) + (*q * *q / norm));
-    int dst_q = -(*q * norm) / ((*i * *i / norm) + (*q * *q / norm));
+    int dst_i = (*i * norm * norm) / ((*i * *i / norm) + (*q * *q / norm));
+    int dst_q = -(*q * norm * norm) / ((*i * *i / norm) + (*q * *q / norm));
     *i = dst_i;
     *q = dst_q;
 }

@@ -31,6 +31,7 @@ typedef struct dds_s {
 int ofdm_carrier_to_idx (int n, int samples);
 int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range);
 void ofdm_u8_to_symbol (uint8_t c, int pilot_i, int pilot_q, int *i_symbol, int *q_symbol, int samples, int symbolampl);
+uint8_t ofdm_symbol_to_u8 (int *i_symbol, int *q_symbol, int *pilot_i, int *pilot_q, int samples);
 
 uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples);
 uint8_t ofdm_cplx_decode_u8_2 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples, int start);
