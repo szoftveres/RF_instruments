@@ -474,3 +474,20 @@ int fir_work (int buf[], int tap[], int taps, int dec) {
 }
 
 
+
+uint8_t crc8 (uint8_t byte[], int len) {
+    uint8_t crc = 0;
+
+    for (int n = 0; n != len; n++) {
+        crc ^= byte[n];
+
+        for (int i = 0; i != 8; i++) {
+            crc <<= 1;
+            if (crc & 0x80) {
+                crc ^= 0xE7;  // generator polynomial
+            }
+        }
+    }
+    return crc;
+}
+

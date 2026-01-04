@@ -155,17 +155,97 @@ int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
+#define OFDM_PKT_PAYLOAD_MAX (32)
+#define OFDM_ANTIPREAMBLE (0x55)
+
+typedef union __attribute__((packed)) ofdm_packet_u {
+    uint8_t byte[0];
+    struct __attribute__((packed)) {
+        struct __attribute__((packed)) {
+            uint8_t antipreamble; // To create a sharp boundary
+            uint8_t len;
+            uint8_t crc;
+        } h; // header
+        char payload[OFDM_PKT_PAYLOAD_MAX];
+    };
+} ofdm_packet_t;
+
+#define OFDM_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(p->h)))
+
+int ofdm_packetize (ofdm_packet_t* p, void *data, int len) {
+    if (len > OFDM_PKT_PAYLOAD_MAX) {
+        return 0;
+    }
+    p->h.len = (uint8_t)len;
+    p->h.crc = 0;
+    p->h.antipreamble = OFDM_ANTIPREAMBLE;
+    if (len) {
+        memcpy(p->payload, data, len);
+    }
+    p->h.crc = crc8(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len));
+    return len;
+}
+
+int ofdm_depacketize (ofdm_packet_t* p, void **data) {
+    uint8_t crc = 0;
+    if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
+        return -1;
+    }
+    if (data) {
+        *data = p->payload;
+    }
+    crc = p->h.crc;
+    p->h.crc = 0;
+    if (crc8(p->byte, OFDM_PKT_TOTAL_LEN(p->h.len)) != crc) {
+        return -1;
+    }
+    return p->h.len;
+}
+
+
+
 #define OFDM_MODEM_OVERSAMPLE_RATE (5)
 #define OFDM_MODEM_SPS (125)
 #define OFDM_FS (20000)
 #define OFDM_CENTER_CARRIER (2000)
-int cmd_ofdm (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-    cmd_txpkt();
+
+
+int ofdm_txpkt (int fs, ofdm_packet_t *p);
+int ofdm_rxpkt (int fs, ofdm_packet_t *p);
+
+int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+    int fs = OFDM_FS;
+    ofdm_packet_t p;
+
+    char* data = "Hello World";
+
+    ofdm_packetize(&p, data, strlen(data)+1);
+
+    start_audio_out(fs);
+    ofdm_txpkt(fs, &p);
+    stop_audio_out();
     return 1;
 }
 
-int cmd_txpkt () {
+
+int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
+    ofdm_packet_t p;
+    char* data;
+
+    start_audio_in(fs);
+    ofdm_rxpkt(fs, &p);
+    stop_audio_in();
+
+    if (ofdm_depacketize(&p, &data) >= 0) {
+        console_printf("[%s]", data);
+    }
+
+    return 1;
+}
+
+
+int ofdm_txpkt (int fs, ofdm_packet_t *p) {
 	int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
     int dec = fs / target_fs;
@@ -185,8 +265,6 @@ int cmd_txpkt () {
     int16_t sample_out;
     int i_a;
     int q_a;
-
-    start_audio_out(fs);
 
     // Sending training symbols
     for (int t = 0; t != training; t++) {
@@ -248,8 +326,6 @@ int cmd_txpkt () {
         }
     }
 
-    stop_audio_out();
-
 	t_free(i_symbol);
 	t_free(q_symbol);
 	t_free(i_baseband);
@@ -261,8 +337,7 @@ int cmd_txpkt () {
 
 
 
-int ofdm_rxpkt () {
-    int fs = OFDM_FS;
+int ofdm_rxpkt (int fs, ofdm_packet_t *p) {
 
 	int fft_len = OFDM_CARRIER_PAIRS * 2 * OFDM_MODEM_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
@@ -305,8 +380,6 @@ int ofdm_rxpkt () {
     int statemachine = 0;
     int prevpeak = 0;
     int threshold = symbolampl * symbolampl ;
-
-    start_audio_in(fs);
 
     while (running) {
         int acc;
@@ -401,8 +474,6 @@ int ofdm_rxpkt () {
         }
     }
 
-    stop_audio_in();
-
 	t_free(tap);
 	t_free(buf_i);
 	t_free(buf_q);
@@ -425,7 +496,8 @@ int ofdm_rxpkt () {
 
 int setup_persona_commands (void) {
 
-	keyword_add("ofdm", "- test", cmd_ofdm);
+	keyword_add("rx", "- test", cmd_ofdm_rx);
+	keyword_add("tx", "- test", cmd_ofdm_tx);
 	keyword_add("dacsnk", "->DAC", cmd_dacsink);
 	keyword_add("adcsrc", "ADC [fs]->", cmd_adcsrc);
 
