@@ -121,18 +121,17 @@ Type: through
 
 Description: Attenuates (negative dB) or amplifies (positive dB) at 1 dB granularity.
 
-#### txpkt [samplerate] [carrier]
-Type: source
+### OFDM modem
 
-Description: Audio OFDM TX modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 byte) per symbol, 100 sybols per second. The first parameter is the sample rate, the second parameter is frequency of the center carrier (pilot).
+Rx block diagram:
+
+![ofdmmodem_rx](doc/ofdmmodem_rx.png)
+
+Description: Audio OFDM TX modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 byte) per symbol, 125 sybols per second. 
 
 Spectrum of one packet (pilot centered at 4 kHz):
 
 ![ofdm_spectrum](doc/ofdm.png)
 
-#### rxpkt [carrier]
-Type: sink
-
-Description: Audio OFDM RX modem
 
 

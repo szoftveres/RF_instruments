@@ -283,7 +283,7 @@ int ofdm_rxpkt () {
 
 	int16_t sample_in;
 	int wave;
-    int running;
+    int running = 1;
     int i_a;
     int q_a;
 
