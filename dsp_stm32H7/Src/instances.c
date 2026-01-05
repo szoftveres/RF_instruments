@@ -7,6 +7,7 @@
 #include "../os/hal_plat.h" // malloc free
 #include "../os/keyword.h" // command structure
 #include "../os/resource.h"
+#include "../os/ofdmmodem.h"
 #include "stm32h7xx_hal.h"  // HAL get tick
 
 
@@ -232,9 +233,47 @@ int cmd_dacsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	return dacsink_setup(in);
 }
 
+#define OFDM_FS (20000)
+
+int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+    int fs = OFDM_FS;
+    ofdm_pkt_t p;
+
+    char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
+                    "Best CRC Polynomials are not always the best",
+                    "Here at Hackaday we love floppy disks.",
+                    "====----====----====----====----"
+
+                    };
+
+    start_audio_out(fs);
+
+    while (1) {
+        int n = 0;
+        for (int i = 0; i != 4; i++) {
+            ofdm_packetize(&p, data[i], strlen(data[i])+1);
+            n += strlen(data[i])+1;
+            ofdm_txpkt(fs, &p);
+            int rr = rand()%200;
+            for (int i = rr; i != OFDM_FS; i++) {
+                int16_t sample = 0;
+                play_int16_sample(&sample);
+            }
+        }
+        console_printf("%i bytes", n);
+    }
+
+
+    stop_audio_out();
+    return 1;
+}
+
+
 
 
 int setup_persona_commands (void) {
+
+	keyword_add("tx", "- test", cmd_ofdm_tx);
 
 	keyword_add("malloctest", "", cmd_malloctest);
 

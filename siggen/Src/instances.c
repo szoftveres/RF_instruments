@@ -150,7 +150,7 @@ int dac1_setter (void * context, int aval) {
 
 #include <stdlib.h>
 
-int cmd_malloctest (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_malloctest (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
 	int i = 0;
 	const int size = 1024;
 	while (malloc(size)) {
@@ -163,7 +163,7 @@ int cmd_malloctest (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 #include "../os/fatsmall_fs.h"
-int cmd_format (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_format (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
 	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
 	if (strcmp(line, "yes")) {
 		console_printf("aborted");
@@ -174,7 +174,7 @@ int cmd_format (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_sleep (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_sleep (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
 	int ms;
 
 	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
@@ -201,7 +201,7 @@ int cmd_sleep (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_amtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_amtone (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
 	int ms;
 
 	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
@@ -236,7 +236,7 @@ int cmd_amtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_fmtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_fmtone (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
 	int ms;
 	int dev;
 
@@ -285,14 +285,14 @@ int cmd_fmtone (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_rfon (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_rfon (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
 	set_rf_output(1);
 	print_cfg();
 	return 1;
 }
 
 
-int cmd_rfoff (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_rfoff (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
 	set_rf_output(0);
 	print_cfg();
 	return 1;

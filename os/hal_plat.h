@@ -51,4 +51,15 @@ int set_sampler_frequency (int fs);
 void start_sampler (void(*cb)(void*), void* ctxt);
 void stop_sampler (void);
 
+
+int start_audio_in (int fs);
+void stop_audio_in (void);
+int start_audio_out (int fs);
+void stop_audio_out (void);
+int record_int16_sample (int16_t *s);
+int play_int16_sample (int16_t *s);
+
+
+
+
 #endif /* INC_HAL_PLAT_H_ */

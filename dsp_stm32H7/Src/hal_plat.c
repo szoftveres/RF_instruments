@@ -3,6 +3,7 @@
 #include <stdio.h> // vsprintf
 #include <stdlib.h> // malloc free
 #include "main.h"
+#include "adcdac.h"
 
 #include "../os/fifo.h" // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -245,4 +246,29 @@ int set_TIM_reload_frequency (int fs) {
 }
 */
 
+static fifo_t *aout_fifo;
 
+
+
+int start_audio_in (int fs);
+void stop_audio_in (void);
+
+int start_audio_out (int fs) {
+	aout_fifo = fifo_create(4096, sizeof(uint16_t));
+	set_sampler_frequency(fs);
+	start_sampler(dac_sample_stream_callback, aout_fifo);
+	return 1;
+}
+
+void stop_audio_out (void) {
+	stop_sampler();
+	fifo_destroy(aout_fifo);
+}
+
+int record_int16_sample (int16_t *s);
+
+int play_int16_sample (int16_t *s) {
+	uint16_t formatted_sample = (uint16_t)((((int)*s)+32768) / 16);
+	fifo_push_or_sleep(aout_fifo, &formatted_sample);
+	return 1;
+}

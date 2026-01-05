@@ -1,6 +1,6 @@
 #include "adcdac.h"
 #include "instances.h"
-#include "ofdmmodem.h"
+#include "os/ofdmmodem.h"
 #include "config_def.h"
 #include "os/globals.h"  // config instance
 #include "os/keyword.h"  // cmd_params_t
@@ -163,21 +163,29 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
     ofdm_pkt_t p;
 
-    char* data;
+    char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
+                    "Best CRC Polynomials are not always the best",
+                    "Here at Hackaday we love floppy disks.",
+                    "====----====----====----====----"
+
+                    };
 
     start_audio_out(fs);
 
-    data = "Kellemes es Boldog Karacsonyt kivan onnek a Vodafone";
-    ofdm_packetize(&p, data, strlen(data)+1);
-    ofdm_txpkt(fs, &p);
-
-    for (int i = 0; i != OFDM_FS/4; i++) {
-        play_int16_sample(0);
+    while (1) {
+        int n = 0;
+        for (int i = 0; i != 4; i++) {
+            ofdm_packetize(&p, data[i], strlen(data[i])+1);
+            n += strlen(data[i])+1;
+            ofdm_txpkt(fs, &p);
+            int rr = rand()%200;
+            for (int i = rr; i != OFDM_FS; i++) {
+                int16_t sample = 0;
+                play_int16_sample(&sample);
+            }
+        }
+        console_printf("%i bytes", n);
     }
-
-    data = "Es sok boldogsagot az ujevhez";
-    ofdm_packetize(&p, data, strlen(data)+1);
-    ofdm_txpkt(fs, &p);
 
 
     stop_audio_out();

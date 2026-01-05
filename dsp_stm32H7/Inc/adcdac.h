@@ -4,6 +4,7 @@
 #include <stdint.h>  // uint32
 #include "../os/fifo.h"
 
+void dac_sample_stream_callback (void* ctxt);
 
 void dac1_outv (uint32_t aval);
 int adc1_getter (void * context);

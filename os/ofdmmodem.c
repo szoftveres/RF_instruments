@@ -1,7 +1,6 @@
 #include "ofdmmodem.h"
-#include "adcdac.h"
-#include "os/hal_plat.h"
-#include "os/analog.h"
+#include "hal_plat.h"
+#include "analog.h"
 #include <string.h>
 
 
@@ -45,10 +44,10 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
 
 
 #define OFDM_MODEM_OVERSAMPLE_RATE (5)
-#define OFDM_MODEM_SPS (125)
+#define OFDM_MODEM_SPS (100)
 #define OFDM_CENTER_CARRIER (2000)
 
-#define OFDM_TRAINING_FREQUENCY (3)
+#define OFDM_TRAINING_FREQUENCY (4)
 
 
 void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband, int *q_baseband, int dec, int len) {
@@ -85,7 +84,7 @@ int ofdm_txpkt (int fs, ofdm_pkt_t *p) {
     int training = 3;
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
-    int training_due = 1;
+    int training_due = OFDM_TRAINING_FREQUENCY;
 
     dds_t *mixer = dds_create(fs, OFDM_CENTER_CARRIER);
 
@@ -172,7 +171,7 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
     int *i_baseband = (int*)t_malloc(fft_len * sizeof(int));
     int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
-    int training_due = 1;
+    int training_due;
 
     int16_t sample_in;
     int wave;
@@ -235,8 +234,8 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
             //for (int i = 0; i != acc/10000; i++) {console_printf_e(" ");}console_printf("#");
 
             if ((prevpeak > threshold) && (acc < (prevpeak*9/10))) {
+                // Training symbol is in eq, let's save it
                 ofdm_cplx_decode_symbol(i_eq, q_eq, i_symbol, q_symbol, fft_len);
-                // Last training symbol is in eq, let's save it
                 if (save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len) < 0) {
                     running = 0;
                     rc = -1;
@@ -247,9 +246,9 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
                 i_baseband[wp] = i_b;
                 q_baseband[wp] = q_b;
                 prevpeak = 0;
-                memset(avg, 0x00, fft_len * sizeof(int));
                 wp += 1;
                 pp = 0;
+                training_due = OFDM_TRAINING_FREQUENCY;
                 p->h.len = OFDM_PKT_PAYLOAD_MAX;
             } else {
 
@@ -291,16 +290,17 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
                     p->byte[pp++] = c;
                     if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
                         statemachine = 0; // lost it due to invalid length
+                        running = 0;
+                        rc = -1;
                     }
                     if (pp >= OFDM_PKT_TOTAL_LEN(p->h.len)) {
                         if (ofdm_depacketize(p, NULL) < 0) {
                             statemachine = 0; // lost it due to CRC error
+                            running = 0;
+                            rc = -1;
                         } else {
                             running = 0; // OK, return
                             rc = p->h.len;
-                            if (ampl) {
-                                *ampl = max - min;
-                            }
                         }
                     }
                 }
@@ -308,6 +308,9 @@ int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl) {
             }
             break;
         }
+    }
+    if (ampl) {
+        *ampl = max - min;
     }
 
     t_free(tap);

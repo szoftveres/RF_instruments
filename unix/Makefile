@@ -16,7 +16,6 @@ OBJECTS =                                               \
                         $(OBJDIR)/main.o                \
                         $(OBJDIR)/adcdac.o              \
                         $(OBJDIR)/instances.o           \
-                        $(OBJDIR)/ofdmmodem.o           \
                         $(OBJDIR)/unixfs_wrapper.o      \
                         $(OBJDIR)/hal_plat.o            \
 
@@ -36,6 +35,7 @@ LD_OBJECTS =                                     \
                         os/keyword.o             \
                         os/levelcal.o            \
                         os/max2871.o             \
+                        os/ofdmmodem.o           \
                         os/parser.o              \
                         os/pcmstream.o           \
                         os/program.o             \
@@ -45,7 +45,6 @@ LD_OBJECTS =                                     \
                         adcdac.o                 \
                         hal_plat.o               \
                         instances.o              \
-                        ofdmmodem.o              \
                         unixfs_wrapper.o         \
                         main.o                   \
 
