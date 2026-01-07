@@ -7,7 +7,7 @@ int isqrt (int y) {
     int left = 0;
     int right = y + 1;
 
-    while (left != (right - 1)) {
+    while (left < (right - 1)) {
         long long int mid = (left + right) / 2;
 
         if ((mid * mid) <= y) {
@@ -246,7 +246,7 @@ int ofdm_carrier_to_idx (int n, int samples) {
 
 int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range) {
     const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
-    return (samples * dynamic_range) / (n_carriers * 2 * (magnitude_const() * 2));
+    return (samples * dynamic_range) / (n_carriers * (3/2) * (magnitude_const() * 2));  // 3/2 is an approximation for sqrt(2)
 }
 
 
@@ -341,6 +341,12 @@ uint8_t ofdm_cplx_decode_u8_2 (int *i_in, int *q_in, int *pilot_i, int *pilot_q,
 
 
 void cplx_mul (int *i, int *q, int i_b, int q_b, int norm) {
+    if ((*i > 45000) || (*q > 45000) || (*i < -45000) || (*q < -45000)) {
+        console_printf("mul 1 overflow");
+    }
+    if ((i_b > 45000) || (q_b > 45000) || (i_b < -45000) || (q_b < -45000)) {
+        console_printf("mul 2 overflow");
+    }
     int dst_i = (*i * i_b) - (*q * q_b);
     int dst_q = (*i * q_b) + (*q * i_b);
     *i = dst_i / norm;
@@ -355,12 +361,17 @@ void cplx_div (int *i, int *q, int i_b, int q_b, int norm) {
 }
 
 int cplx_inv (int *i, int *q, int norm) {
-    int d = ((*i * *i / norm) + (*q * *q / norm));
+
+    if ((*i > 45000) || (*q > 45000) || (*i < -45000) || (*q < -45000)) {
+        console_printf("inv overflow");
+    }
+
+    int d = ((*i * *i) + (*q * *q));
     if (!d) {
         return -1;
     }
-    *i = (*i * norm * norm) / d;
-    *q = -(*q * norm * norm) / d;
+    *i = (*i * norm) / d;
+    *q = -(*q * norm) / d;
     return 0;
 }
 

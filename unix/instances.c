@@ -157,10 +157,12 @@ int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 #define OFDM_FS (20000)
+#define OFDM_FC (2000)
 
 
 int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
+    int fc = OFDM_FC;
     ofdm_pkt_t p;
 
     char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
@@ -177,7 +179,7 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
         for (int i = 0; i != 4; i++) {
             ofdm_packetize(&p, data[i], strlen(data[i])+1);
             n += strlen(data[i])+1;
-            ofdm_txpkt(fs, &p);
+            ofdm_txpkt(fs, fc,  &p);
             int rr = rand()%200;
             for (int i = rr; i != OFDM_FS; i++) {
                 int16_t sample = 0;
@@ -195,19 +197,22 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
+    int fc = OFDM_FC;
     ofdm_pkt_t p;
     char* data;
     int ampl;
 
-    memset(&p, 0x00, sizeof(ofdm_pkt_t));
     start_audio_in(fs);
-    while (ofdm_rxpkt(fs, &p, &ampl) < 0);
-    stop_audio_in();
-
-    console_printf_e("(ampl:%i)", ampl);
-    if (ofdm_depacketize(&p, &data) >= 0) {
-        console_printf("[%s]", data);
+    while (1) {
+        memset(&p, 0x00, sizeof(ofdm_pkt_t));
+        if (ofdm_rxpkt(fs, fc, &p, &ampl) < 0) {
+            continue;
+        }
+        if (ofdm_depacketize(&p, &data) >= 0) {
+            console_printf("[%s]", data);
+        }
     }
+    stop_audio_in();
 
     return 1;
 }

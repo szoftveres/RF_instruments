@@ -344,7 +344,7 @@ int nullsink_setup (fifo_t* in_stream) {
 #define PKT_PREAMBLE2 (0xE9)
 
 
-#define PACKET_PAYLOAD_MAX (16)
+#define PACKET_PAYLOAD_MAX (32)
 
 typedef union __attribute__((packed)) modem_packet_u {
 	uint8_t byte[0];

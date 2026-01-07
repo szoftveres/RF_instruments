@@ -3,6 +3,7 @@
 
 #include <stdint.h> // uint32_t
 
+int isqrt (int y);
 
 int sin_func (int n, int samples);
 int cos_func (int n, int samples);

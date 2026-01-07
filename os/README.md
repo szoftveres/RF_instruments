@@ -123,10 +123,12 @@ Description: Attenuates (negative dB) or amplifies (positive dB) at 1 dB granula
 
 ### OFDM modem
 
-Description: Audio OFDM modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 byte) per symbol, 125 sybols per second. The center carrier frequency can be moved anywhere within the audio spectrum, both the Rx and Tx sides use down- and upsampling to achieve required (high) center frequency and sufficiently low baseband sample rate for efficient processing (Fourier transform).
+Description: Audio OFDM modem; 4 QPSK carriers + 1 center pilot, 8 bits (1 byte) per symbol, 100 sybols per second. The center carrier frequency can be anywhere within the audio spectrum, both the Rx and Tx sides use down- and upsampling to achieve required (high) center frequency and sufficiently low baseband sample rate for efficient processing (Fourier transform).
 
-The packet starts with 3 identical preamble symbols, the Rx modem autocorrelates them and detects the trailing edge of the preamble pulse train and thereby the symbol boundary. Also, one of the preamble packets is used as training symbol for the initial per-carrier phase (and amplitude) correction.
-The rest of the packet follows a conventional packet structure (length, CRC and data, all encoded into OFDM symbols) and the training symbol is periodically re-transmitted within the packet payload in order to give the receiver an opportunity to track and compensate for any phase shift during packet transmission time due to carrier frequency mismatch.
+#### Receiver
+
+The packet starts with 4 identical preamble symbols, the receiver autocorrelates them and detects the trailing edge of the preamble pulse train and thereby the symbol boundary. This is done by comparing the result of the (power-compensated) autocorrelation and a delayed copy of it; when the first training symbol (which is different from the preambles) arrives, the autocorrelation drops off while its delayed copy is still maintains unity. This condition triggers the end of the preamble and the first training symbol.
+After the training symbol (which is used for per-carrier equalization and phase compensation) the rest of the packet follows a conventional packet structure (length, CRC and data, all encoded into OFDM symbols), except that more training symbols are periodically inserted within the packet payload after a certain number of payload symbols. This is to give the receiver an opportunity to track and compensate for any phase shift during (a potentially long) packet transmission, due to frequency mismatch or phase variation.
 
 Rx block diagram:
 

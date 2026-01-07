@@ -24,8 +24,8 @@ typedef union __attribute__((packed)) ofdm_packet_u {
 int ofdm_packetize (ofdm_pkt_t* p, void *data, int len);
 int ofdm_depacketize (ofdm_pkt_t* p, void **data);
 
-int ofdm_txpkt (int fs, ofdm_pkt_t *p);
-int ofdm_rxpkt (int fs, ofdm_pkt_t *p, int* ampl);
+int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p);
+int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl);
 
 
 
