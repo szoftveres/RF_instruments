@@ -4,6 +4,75 @@
 #include <string.h>
 
 
+#define OFDM_BITS_PER_CARRIER (2)
+#define OFDM_BYTES_PER_SYMBOL (1)
+#define OFDM_CARRIER_PAIRS (OFDM_BITS_PER_CARRIER * OFDM_BYTES_PER_SYMBOL)
+
+
+
+int ofdm_carrier_to_idx (int n, int samples) {
+    return (samples + n) % samples;
+}
+
+
+int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range) {
+    const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
+    // 3/2 is an approximation for sqrt(2)
+    return (samples * dynamic_range) / (n_carriers * (3/2) * (magnitude_const() * 2));
+}
+
+
+void ofdm_u8_to_symbol (uint8_t c, int pilot_i, int pilot_q, int *i_symbol, int *q_symbol, int samples, int symbolampl) {
+
+    memset(i_symbol, 0x00, samples * sizeof(int));
+    memset(q_symbol, 0x00, samples * sizeof(int));
+
+    for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
+        int n = ofdm_carrier_to_idx(idx, samples);
+        if (n) {
+            i_symbol[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
+            q_symbol[n] = ((c & 0x80) ? symbolampl : -symbolampl); c <<= 1;
+        }
+    }
+    i_symbol[0] = pilot_i * symbolampl;
+    q_symbol[0] = pilot_q * symbolampl;
+}
+
+
+uint8_t ofdm_symbol_to_u8 (int *i_symbol, int *q_symbol, int *pilot_i, int *pilot_q, int samples) {
+    uint8_t sample = 0x80;
+    uint8_t b = 0x00;
+
+    for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
+        int n = ofdm_carrier_to_idx(idx, samples);
+        if (n) {
+            b |= (i_symbol[n] > 0) ? sample : 0x00;  sample >>= 1;
+            b |= (q_symbol[n] > 0) ? sample : 0x00;  sample >>= 1;
+        } else {
+            if (pilot_i) *pilot_i = i_symbol[n];
+            if (pilot_q) *pilot_q = q_symbol[n];
+        }
+    }
+    return b;
+
+}
+
+
+void ofdm_cplx_encode_symbol (int* i_symbol, int* q_symbol, int *i_out, int *q_out, int samples) {
+    for (int n = 0; n != samples; n++) {
+        ift_sample_iq(i_symbol, q_symbol, &(i_out[n]), &(q_out[n]), n, samples);
+    }
+}
+
+
+void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol, int samples) {
+    for (int idx = -OFDM_CARRIER_PAIRS; idx <= OFDM_CARRIER_PAIRS; idx++) {
+        int n = ofdm_carrier_to_idx(idx, samples);
+        dft_bucket_iq(i_in, q_in, &(i_symbol[n]), &(q_symbol[n]), n, samples);
+    }
+}
+
+
 
 uint8_t scrambler (uint8_t *core, uint8_t c) {
     int cycles = 8;

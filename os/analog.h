@@ -25,20 +25,6 @@ typedef struct dds_s {
 } dds_t;
 
 
-
-#define OFDM_BYTES_PER_SYMBOL (1)
-#define OFDM_CARRIER_PAIRS (2 * OFDM_BYTES_PER_SYMBOL)
-
-int ofdm_carrier_to_idx (int n, int samples);
-int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range);
-void ofdm_u8_to_symbol (uint8_t c, int pilot_i, int pilot_q, int *i_symbol, int *q_symbol, int samples, int symbolampl);
-uint8_t ofdm_symbol_to_u8 (int *i_symbol, int *q_symbol, int *pilot_i, int *pilot_q, int samples);
-
-uint8_t ofdm_cplx_decode_u8 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples);
-uint8_t ofdm_cplx_decode_u8_2 (int *i_in, int *q_in, int *pilot_i, int *pilot_q, int samples, int start);
-void ofdm_cplx_encode_symbol (int* i_symbol, int* q_symbol, int *i_out, int *q_out, int samples);
-void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol, int samples);
-
 void cplx_mul (int *i, int *q, int i_b, int q_b, int norm);
 void cplx_div (int *i, int *q, int i_b, int q_b, int norm);
 int cplx_inv (int *i, int *q, int norm);
