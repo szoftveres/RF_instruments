@@ -142,13 +142,15 @@ int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
     }
 
     int pp = 0;
+    int pilot = 1;
     while (pp != OFDM_PKT_TOTAL_LEN(p->h.len)) {
         if (!training_due) {
             training_due = OFDM_TRAINING_FREQUENCY;
             generate_training_symbol(i_symbol, q_symbol, fft_len, symbolampl);
         } else {
             training_due -= 1;
-            ofdm_u8_to_symbol(scrambler(&scrambler_core, p->byte[pp++]), 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
+            ofdm_u8_to_symbol(scrambler(&scrambler_core, p->byte[pp++]), pilot, 0, i_symbol, q_symbol, fft_len, symbolampl);
+            pilot *= -1; // Alternating the pilot, to discourage the Rx autocorrelator of syncing mid-packet
         }
         ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len, PFXLEN);
     }
@@ -244,7 +246,6 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
     int bp = 0;
     int wp = 0;
     int statemachine = 0;
-    int prevpeak = 0;
     int pfx;
     int threshold = 256 * 1;
 
@@ -266,12 +267,9 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
         i_a = fir_work(buf_i, tap, taps, dec) / norm / 4;
         q_a = fir_work(buf_q, tap, taps, dec) / norm / 4;
         switch (statemachine) {
-        case 0:     // Preamble detection, by autocorrelating the
-                    // first two (identical) preamble symbols
-                    // https://www.youtube.com/watch?v=ysgONmM6iKk
+        case 0:
             int lcl_acc_i;
             int lcl_acc_q;
-
 
             // delay line
             int delayline_i = i_eq[wp];
@@ -303,9 +301,8 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
                 break;
             }
 
-            //console_printf("sigpwr:%i", sigpwr);
-
-            int magn = (lcl_acc_i * lcl_acc_i / sigpwr) + (lcl_acc_q * lcl_acc_q / sigpwr);
+            int magn = ((lcl_acc_i * lcl_acc_i / sigpwr) + (lcl_acc_q * lcl_acc_q / sigpwr));
+            // magn /= sigpwr;  <-  This will be correct
 
             // Correlator magnitude delay line
             corravg_acc -= corravg[wp];
@@ -313,14 +310,11 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
             corravg_acc += corravg[wp];
             int lcl_corravg = corravg_acc / fft_len;
 
-            //for (int i = 0; i < magn/20; i++) {console_printf_e(" ");}console_printf("#");
-
+            //console_printf("magn:%i, magn_avg:%i, sigpwr:%i", magn, lcl_corravg, sigpwr);
             // A drop in correlation between the current value (compared to the value at the previous symbol)
             // inndicates the end of the preamble
             if ((lcl_corravg > threshold) && (magn < (lcl_corravg / 2))) {
-
-                //console_printf_e("lcl_acc_i:%i, lcl_acc_q:%i   ", lcl_acc_i, lcl_acc_q);
-                //console_printf("ampl:%i (%i->%i)", max - min, lcl_corravg, magn);
+                //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
 
                 statemachine += 1;
                 wp = 0;
@@ -330,24 +324,23 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
                 // shooting for the middle
                 pfx = PFXLEN * 1 / 4;
                 p->h.len = OFDM_PKT_PAYLOAD_MAX;
+                p->h.antipreamble = OFDM_ANTIPREAMBLE;
             } else {
-
-                prevpeak = magn > prevpeak ? magn : prevpeak;
                 wp = (wp + 1) % fft_len;
             }
             break;
         default:
 
-            if (!pfx) {
+            if (pfx) {
+                pfx -= 1;
+            } else {
                 i_baseband[wp] = i_a;
                 q_baseband[wp] = q_a;
-
                 wp += 1;
-            } else {
-                pfx -= 1;
             }
             if (wp == fft_len) {
                 pfx = PFXLEN;
+                wp = 0;
                 ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
                 if (!training_due) {
                     save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len);
@@ -368,8 +361,14 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
                     uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
 
                     p->byte[pp++] = scrambler(&scrambler_core, c);
+
                     if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
-                        statemachine = 0; // lost it due to invalid length
+                        statemachine = 0; // lost it due to garbage length
+                        running = 0;
+                        rc = -1;
+                    }
+                    if (p->h.antipreamble != OFDM_ANTIPREAMBLE) {
+                        statemachine = 0; // lost it due garbage data (sync issue probably)
                         running = 0;
                         rc = -1;
                     }
@@ -384,7 +383,6 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
                         }
                     }
                 }
-                wp = 0;
             }
             break;
         }

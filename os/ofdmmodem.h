@@ -6,7 +6,7 @@
 #define OFDM_PKT_PAYLOAD_MAX (64)
 
 typedef struct __attribute__((packed)) {
-    uint8_t antipreamble; // To create a sharp boundary
+    uint8_t antipreamble; // Early packet verification
     uint8_t len;
     uint16_t crc;
 } ofdm_pkt_header_t;
