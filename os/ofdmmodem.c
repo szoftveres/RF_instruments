@@ -4,6 +4,16 @@
 #include <string.h>
 
 
+
+uint8_t scrambler (uint8_t *core, uint8_t c) {
+    int cycles = 8;
+    while (cycles--) {
+        *core = ((*core) << 1) + ((((*core) >> 3) ^ ((*core) >> 6)) & 0x01);
+    }
+    return (c ^ (*core));
+}
+
+
 #define OFDM_ANTIPREAMBLE (0x55)
 
 #define OFDM_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(ofdm_pkt_header_t)))
@@ -48,9 +58,7 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
 #define OFDM_MODEM_SPS (100)
 
 #define OFDM_TRAINING_FREQUENCY (4)
-
-#define TX_PFX (((OFDM_CARRIER_PAIRS * 2) + 1)) * 2
-#define RX_PFX (((OFDM_CARRIER_PAIRS * 2) + 1)) * 2
+#define PFXLEN (fft_len/4)
 
 void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband, int *q_baseband, int dec, int len, int pfx) {
     int wave;
@@ -61,7 +69,7 @@ void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband,
     ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, len);
 
     for (int f = 0; f != pfx; f += 1) {
-    	int idx = len - (pfx - f);
+        int idx = len - (pfx - f);
         for (int d = 0; d != dec; d += 1) {
             dds_next_sample(mixer, &i_a, &q_a);
             wave = ((i_baseband[idx] * i_a) + (q_baseband[idx] * q_a)) / magnitude_const();
@@ -110,6 +118,7 @@ int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
     int training_due = 0;
+    uint8_t scrambler_core = 0xFF;
 
     dds_t *mixer = dds_create(fs, fc);
 
@@ -123,7 +132,7 @@ int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
 
     // Sending some noise
     for (int t = 0; t != 2; t++) {
-    	ofdm_tx_noise (mixer, dec, fft_len,  32768);
+        ofdm_tx_noise (mixer, dec, fft_len,  4096);
     }
 
     // Sending preamble
@@ -139,14 +148,14 @@ int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
             generate_training_symbol(i_symbol, q_symbol, fft_len, symbolampl);
         } else {
             training_due -= 1;
-            ofdm_u8_to_symbol(p->byte[pp++], 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
+            ofdm_u8_to_symbol(scrambler(&scrambler_core, p->byte[pp++]), 0, 0, i_symbol, q_symbol, fft_len, symbolampl);
         }
-        ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len, TX_PFX);
+        ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len, PFXLEN);
     }
 
     // Sending some noise
     for (int t = 0; t != 2; t++) {
-        ofdm_tx_noise (mixer, dec, fft_len,  32768);
+        ofdm_tx_noise (mixer, dec, fft_len,  4096);
     }
 
 
@@ -199,6 +208,7 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
     int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
     int training_due;
+    uint8_t scrambler_core = 0xFF;
 
     int16_t sample_in;
     int wave;
@@ -225,10 +235,6 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
     memset(sigpwr, 0x00, fft_len * sizeof(int));
     int sigpwr_acc = 0;
 
-    int *agc = (int*)t_malloc(fft_len * sizeof(int));
-    memset(agc, 0x00, fft_len * sizeof(int));
-    int attenuator = 100;
-
     // Setting up the decimating filter
     int taps = fir_ntaps(dec, 2);
     int *tap = fir_create_taps(dec, 2);
@@ -240,12 +246,12 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
     int statemachine = 0;
     int prevpeak = 0;
     int pfx;
-    int threshold = 256 * 4;
+    int threshold = 256 * 1;
 
     while (running) {
 
         dds_next_sample(mixer, &i_a, &q_a);
-        record_int16_sample(&sample_in); wave = ((int)sample_in); // * attenuator / 100;
+        record_int16_sample(&sample_in); wave = ((int)sample_in);
 
         if (wave < min) {min = wave;}
         if (wave > max) {max = wave;}
@@ -257,20 +263,25 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
             continue;
         }
         bp -= dec;  // due to memmove in fir_work
-        i_a = fir_work(buf_i, tap, taps, dec) / norm;
-        q_a = fir_work(buf_q, tap, taps, dec) / norm;
+        i_a = fir_work(buf_i, tap, taps, dec) / norm / 4;
+        q_a = fir_work(buf_q, tap, taps, dec) / norm / 4;
         switch (statemachine) {
         case 0:     // Preamble detection, by autocorrelating the
                     // first two (identical) preamble symbols
                     // https://www.youtube.com/watch?v=ysgONmM6iKk
-            int i_b = i_a;
-            int q_b = q_a;
             int lcl_acc_i;
             int lcl_acc_q;
 
-            cplx_mul(&i_a, &q_a, i_eq[0], -q_eq[0], symbolampl);
 
-            // Preamble autocorrelator delay lines
+            // delay line
+            int delayline_i = i_eq[wp];
+            int delayline_q = q_eq[wp];
+            i_eq[wp] = i_a;
+            q_eq[wp] = q_a;
+
+            cplx_mul(&i_a, &q_a, delayline_i, -delayline_q, symbolampl);
+
+            // Preamble autocorrelator moving average
             acc_i -= correlator_i[wp];
             correlator_i[wp] = i_a;
             acc_i += correlator_i[wp];
@@ -279,22 +290,14 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
             correlator_q[wp] = q_a;
             acc_q += correlator_q[wp];
 
-            // Signal power meter delay line
+            // Signal power meter moving average
             sigpwr_acc -= sigpwr[wp];
-            sigpwr[wp] = (i_b * i_b / symbolampl) + (q_b * q_b / symbolampl);
+            sigpwr[wp] = (delayline_i * delayline_i / symbolampl) + (delayline_q * delayline_q / symbolampl);
             sigpwr_acc += sigpwr[wp];
 
             lcl_acc_i = acc_i / fft_len;
             lcl_acc_q = acc_q / fft_len;
             int sigpwr = sigpwr_acc / fft_len;
-
-            // AGC
-            if ((sigpwr > 4000) && (attenuator > 15)) {
-                attenuator -= 1;
-            } else if ((sigpwr < 2000) && (attenuator < 120)) {
-                attenuator += 1;
-            }
-
 
             if (!sigpwr) {
                 break;
@@ -315,23 +318,22 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
             // A drop in correlation between the current value (compared to the value at the previous symbol)
             // inndicates the end of the preamble
             if ((lcl_corravg > threshold) && (magn < (lcl_corravg / 2))) {
+
+                //console_printf_e("lcl_acc_i:%i, lcl_acc_q:%i   ", lcl_acc_i, lcl_acc_q);
+                //console_printf("ampl:%i (%i->%i)", max - min, lcl_corravg, magn);
+
                 statemachine += 1;
                 wp = 0;
                 pp = 0;
                 training_due = 0;
                 // The trigger occurs somewhere in the early section of the cyclic prefix,
                 // shooting for the middle
-                pfx = RX_PFX * 1 / 4;
+                pfx = PFXLEN * 1 / 4;
                 p->h.len = OFDM_PKT_PAYLOAD_MAX;
             } else {
 
                 prevpeak = magn > prevpeak ? magn : prevpeak;
                 wp = (wp + 1) % fft_len;
-
-                memmove(i_eq, &(i_eq[1]), ((fft_len-1) * sizeof(int)));
-                memmove(q_eq, &(q_eq[1]), ((fft_len-1) * sizeof(int)));
-                i_eq[fft_len - 1] = i_b;
-                q_eq[fft_len - 1] = q_b;
             }
             break;
         default:
@@ -345,7 +347,7 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
                 pfx -= 1;
             }
             if (wp == fft_len) {
-                pfx = RX_PFX;
+                pfx = PFXLEN;
                 ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
                 if (!training_due) {
                     save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len);
@@ -365,7 +367,7 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
                     }
                     uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
 
-                    p->byte[pp++] = c;
+                    p->byte[pp++] = scrambler(&scrambler_core, c);
                     if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
                         statemachine = 0; // lost it due to invalid length
                         running = 0;
@@ -395,7 +397,6 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
     t_free(buf_i);
     t_free(buf_q);
 
-    t_free(agc);
     t_free(sigpwr);
     t_free(corravg);
     t_free(correlator_i);
