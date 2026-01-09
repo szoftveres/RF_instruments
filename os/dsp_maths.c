@@ -1,4 +1,4 @@
-#include "analog.h"
+#include "dsp_maths.h"
 #include "hal_plat.h" //malloc
 #include <string.h> // memset
 
@@ -126,7 +126,7 @@ int sinc_func (int n, int samples) {
 }
 
 
-/* Discrete Fourier Transform */
+/* Discrete Fourier Transform of real waveform */
 void dft_bucket (int *in, int *i_out, int *q_out, int bucket, int length) {
     int sample;
 
@@ -165,29 +165,6 @@ void dft_bucket_iq (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, in
 }
 
 
-
-void dft_bucket_iq2 (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, int length, int startpos) {
-    int sample;
-    int mag = magnitude_const();
-
-	*i_out = 0;
-    *q_out = 0;
-
-	for (sample = 0; sample != length; sample++) {
-		 int sampleidx = (sample + startpos) % length;
-		 int s_idx = (bucket * sample) % length;
-
-		 *i_out += (in_i[sampleidx] * cos_func(s_idx, length));
-		 *i_out += (in_q[sampleidx] * sin_func(s_idx, length));
-		 *q_out -= (in_i[sampleidx] * sin_func(s_idx, length));
-		 *q_out += (in_q[sampleidx] * cos_func(s_idx, length));
-	 }
-	 *i_out /= (length * mag);
-	 *q_out /= (length * mag);
-}
-
-
-
 /* Complex Discrete Inverse Fourier Transform */
 void ift_sample_iq (int *in_i, int *in_q, int *i_out, int *q_out, int sample, int length) {
     int bucket;
@@ -202,27 +179,6 @@ void ift_sample_iq (int *in_i, int *in_q, int *i_out, int *q_out, int sample, in
 		 *i_out -= (in_q[bucket] * sin_func(s_idx, length));
 		 *q_out += (in_i[bucket] * sin_func(s_idx, length));
 		 *q_out += (in_q[bucket] * cos_func(s_idx, length));
-	 }
-	 *i_out /= length;
-	 *q_out /= length;
-}
-
-
-
-/* Complex Discrete Inverse Fourier Transform */
-void ift_bucket_iq (int in_i, int in_q, int *i_out, int *q_out, int bucket, int length) {
-	int sample;
-
-    memset(i_out, 0x00, length * sizeof(int));
-    memset(q_out, 0x00, length * sizeof(int));
-
-	for (sample = 0; sample != length; sample++) {
-		 int s_idx = (bucket * sample) % length;
-
-		 i_out[sample] += (in_i * cos_func(s_idx, length));
-		 i_out[sample] -= (in_q * sin_func(s_idx, length));
-		 q_out[sample] += (in_i * sin_func(s_idx, length));
-		 q_out[sample] += (in_q * cos_func(s_idx, length));
 	 }
 	 *i_out /= length;
 	 *q_out /= length;
@@ -301,47 +257,6 @@ void dds_next_sample (dds_t* instance, int *i, int *q) {
 	*q = sinewave[(instance->phaseaccumulator + 0x40000000) >> 24];
 	instance->phaseaccumulator += instance->phaseshift;
 }
-
-void dds_skip_forward (dds_t* instance) {
-    instance->phaseaccumulator += instance->phaseshift;
-}
-
-void dds_skip_back (dds_t* instance) {
-    instance->phaseaccumulator -= instance->phaseshift;
-}
-
-void cplx_upconvert (dds_t* dds, int *i, int *q, int* wave, int samples) {
-	for (int n = 0; n != samples; n++) {
-		int i_mix;
-		int q_mix;
-		dds_next_sample(dds, &i_mix, &q_mix);
-		wave[n] = ((i[n] * i_mix) + (q[n] * q_mix)) / magnitude_const();
-	}
-}
-
-
-void cplx_downconvert (dds_t* dds, int* wave, int *i, int *q, int samples) {
-	for (int n = 0; n != samples; n++) {
-		int i_mix;
-		int q_mix;
-		dds_next_sample(dds, &i_mix, &q_mix);
-		i[n] = wave[n] * i_mix / magnitude_const();
-		q[n] = wave[n] * q_mix / magnitude_const();
-	}
-}
-
-
-void cplx_downconvert2 (dds_t* dds, int* wave, int *i, int *q, int samples, int startpos) {
-	for (int n = 0; n != samples; n++) {
-		int idx = (n + startpos) % samples;
-		int i_mix;
-		int q_mix;
-		dds_next_sample(dds, &i_mix, &q_mix);
-		i[n] = wave[idx] * i_mix / magnitude_const();
-		q[n] = wave[idx] * q_mix / magnitude_const();
-	}
-}
-
 
 
 

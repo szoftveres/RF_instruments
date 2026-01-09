@@ -1,6 +1,6 @@
 #include "ofdmmodem.h"
 #include "hal_plat.h"
-#include "analog.h"
+#include "dsp_maths.h"
 #include <string.h>
 
 
@@ -63,6 +63,7 @@ void ofdm_cplx_encode_symbol (int* i_symbol, int* q_symbol, int *i_out, int *q_o
         ift_sample_iq(i_symbol, q_symbol, &(i_out[n]), &(q_out[n]), n, samples);
     }
 }
+
 
 
 void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol, int samples) {

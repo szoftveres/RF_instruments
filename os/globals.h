@@ -5,7 +5,7 @@
 #include "config.h"
 #include "program.h"
 #include "levelcal.h"
-#include "analog.h"
+#include "dsp_maths.h"
 #include "terminal_input.h"
 #include "taskscheduler.h"
 #include "fifo.h" // execute_program

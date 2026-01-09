@@ -234,10 +234,13 @@ int cmd_dacsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 #define OFDM_FS (20000)
+#define OFDM_FC (2000)
 
 int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fs = OFDM_FS;
+    int fc = OFDM_FC;
     ofdm_pkt_t p;
+    int run = 1;
 
     char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
                     "Best CRC Polynomials are not always the best",
@@ -248,17 +251,19 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
     start_audio_out(fs);
 
-    while (1) {
+    while (run) {
         int n = 0;
-        for (int i = 0; i != 4; i++) {
+        for (int i = 0; (i != 4) && run; i++) {
+        	delay_ms(500);
             ofdm_packetize(&p, data[i], strlen(data[i])+1);
             n += strlen(data[i])+1;
-            ofdm_txpkt(fs, &p);
+            ofdm_txpkt(fs, fc, &p);
             int rr = rand()%200;
-            for (int i = rr; i != OFDM_FS; i++) {
+            for (int i = 0; i < rr; i++) {
                 int16_t sample = 0;
                 play_int16_sample(&sample);
             }
+            run = !switchbreak();
         }
         console_printf("%i bytes", n);
     }

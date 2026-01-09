@@ -11,11 +11,11 @@ CFLAGS = -Wall -Wextra -O0 $(INCLUDES)
 
 ## Objects that must be built in order to link
 OBJECTS =                                               \
-                        $(OBJDIR)/analog.o              \
                         $(OBJDIR)/bda4700.o             \
                         $(OBJDIR)/blockdevice.o         \
                         $(OBJDIR)/commands.o            \
                         $(OBJDIR)/config.o              \
+                        $(OBJDIR)/dsp_maths.o           \
                         $(OBJDIR)/fatsmall_fs.o         \
                         $(OBJDIR)/fifo.o                \
                         $(OBJDIR)/fs_broker.o           \

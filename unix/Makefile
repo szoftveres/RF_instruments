@@ -23,11 +23,11 @@ OBJECTS =                                               \
 
 LD_OBJECTS =                                     \
                         os/lex/lex.o             \
-                        os/analog.o              \
                         os/bda4700.o             \
                         os/blockdevice.o         \
                         os/commands.o            \
                         os/config.o              \
+                        os/dsp_maths.o           \
                         os/fatsmall_fs.o         \
                         os/fifo.o                \
                         os/fs_broker.o           \

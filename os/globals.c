@@ -1,5 +1,4 @@
 #include "globals.h"
-#include "analog.h"
 #include <string.h> // memcpy
 #include <stdio.h> // EOF
 #include "hal_plat.h" // malloc free
