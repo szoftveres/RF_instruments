@@ -7,7 +7,7 @@
 #include "../os/hal_plat.h" // malloc free
 #include "../os/keyword.h" // command structure
 #include "../os/resource.h"
-#include "../os/ofdmmodem.h"
+#include "../os/modem.h"
 #include "stm32h7xx_hal.h"  // HAL get tick
 
 
@@ -249,8 +249,6 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
                     };
 
-    start_audio_out(fs);
-
     while (run) {
         int n = 0;
         for (int i = 0; (i != 4) && run; i++) {
@@ -268,8 +266,6 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
         console_printf("%i bytes", n);
     }
 
-
-    stop_audio_out();
     return 1;
 }
 

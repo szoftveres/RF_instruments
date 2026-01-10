@@ -1,4 +1,4 @@
-#include "ofdmmodem.h"
+#include "modem.h"
 #include "hal_plat.h"
 #include "dsp_maths.h"
 #include <string.h>
@@ -74,7 +74,6 @@ void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol
 }
 
 
-
 uint8_t scrambler (uint8_t *core, uint8_t c) {
     int cycles = 8;
     while (cycles--) {
@@ -89,7 +88,7 @@ uint8_t scrambler (uint8_t *core, uint8_t c) {
 #define OFDM_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(ofdm_pkt_header_t)))
 
 int ofdm_packetize (ofdm_pkt_t* p, void *data, int len) {
-    if (len > OFDM_PKT_PAYLOAD_MAX) {
+    if (len > MODEM_PKT_PAYLOAD_MAX) {
         return 0;
     }
     p->h.len = (uint8_t)len;
@@ -106,7 +105,7 @@ int ofdm_packetize (ofdm_pkt_t* p, void *data, int len) {
 int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
     uint16_t crc = 0;
     int rc = p->h.len;
-    if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
+    if (p->h.len > MODEM_PKT_PAYLOAD_MAX) {
         return -1;
     }
     if (data) {
@@ -123,8 +122,8 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
 
 
 
-#define OFDM_MODEM_TX_OVERSAMPLE_RATE (8)
-#define OFDM_MODEM_RX_OVERSAMPLE_RATE (8)
+#define OFDM_TX_OVERSAMPLE_RATE (8)
+#define OFDM_RX_OVERSAMPLE_RATE (8)
 #define OFDM_MODEM_SPS (100)
 
 #define OFDM_TRAINING_FREQUENCY (4)
@@ -171,6 +170,7 @@ void ofdm_tx_noise (dds_t *mixer, int dec, int len, int symbolampl) {
 	}
 }
 
+
 void generate_training_symbol (int *i_symbol, int *q_symbol, int len, int symbolampl) {
     for (int n = -OFDM_CARRIER_PAIRS; n <= OFDM_CARRIER_PAIRS; n++) {
         int idx = ofdm_carrier_to_idx(n, len);
@@ -181,7 +181,7 @@ void generate_training_symbol (int *i_symbol, int *q_symbol, int len, int symbol
 
 
 int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
-    int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_MODEM_TX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+    int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_TX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
     int dec = fs / target_fs;
     int preambles = 4;
@@ -189,6 +189,8 @@ int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
 
     int training_due = 0;
     uint8_t scrambler_core = 0xFF;
+
+    start_audio_out(fs);
 
     dds_t *mixer = dds_create(fs, fc);
 
@@ -237,6 +239,8 @@ int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
     t_free(q_baseband);
     dds_destroy(mixer);
 
+    stop_audio_out();
+
     return 1;
 }
 
@@ -261,12 +265,14 @@ int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int sy
 
 
 
-int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
+int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p) {
     int rc;
-    int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_MODEM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+    int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
     int dec = fs / target_fs;
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
+
+    start_audio_in(fs);
 
     dds_t *mixer = dds_create(fs, fc);
 
@@ -384,7 +390,7 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
             // A drop in correlation between the current value (compared to the value at the previous symbol)
             // inndicates the end of the preamble
             if ((lcl_corravg > threshold) && (magn < (lcl_corravg / 2))) {
-                //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
+                console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
 
                 statemachine += 1;
                 wp = 0;
@@ -393,7 +399,7 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
                 // The trigger occurs somewhere in the early section of the cyclic prefix,
                 // shooting for the middle
                 pfx = PFXLEN * 1 / 4;
-                p->h.len = OFDM_PKT_PAYLOAD_MAX;
+                p->h.len = MODEM_PKT_PAYLOAD_MAX;
                 p->h.antipreamble = OFDM_ANTIPREAMBLE;
             } else {
                 wp = (wp + 1) % fft_len;
@@ -432,7 +438,7 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
 
                     p->byte[pp++] = scrambler(&scrambler_core, c);
 
-                    if (p->h.len > OFDM_PKT_PAYLOAD_MAX) {
+                    if (p->h.len > MODEM_PKT_PAYLOAD_MAX) {
                         statemachine = 0; // lost it due to garbage length
                         running = 0;
                         rc = -1;
@@ -457,9 +463,8 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
             break;
         }
     }
-    if (ampl) {
-        *ampl = max - min;
-    }
+
+    stop_audio_in();
 
     t_free(tap);
     t_free(buf_i);
@@ -479,5 +484,330 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p, int* ampl) {
 
     return rc;
 }
+
+
+
+
+/* ============== D-BPSK ===================== */
+
+
+// (Barker 4) x -(Barker 4)
+#define BPSK_PKT_PREAMBLE1 (0xB4)
+// (Barker 5) x -(Barker 3)
+#define BPSK_PKT_PREAMBLE2 (0xE9)
+
+
+#define BPSK_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(bpsk_pkt_header_t)))
+
+int bpsk_packetize (bpsk_pkt_t* p, void *data, int len) {
+    if (len > MODEM_PKT_PAYLOAD_MAX) {
+        return 0;
+    }
+    p->h.len = (uint8_t)len;
+    p->h.crc = 0;
+    p->h.preamble1 = BPSK_PKT_PREAMBLE1;
+    p->h.preamble2 = BPSK_PKT_PREAMBLE2;
+    if (len) {
+        memcpy(p->payload, data, len);
+    }
+    p->h.crc = crc16(p->byte, BPSK_PKT_TOTAL_LEN(p->h.len));
+    return len;
+}
+
+int bpsk_depacketize (bpsk_pkt_t* p, void **data) {
+    uint16_t crc = 0;
+    if (p->h.len > MODEM_PKT_PAYLOAD_MAX) {
+        return -1;
+    }
+    if (data) {
+        *data = p->payload;
+    }
+    crc = p->h.crc;
+    p->h.crc = 0;
+    if (crc16(p->byte, BPSK_PKT_TOTAL_LEN(p->h.len)) != crc) {
+        return -1;
+    }
+    p->h.crc = crc;
+    return p->h.len;
+}
+
+
+#define BPSK_BAUDRATE (400)
+#define BPSK_RX_OVERSAMPLE_RATE (5)
+
+typedef struct bpsk_context_s {
+    int fft_len;
+    int fc;
+    dds_t* mixer;
+    int* i;
+    int* q;
+    int wp;
+    int sync;
+
+    uint8_t scrambler_core;
+
+    int cm;
+    int cmi;
+
+    int pp;
+
+    uint8_t byte[BPSK_RX_OVERSAMPLE_RATE];
+    int bitcounter;
+
+    struct {  //         Decimating filter
+        int *buf_i;
+        int *buf_q;
+        int bp;          // This tracks the incoming samples
+
+        int *tap;
+        int taps;
+        int norm; // sum of taps, for normalization
+
+        int target_fs;
+        int dec; // decimation factor
+    } ds;
+
+    int* bitval;
+
+} bpsk_context_t;
+
+
+
+int bpsk_rxpkt (int fs, int fc, bpsk_pkt_t *p) {
+    int16_t sample;
+    bpsk_context_t c;
+
+    start_audio_in(fs);
+
+    memset(&c, 0x00, sizeof(bpsk_context_t));
+    c.scrambler_core = 0xFF;
+    c.fc = fc; // main carrier
+    c.mixer = NULL; // yet unknown, fs depends on the sample rate
+
+    c.fft_len = BPSK_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
+
+    c.i = (int*)t_malloc(c.fft_len * sizeof(int));
+    c.q = (int*)t_malloc(c.fft_len * sizeof(int));
+    c.bitval = (int*)t_malloc(c.fft_len * sizeof(int));
+
+    c.ds.target_fs = c.fft_len * BPSK_BAUDRATE;
+
+    c.ds.dec = 0;
+    p->h.len = MODEM_PKT_PAYLOAD_MAX;
+
+    c.mixer = dds_create(fs, c.fc);
+
+    c.ds.dec = fs / c.ds.target_fs; //  dec =   fs / target fs
+
+    c.ds.taps = fir_ntaps(c.ds.dec, 2);
+    c.ds.tap = fir_create_taps(c.ds.dec, 2);
+    c.ds.norm = fir_normf(c.ds.tap, c.ds.taps);
+    c.ds.buf_i = (int*)t_malloc(c.ds.taps * sizeof(int));
+    c.ds.buf_q = (int*)t_malloc(c.ds.taps * sizeof(int));
+
+    c.wp = 0;
+    c.ds.bp = 0;
+    c.pp = -1;
+
+
+    int rss;
+    int rc = -1;
+
+    while (1) {
+        // Downconverting to baseband
+        int i_a;
+        int q_a;
+        dds_next_sample(c.mixer, &i_a, &q_a);
+        record_int16_sample(&sample);
+        c.ds.buf_i[c.ds.bp] = ((int)sample) * i_a / magnitude_const();
+        c.ds.buf_q[c.ds.bp] = ((int)sample) * q_a / magnitude_const();
+
+        if (c.pp == BPSK_PKT_TOTAL_LEN(p->h.len)) { // We're done
+            rc = bpsk_depacketize(p, NULL);
+            break;
+        }
+
+        c.ds.bp++;
+        if (c.ds.bp < c.ds.taps) {
+            continue;
+        }
+        c.ds.bp -= c.ds.dec;  // due to memmove in fir_work
+
+        // Downsampling (lowpass and decimate)
+        c.wp = (c.wp + 1) % c.fft_len;              // move WP
+
+        i_a = c.i[c.wp];              // Delayed conjugate
+        q_a = -(c.q[c.wp]);           // Delayed conjugate
+        c.i[c.wp] = fir_work(c.ds.buf_i, c.ds.tap, c.ds.taps, c.ds.dec) / c.ds.norm;
+        c.q[c.wp] = fir_work(c.ds.buf_q, c.ds.tap, c.ds.taps, c.ds.dec) / c.ds.norm;
+
+        // Polar discriminator
+        cplx_mul(&i_a, &q_a, c.i[c.wp], c.q[c.wp], magnitude_const());
+        c.bitval[c.wp] = i_a;
+        //c.bitval[c.wp] = ((i_a * c.i[c.wp]) - (q_a * c.q[c.wp])) / magnitude_const();
+        // We only care about the real part after the polar discriminator
+
+        int bit = 0;
+        // matched filter
+        for (int i = 0; i != c.fft_len; i++) {
+            bit += c.bitval[i];
+        }
+        bit /= c.fft_len;
+        rss = ((bit < 0) ? -bit : bit);
+        c.byte[c.wp] <<= 1;
+        c.byte[c.wp] |= (bit > 0 ? 0x00 : 0x01);
+
+        switch (c.pp) {
+            case -1: { // trying to sync to the preamble
+                if (c.byte[c.wp] == BPSK_PKT_PREAMBLE1) {
+                    //console_printf("sync start, rss:%i", rss);
+                    c.sync = 0;
+                    c.cm = rss;
+                    c.cmi = c.sync;
+                    c.pp += 1;  // Advance to the next state
+                    p->byte[c.pp] = c.byte[c.wp];
+                }
+                continue;
+            };
+            case 0: { // Found a valid preamble, let's find the max
+                c.sync += 1;
+                if ((c.byte[c.wp] == BPSK_PKT_PREAMBLE1) && (rss > c.cm)) { // Found a better peak
+                    //console_printf("sync        rss:%i", rss);
+                    c.cm = rss;
+                    c.cmi = c.sync;
+                }
+                if (c.sync > (c.fft_len - 2)) {
+                    //console_printf("sync end    sync:%i", c.sync);
+                    c.sync = (c.fft_len - c.sync) + c.cmi; // Samples to skip for best sync to the next symbol
+                    c.bitcounter = 0;
+                    //console_printf("sync end best sync:%i", c.sync);
+                    c.pp += 1; // Advance to the next state
+                }
+                continue;
+            };
+        }
+
+        c.sync -= 1;
+        if (c.sync) { // Just sinking samples
+            continue;
+        }
+
+        c.sync = c.fft_len;
+        c.bitcounter++;
+        if (c.bitcounter < 8) {
+            continue;
+        }
+        c.bitcounter = 0;
+
+        p->byte[c.pp] = c.byte[c.wp];
+        c.cm += rss;
+        c.sync = c.fft_len;
+        if (((c.pp == 1) && (p->byte[c.pp] != BPSK_PKT_PREAMBLE2)) ||
+            (p->h.len > MODEM_PKT_PAYLOAD_MAX)) {
+            //console_printf("lost it: :0x%02X, rss:%i", p->byte[c.pp], rss);
+            c.pp = -1; // We lost it
+            c.wp = 0;
+            continue;
+        }
+        c.pp += 1; // Advance to the next stage
+
+        continue;
+    }
+
+    stop_audio_in();
+
+    dds_destroy(c.mixer);
+    t_free(c.i);
+    t_free(c.q);
+    t_free(c.bitval);
+    t_free(c.ds.buf_i);
+    t_free(c.ds.buf_q);
+
+    return rc;
+}
+
+
+int bpsk_txpkt (int fs, int fc, bpsk_pkt_t *p) {
+    bpsk_context_t c;
+    memset(&c, 0x00, sizeof(bpsk_context_t));
+    c.scrambler_core = 0xFF;
+
+    start_audio_out(fs);
+
+    c.fc = fc; // main carrier
+    c.mixer = dds_create(fs, c.fc);
+    c.fft_len = 1; // carrier pairs * Nyquist * Oversample rate
+    c.i = (int*)t_malloc(c.fft_len * sizeof(int));
+    memset(c.i, 0x00, c.fft_len * sizeof(int));
+    c.q = (int*)t_malloc(c.fft_len * sizeof(int));
+    memset(c.q, 0x00, c.fft_len * sizeof(int));
+
+    c.ds.target_fs = c.fft_len * BPSK_BAUDRATE;
+    c.ds.dec = fs / c.ds.target_fs;
+
+
+    c.pp = -2;   // XXX should be -2
+    c.bitcounter = 7;
+    c.wp = 0;
+
+
+    while (c.pp <= (BPSK_PKT_TOTAL_LEN(p->h.len) + 1)) {
+
+        if (c.wp) { // Upconvert and play
+            int16_t sample;
+            c.wp -= 1;
+
+            int i_mix;
+            int q_mix;
+            dds_next_sample(c.mixer, &i_mix, &q_mix);
+            sample = (int16_t)(((c.i[c.ds.bp] * i_mix) + (c.q[c.ds.bp] * q_mix)) / magnitude_const());
+
+            play_int16_sample(&sample);
+            continue;
+        }
+        c.wp = c.ds.dec;
+
+
+        c.ds.bp += 1;
+        if (c.ds.bp < c.fft_len) { // Go to the next baseband (oversampled) sample
+            continue;
+        }
+        c.ds.bp = 0;
+
+
+        uint8_t nextbit = c.byte[c.ds.bp] & 0x80;
+        c.byte[c.ds.bp] <<= 1;
+        if (nextbit) { // differential encoding
+            c.i[c.ds.bp] *= -1;
+        }
+
+        c.bitcounter++;
+        if (c.bitcounter < 8) {
+            continue;
+        }
+        c.bitcounter = 0;
+
+        // Next byte
+        c.pp += 1;
+        if (c.pp < 0) {
+            c.byte[c.ds.bp] = 0;
+            c.i[c.ds.bp] = 16384;
+            c.q[c.ds.bp] = 0;
+        } else if (c.pp < BPSK_PKT_TOTAL_LEN(p->h.len)) {
+            c.byte[c.ds.bp] = p->byte[c.pp];
+        } else {
+            c.byte[c.ds.bp] = 0;
+        }
+    }
+
+    dds_destroy(c.mixer);
+    t_free(c.i);
+    t_free(c.q);
+
+    stop_audio_out();
+
+    return 0;
+}
+
 
 

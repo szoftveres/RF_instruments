@@ -23,7 +23,7 @@ OBJECTS =                                               \
                         $(OBJDIR)/keyword.o             \
                         $(OBJDIR)/levelcal.o            \
                         $(OBJDIR)/max2871.o             \
-                        $(OBJDIR)/ofdmmodem.o           \
+                        $(OBJDIR)/modem.o               \
                         $(OBJDIR)/parser.o              \
                         $(OBJDIR)/pcmstream.o           \
                         $(OBJDIR)/program.o             \

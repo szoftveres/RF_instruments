@@ -35,7 +35,7 @@ LD_OBJECTS =                                     \
                         os/keyword.o             \
                         os/levelcal.o            \
                         os/max2871.o             \
-                        os/ofdmmodem.o           \
+                        os/modem.o               \
                         os/parser.o              \
                         os/pcmstream.o           \
                         os/program.o             \

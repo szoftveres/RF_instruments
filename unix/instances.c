@@ -1,6 +1,6 @@
 #include "adcdac.h"
 #include "instances.h"
-#include "os/ofdmmodem.h"
+#include "os/modem.h"
 #include "config_def.h"
 #include "os/globals.h"  // config instance
 #include "os/keyword.h"  // cmd_params_t
@@ -172,8 +172,6 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
                     };
 
-    start_audio_out(fs);
-
     while (1) {
         int n = 0;
         for (int i = 0; i != 4; i++) {
@@ -188,9 +186,6 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
         }
         console_printf("%i bytes", n);
     }
-
-
-    stop_audio_out();
     return 1;
 }
 
@@ -200,29 +195,80 @@ int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     int fc = OFDM_FC;
     ofdm_pkt_t p;
     char* data;
-    int ampl;
 
-    start_audio_in(fs);
     while (1) {
         memset(&p, 0x00, sizeof(ofdm_pkt_t));
-        if (ofdm_rxpkt(fs, fc, &p, &ampl) < 0) {
+        if (ofdm_rxpkt(fs, fc, &p) < 0) {
             continue;
         }
         if (ofdm_depacketize(&p, &data) >= 0) {
             console_printf("[%s]", data);
         }
     }
-    stop_audio_in();
 
     return 1;
 }
 
 
 
+int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+    int fs = OFDM_FS;
+    int fc = OFDM_FC;
+    bpsk_pkt_t p;
+
+    char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
+                    "Best CRC Polynomials are not always the best",
+                    "Here at Hackaday we love floppy disks.",
+                    "====----====----====----====----"
+
+                    };
+
+    while (1) {
+        int n = 0;
+        for (int i = 0; i != 4; i++) {
+            bpsk_packetize(&p, data[i], strlen(data[i])+1);
+            n += strlen(data[i])+1;
+            bpsk_txpkt(fs, fc,  &p);
+            int rr = rand()%200;
+            for (int i = rr; i != OFDM_FS; i++) {
+                int16_t sample = 0;
+                play_int16_sample(&sample);
+            }
+        }
+        console_printf("%i bytes", n);
+    }
+
+    return 1;
+}
+
+int cmd_bpsk_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+    int fs = OFDM_FS;
+    int fc = OFDM_FC;
+    bpsk_pkt_t p;
+    char* data;
+
+    while (1) {
+        memset(&p, 0x00, sizeof(ofdm_pkt_t));
+        if (bpsk_rxpkt(fs, fc, &p) < 0) {
+            continue;
+        }
+        if (bpsk_depacketize(&p, &data) >= 0) {
+            console_printf("[%s]", data);
+        }
+    }
+
+    return 1;
+}
+
+
+
+
 int setup_persona_commands (void) {
 
-	keyword_add("rx", "- test", cmd_ofdm_rx);
-	keyword_add("tx", "- test", cmd_ofdm_tx);
+	keyword_add("brx", "- test", cmd_bpsk_rx);
+	keyword_add("btx", "- test", cmd_bpsk_tx);
+	keyword_add("orx", "- test", cmd_ofdm_rx);
+	keyword_add("otx", "- test", cmd_ofdm_tx);
 	keyword_add("dacsnk", "->DAC", cmd_dacsink);
 	keyword_add("adcsrc", "ADC [fs]->", cmd_adcsrc);
 

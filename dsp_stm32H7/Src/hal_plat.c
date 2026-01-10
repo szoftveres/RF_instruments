@@ -261,6 +261,9 @@ int start_audio_out (int fs) {
 }
 
 void stop_audio_out (void) {
+    while (!fifo_isempty(aout_fifo)) {
+        cpu_sleep();
+    }
 	stop_sampler();
 	fifo_destroy(aout_fifo);
 }
