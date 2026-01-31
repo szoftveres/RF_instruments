@@ -58,7 +58,7 @@ int start_audio_out (int fs);
 void stop_audio_out (void);
 int record_int16_sample (int16_t *s);
 int play_int16_sample (int16_t *s);
-
+int play_silence_ms (int ms);
 
 
 

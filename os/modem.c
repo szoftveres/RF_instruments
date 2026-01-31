@@ -195,6 +195,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     uint8_t scrambler_core = 0xFF;
 
     start_audio_out(fs);
+    play_silence_ms(200);
 
     dds_t *mixer = dds_create(fs, OFDM_FC);
 
@@ -207,7 +208,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
     // Sending some noise
-    for (int t = 0; t != 2; t++) {
+    for (int t = 0; t != 4; t++) {
         ofdm_tx_noise (mixer, dec, fft_len,  4096);
     }
 
@@ -232,7 +233,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     }
 
     // Sending some noise
-    for (int t = 0; t != 2; t++) {
+    for (int t = 0; t != 4; t++) {
         ofdm_tx_noise (mixer, dec, fft_len,  4096);
     }
 
@@ -242,7 +243,6 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     t_free(i_baseband);
     t_free(q_baseband);
     dds_destroy(mixer);
-
     stop_audio_out();
 
     return 1;
