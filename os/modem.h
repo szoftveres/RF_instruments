@@ -24,8 +24,8 @@ typedef union __attribute__((packed)) ofdm_packet_u {
 int ofdm_packetize (ofdm_pkt_t* p, void *data, int len);
 int ofdm_depacketize (ofdm_pkt_t* p, void **data);
 
-int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p);
-int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p);
+int ofdm_txpkt (ofdm_pkt_t *p);
+int ofdm_rxpkt (ofdm_pkt_t *p);
 
 
 
@@ -50,8 +50,8 @@ typedef union __attribute__((packed)) bpsk_pkt_u {
 int bpsk_packetize (bpsk_pkt_t* p, void *data, int len);
 int bpsk_depacketize (bpsk_pkt_t* p, void **data);
 
-int bpsk_txpkt (int fs, int fc, bpsk_pkt_t *p);
-int bpsk_rxpkt (int fs, int fc, bpsk_pkt_t *p);
+int bpsk_txpkt (bpsk_pkt_t *p);
+int bpsk_rxpkt (bpsk_pkt_t *p);
 
 
 

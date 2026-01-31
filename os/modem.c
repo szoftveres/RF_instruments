@@ -10,6 +10,9 @@
 
 
 
+#define OFDM_FS (20000)
+#define OFDM_FC (2000)
+
 int ofdm_carrier_to_idx (int n, int samples) {
     return (samples + n) % samples;
 }
@@ -180,7 +183,8 @@ void generate_training_symbol (int *i_symbol, int *q_symbol, int len, int symbol
 }
 
 
-int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
+int ofdm_txpkt (ofdm_pkt_t *p) {
+    int fs = OFDM_FS;
     int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_TX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
     int dec = fs / target_fs;
@@ -192,7 +196,7 @@ int ofdm_txpkt (int fs, int fc, ofdm_pkt_t *p) {
 
     start_audio_out(fs);
 
-    dds_t *mixer = dds_create(fs, fc);
+    dds_t *mixer = dds_create(fs, OFDM_FC);
 
     int *i_symbol = (int*)t_malloc(fft_len * sizeof(int));
     int *q_symbol = (int*)t_malloc(fft_len * sizeof(int));
@@ -265,7 +269,8 @@ int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int sy
 
 
 
-int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p) {
+int ofdm_rxpkt (ofdm_pkt_t *p) {
+    int fs = OFDM_FS;
     int rc;
     int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
     int target_fs = fft_len * OFDM_MODEM_SPS;
@@ -274,7 +279,7 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p) {
 
     start_audio_in(fs);
 
-    dds_t *mixer = dds_create(fs, fc);
+    dds_t *mixer = dds_create(fs, OFDM_FC);
 
     int min = 1024 * 1024;
     int max = -min;
@@ -491,6 +496,11 @@ int ofdm_rxpkt (int fs, int fc, ofdm_pkt_t *p) {
 /* ============== D-BPSK ===================== */
 
 
+#define BPSK_FS (8000)
+#define BPSK_FC (2000)
+
+
+
 // (Barker 4) x -(Barker 4)
 #define BPSK_PKT_PREAMBLE1 (0xB4)
 // (Barker 5) x -(Barker 3)
@@ -537,7 +547,6 @@ int bpsk_depacketize (bpsk_pkt_t* p, void **data) {
 
 typedef struct bpsk_context_s {
     int fft_len;
-    int fc;
     dds_t* mixer;
     int* i;
     int* q;
@@ -573,15 +582,15 @@ typedef struct bpsk_context_s {
 
 
 
-int bpsk_rxpkt (int fs, int fc, bpsk_pkt_t *p) {
+int bpsk_rxpkt (bpsk_pkt_t *p) {
     int16_t sample;
     bpsk_context_t c;
+    int fs = BPSK_FS;
 
     start_audio_in(fs);
 
     memset(&c, 0x00, sizeof(bpsk_context_t));
     c.scrambler_core = 0xFF;
-    c.fc = fc; // main carrier
     c.mixer = NULL; // yet unknown, fs depends on the sample rate
 
     c.fft_len = BPSK_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
@@ -595,7 +604,7 @@ int bpsk_rxpkt (int fs, int fc, bpsk_pkt_t *p) {
     c.ds.dec = 0;
     p->h.len = MODEM_PKT_PAYLOAD_MAX;
 
-    c.mixer = dds_create(fs, c.fc);
+    c.mixer = dds_create(fs, BPSK_FC);
 
     c.ds.dec = fs / c.ds.target_fs; //  dec =   fs / target fs
 
@@ -727,15 +736,15 @@ int bpsk_rxpkt (int fs, int fc, bpsk_pkt_t *p) {
 }
 
 
-int bpsk_txpkt (int fs, int fc, bpsk_pkt_t *p) {
+int bpsk_txpkt (bpsk_pkt_t *p) {
+    int fs = BPSK_FS;
     bpsk_context_t c;
     memset(&c, 0x00, sizeof(bpsk_context_t));
     c.scrambler_core = 0xFF;
 
     start_audio_out(fs);
 
-    c.fc = fc; // main carrier
-    c.mixer = dds_create(fs, c.fc);
+    c.mixer = dds_create(fs, BPSK_FC);
     c.fft_len = 1; // carrier pairs * Nyquist * Oversample rate
     c.i = (int*)t_malloc(c.fft_len * sizeof(int));
     memset(c.i, 0x00, c.fft_len * sizeof(int));
