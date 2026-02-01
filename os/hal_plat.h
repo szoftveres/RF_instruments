@@ -60,6 +60,11 @@ int record_int16_sample (int16_t *s);
 int play_int16_sample (int16_t *s);
 int play_silence_ms (int ms);
 
+void tx_on (void);
+void tx_off (void);
+
+void rx_on (void);
+void rx_off (void);
 
 
 #endif /* INC_HAL_PLAT_H_ */

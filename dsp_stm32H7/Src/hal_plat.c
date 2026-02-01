@@ -196,6 +196,7 @@ void cpu_halt (void) {
 
 void (*sampler_callback) (void*);
 void* sampler_context;
+int sampler_fs;
 
 int set_sampler_frequency (int fs) {
 	uint32_t TIM2Clock = 200000000;
@@ -210,6 +211,7 @@ int set_sampler_frequency (int fs) {
 	if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
 		return 0;
 	}
+	sampler_fs = fs;
 	return 1;
 }
 
@@ -275,3 +277,26 @@ int play_int16_sample (int16_t *s) {
 	fifo_push_or_sleep(aout_fifo, &formatted_sample);
 	return 1;
 }
+
+int play_silence_ms (int ms) {
+    int samples;
+    int16_t s = 0;
+    for (samples = (sampler_fs * ms) / 1000; samples; samples -= 1 ) {
+        play_int16_sample(&s);
+    }
+    return 1;
+}
+
+
+void tx_on (void) {
+	int16_t s = 0;
+	play_int16_sample(&s);
+}
+
+void tx_off (void) {
+	int16_t s = -32767;
+	play_int16_sample(&s);
+}
+
+void rx_on (void) {}
+void rx_off (void) {}

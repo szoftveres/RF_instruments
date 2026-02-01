@@ -233,14 +233,39 @@ int cmd_dacsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	return dacsink_setup(in);
 }
 
-#define OFDM_FS (20000)
-#define OFDM_FC (2000)
 
 int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-    int fs = OFDM_FS;
-    int fc = OFDM_FC;
     ofdm_pkt_t p;
-    int run = 1;
+
+	if (get_cmd_arg_type(params) == CMD_ARG_TYPE_STR) {
+		ofdm_packetize(&p, (*params)->str, strlen((*params)->str)+1);
+		cmd_param_consume(params);
+		ofdm_txpkt(&p);
+		return 1;
+	}
+
+	int seq = 0;
+	char *msg = "0000 OFDM Message";
+
+    while (!switchbreak()) {
+        int s = seq;
+        for (int i = 3; i > 0; i -= 1) {
+        	msg[i] = (s % 10) + '0';
+        	s /= 10;
+        }
+        ofdm_packetize(&p, msg, strlen(msg)+1);
+        ofdm_txpkt(&p);
+        delay_ms(2000);
+        seq += 1;
+    }
+    return 1;
+}
+
+
+
+
+int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+    bpsk_pkt_t p;
 
     char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
                     "Best CRC Polynomials are not always the best",
@@ -249,19 +274,13 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
                     };
 
-    while (run) {
+    while (!switchbreak()) {
         int n = 0;
-        for (int i = 0; (i != 4) && run; i++) {
-        	delay_ms(500);
-            ofdm_packetize(&p, data[i], strlen(data[i])+1);
+        for (int i = 0; i != 4; i++) {
+            bpsk_packetize(&p, data[i], strlen(data[i])+1);
             n += strlen(data[i])+1;
-            ofdm_txpkt(fs, fc, &p);
-            int rr = rand()%200;
-            for (int i = 0; i < rr; i++) {
-                int16_t sample = 0;
-                play_int16_sample(&sample);
-            }
-            run = !switchbreak();
+            bpsk_txpkt(&p);
+            delay_ms(800);
         }
         console_printf("%i bytes", n);
     }
@@ -274,7 +293,8 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 int setup_persona_commands (void) {
 
-	keyword_add("tx", "- test", cmd_ofdm_tx);
+	keyword_add("otx", "- test", cmd_ofdm_tx);
+	keyword_add("btx", "- test", cmd_bpsk_tx);
 
 	keyword_add("malloctest", "", cmd_malloctest);
 

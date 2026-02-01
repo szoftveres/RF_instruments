@@ -348,3 +348,13 @@ int play_silence_ms (int ms) {
     return 1;
 }
 
+void tx_on (void) {
+}
+
+void tx_off (void) {
+}
+
+void rx_on (void) {}
+void rx_off (void) {}
+
+

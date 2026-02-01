@@ -195,6 +195,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     uint8_t scrambler_core = 0xFF;
 
     start_audio_out(fs);
+    tx_on();
     play_silence_ms(200);
 
     dds_t *mixer = dds_create(fs, OFDM_FC);
@@ -237,12 +238,12 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
         ofdm_tx_noise (mixer, dec, fft_len,  4096);
     }
 
-
     t_free(i_symbol);
     t_free(q_symbol);
     t_free(i_baseband);
     t_free(q_baseband);
     dds_destroy(mixer);
+    tx_off();
     stop_audio_out();
 
     return 1;
@@ -277,6 +278,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
     int dec = fs / target_fs;
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
+    rx_on();
     start_audio_in(fs);
 
     dds_t *mixer = dds_create(fs, OFDM_FC);
@@ -470,6 +472,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
     }
 
     stop_audio_in();
+    rx_off();
 
     t_free(tap);
     t_free(buf_i);
@@ -587,6 +590,7 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
     bpsk_context_t c;
     int fs = BPSK_FS;
 
+    rx_on();
     start_audio_in(fs);
 
     memset(&c, 0x00, sizeof(bpsk_context_t));
@@ -724,6 +728,7 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
     }
 
     stop_audio_in();
+    rx_off();
 
     dds_destroy(c.mixer);
     t_free(c.i);
@@ -743,6 +748,8 @@ int bpsk_txpkt (bpsk_pkt_t *p) {
     c.scrambler_core = 0xFF;
 
     start_audio_out(fs);
+    tx_on();
+    play_silence_ms(200);
 
     c.mixer = dds_create(fs, BPSK_FC);
     c.fft_len = 1; // carrier pairs * Nyquist * Oversample rate
@@ -813,6 +820,7 @@ int bpsk_txpkt (bpsk_pkt_t *p) {
     t_free(c.i);
     t_free(c.q);
 
+    tx_off();
     stop_audio_out();
 
     return 0;
