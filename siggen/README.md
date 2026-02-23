@@ -221,13 +221,13 @@ Calculating and printing prime numbers between 3 and 1000, without any RF functi
  9 "if n < f \"goto 1\""
 ```
 
-Number guessing game, demonstrating online input prompt within a program: line `g = $"Guess [0-99]?"` prints the given message and waits for an online input expression and stores the result in variable 'g'. The expression is pre-evaluated prior to storage, therefore it can range from a single integer number to any compound expression, including all the variables.
+Number guessing game, demonstrating online input prompt within a program: line `g = ?"Guess [0-99]?"` prints the given message and waits for an online input expression and stores the result in variable 'g'. The expression is pre-evaluated prior to storage, therefore it can range from a single integer number to any compound expression, including all the variables.
 
 ```
  0 "rnd = ticks"
  1 "n = rnd % 100"
  2 "i = 1"
- 3 "g = $\"Guess [0-99]?\""
+ 3 "g = ?\"Guess [0-99]?\""
  4 "if g > n \"goto 7\""
  5 "if g < n \"goto 8\""
  6 "print \"Found out from \" i \" guesses\"; end"
