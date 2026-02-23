@@ -43,7 +43,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-fifo_t* usart_stream;
+fifo_t* console_usart_stream;
+fifo_t* aux_usart_stream;
 
 /* USER CODE END PD */
 
@@ -68,6 +69,7 @@ SPI_HandleTypeDef hspi4;
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart5;
+UART_HandleTypeDef huart7;
 
 /* USER CODE BEGIN PV */
 
@@ -87,6 +89,7 @@ static void MX_UART5_Init(void);
 static void MX_SPI4_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_UART7_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -180,9 +183,17 @@ ramdrive_write_page (blockdevice_t* blockdevice, int pageaddress) {
 
 char get_online_char (void) {
 	char c;
-	fifo_pop_or_sleep(usart_stream, &c);
+	fifo_pop_or_sleep(console_usart_stream, &c);
 	return c;
 }
+
+
+char get_gps_char (void) {
+	char c;
+	fifo_pop_or_sleep(aux_usart_stream, &c);
+	return c;
+}
+
 
 /* USER CODE END 0 */
 
@@ -220,9 +231,14 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  usart_stream = fifo_create(16, sizeof(char));
-  if (!usart_stream) {
+  console_usart_stream = fifo_create(16, sizeof(char));
+  if (!console_usart_stream) {
 	  cpu_halt();
+  }
+
+  aux_usart_stream = fifo_create(256, sizeof(char));
+  if (!aux_usart_stream) {
+  	  cpu_halt();
   }
 
   /* USER CODE END Init */
@@ -249,9 +265,11 @@ int main(void)
   MX_SPI4_Init();
   MX_I2C1_Init();
   MX_TIM2_Init();
+  MX_UART7_Init();
   /* USER CODE BEGIN 2 */
 
   __HAL_UART_ENABLE_IT(&huart5, UART_IT_RXNE);
+  __HAL_UART_ENABLE_IT(&huart7, UART_IT_RXNE);
 
   NVIC_EnableIRQ(TIM2_IRQn);
 
@@ -401,6 +419,12 @@ int main(void)
   	  cpu_halt();
   }
 
+  gps = nmea0183_create(get_gps_char);
+  if (!gps) {
+	  console_printf("gps create error");
+	  cpu_halt();
+  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -503,7 +527,7 @@ void PeriphCommonClock_Config(void)
   */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_I2C1
                               |RCC_PERIPHCLK_SDMMC|RCC_PERIPHCLK_SPI4
-                              |RCC_PERIPHCLK_UART5;
+                              |RCC_PERIPHCLK_UART5|RCC_PERIPHCLK_UART7;
   PeriphClkInitStruct.PLL2.PLL2M = 10;
   PeriphClkInitStruct.PLL2.PLL2N = 240;
   PeriphClkInitStruct.PLL2.PLL2P = 8;
@@ -992,6 +1016,54 @@ static void MX_UART5_Init(void)
 }
 
 /**
+  * @brief UART7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART7_Init(void)
+{
+
+  /* USER CODE BEGIN UART7_Init 0 */
+
+  /* USER CODE END UART7_Init 0 */
+
+  /* USER CODE BEGIN UART7_Init 1 */
+
+  /* USER CODE END UART7_Init 1 */
+  huart7.Instance = UART7;
+  huart7.Init.BaudRate = 115200;
+  huart7.Init.WordLength = UART_WORDLENGTH_8B;
+  huart7.Init.StopBits = UART_STOPBITS_1;
+  huart7.Init.Parity = UART_PARITY_NONE;
+  huart7.Init.Mode = UART_MODE_TX_RX;
+  huart7.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart7.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart7.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart7.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart7.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart7, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart7, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART7_Init 2 */
+
+  /* USER CODE END UART7_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -1011,8 +1083,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, SPI_CS1_Pin|SPI_CS2_Pin|GPIO4_Pin|GPIO3_Pin
-                          |SPI_CS3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, SPI_CS1_Pin|SPI_CS2_Pin|SPI_CS3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -1022,13 +1093,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : GPIO4_Pin GPIO3_Pin */
-  GPIO_InitStruct.Pin = GPIO4_Pin|GPIO3_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : GPIO2_Pin GPIO1_Pin */

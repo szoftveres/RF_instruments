@@ -14,6 +14,7 @@
 
 
 static const char* invalid_val = "Invalid value \'%i\'";
+static const char* not_a_number = "Not a number";
 static const char* not_a_string = "Not a string";
 static const char* name_expected = "\"name\" expected";
 static const char* malloc_fail = "out of memory";
@@ -92,6 +93,126 @@ int cmd_print (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	}
 	return rc;
 }
+
+
+
+
+static int
+_putu (unsigned int num, int digits) {
+    int n = 1;
+    if (num / 10){
+        n += _putu(num / 10, digits ? (digits - 1) : 0);
+    } else {
+        while (digits) {
+            console_printf_e(" ");
+            --digits;
+            ++n;
+        }
+    }
+    console_printf_e("%c", (num % 10) + '0');
+    return n;
+}
+
+static int
+_putx (unsigned int num, int digits) {
+    int n = 1;
+    if (num / 0x10) {
+        n += _putx(num / 0x10, digits ? (digits - 1) : 0);
+    } else {
+        while (digits) {
+        	console_printf_e("0");
+            --digits;
+            ++n;
+        }
+    }
+    console_printf_e("%c", (num % 0x10) + (((num % 0x10) > 9) ? ('a' - 10) : ('0')));
+    return n;
+}
+
+
+int cmd_printf (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	int c = 0;
+	int digits = 0;
+	int rc = 1;
+	char* fmtstring;
+	char* fmt;
+
+	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+		console_printf(not_a_string);
+		return 0;
+	}
+	fmtstring = t_strdup((*params)->str);
+	cmd_param_consume(params);
+	fmt = fmtstring;
+
+
+    for (;*fmt; fmt++) {
+        if (*fmt != '%') {
+            console_printf_e("%c", *fmt);
+            c++;
+            continue;
+        }
+        fmt++;
+        while ((*fmt >= '0') && (*fmt <= '9')) {
+            digits *= 10;
+            digits += (*fmt - '0');
+            fmt++;
+        }
+        switch (*fmt) {
+          case 'c':
+        	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+        		console_printf(not_a_number);
+        	  	rc = 0;
+        	  	break;
+        	}
+        	console_printf_e("%c", (*params)->n);
+        	cmd_param_consume(params);
+            c++;
+            break;
+          case 's': {
+        	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+        		console_printf(not_a_string);
+        			rc = 0;
+        		    break;
+        	    }
+        	    console_printf_e("%s", (*params)->str);
+        	    cmd_param_consume(params);
+            }
+            break;
+          case 'x':
+          case 'X':
+          	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+          		console_printf(not_a_number);
+          	  	rc = 0;
+          	  	break;
+          	}
+          	c += _putx((*params)->n, digits ? (digits - 1) : 0);
+          	cmd_param_consume(params);
+
+            digits = 0;
+            break;
+          case 'd':
+          case 'i':
+          case 'u':
+        	  if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+        		  console_printf(not_a_number);
+        		  rc = 0;
+        		  break;
+        	  }
+        	  c += _putu((*params)->n, digits ? (digits - 1) : 0);
+        	  cmd_param_consume(params);
+            digits = 0;
+            break;
+        }
+    }
+
+	t_free(fmtstring);
+
+	console_printf("");
+
+	return rc;
+}
+
 
 
 int cmd_savecfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
@@ -878,6 +999,7 @@ int setup_commands (void) {
 
 	// BASIC FUNCTIONS ==================================
 	keyword_add("if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if);
+	keyword_add("printf", "\"fmt\" ...", cmd_printf);
 	keyword_add("print", "[expr] \"str\"", cmd_print);
 	keyword_add("mem", "- mem info", cmd_mem);
 	keyword_add("ver", "- FW build", cmd_ver);

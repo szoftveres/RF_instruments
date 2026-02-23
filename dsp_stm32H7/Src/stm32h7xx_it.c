@@ -25,7 +25,8 @@
 #include "../os/hal_plat.h"
 #include "../os/fifo.h"
 
-extern fifo_t* usart_stream;
+extern fifo_t* console_usart_stream;
+extern fifo_t* aux_usart_stream;
 
 
 
@@ -63,6 +64,7 @@ extern fifo_t* usart_stream;
 /* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim2;
 extern UART_HandleTypeDef huart5;
+extern UART_HandleTypeDef huart7;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -233,9 +235,29 @@ void UART5_IRQHandler(void)
 	  // Make sure this handler has the lowest priority (15)
 	  HAL_UART_Receive(&huart5, &res, 1, 500);
 	  //res = USART_ReceiveData();
-	  fifo_push(usart_stream, &res);
+	  fifo_push(console_usart_stream, &res);
   }
   /* USER CODE END UART5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles UART7 global interrupt.
+  */
+void UART7_IRQHandler(void)
+{
+  /* USER CODE BEGIN UART7_IRQn 0 */
+
+  /* USER CODE END UART7_IRQn 0 */
+  HAL_UART_IRQHandler(&huart7);
+  /* USER CODE BEGIN UART7_IRQn 1 */
+  if (UART7->ISR & UART_IT_RXNE) {
+	  uint8_t res;
+	  // Make sure this handler has the lowest priority (15)
+	  HAL_UART_Receive(&huart7, &res, 1, 500);
+	  //res = USART_ReceiveData();
+	  fifo_push(aux_usart_stream, &res);
+  }
+  /* USER CODE END UART7_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

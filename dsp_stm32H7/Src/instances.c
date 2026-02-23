@@ -17,6 +17,8 @@ bda4700_t *attenuator;
 
 fs_t *eepromfs; // FORMAT
 
+nmea0183_t* gps;
+
 static const char* invalid_val = "Invalid value \'%i\'";
 
 
@@ -245,14 +247,10 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	}
 
 	int seq = 0;
-	char *msg = "0000 OFDM Message";
+	char msg[64];
 
     while (!switchbreak()) {
-        int s = seq;
-        for (int i = 3; i > 0; i -= 1) {
-        	msg[i] = (s % 10) + '0';
-        	s /= 10;
-        }
+    	sprintf(msg, "%04i OFDM message", seq);
         ofdm_packetize(&p, msg, strlen(msg)+1);
         ofdm_txpkt(&p);
         delay_ms(2000);
@@ -263,26 +261,25 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-
 int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     bpsk_pkt_t p;
 
-    char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
-                    "Best CRC Polynomials are not always the best",
-                    "Here at Hackaday we love floppy disks.",
-                    "====----====----====----====----"
+	if (get_cmd_arg_type(params) == CMD_ARG_TYPE_STR) {
+		bpsk_packetize(&p, (*params)->str, strlen((*params)->str)+1);
+		cmd_param_consume(params);
+		bpsk_txpkt(&p);
+		return 1;
+	}
 
-                    };
+	int seq = 0;
+	char msg[64];
 
     while (!switchbreak()) {
-        int n = 0;
-        for (int i = 0; i != 4; i++) {
-            bpsk_packetize(&p, data[i], strlen(data[i])+1);
-            n += strlen(data[i])+1;
-            bpsk_txpkt(&p);
-            delay_ms(800);
-        }
-        console_printf("%i bytes", n);
+    	sprintf(msg, "%04i BPSK message", seq);
+    	bpsk_packetize(&p, msg, strlen(msg)+1);
+    	bpsk_txpkt(&p);
+        delay_ms(2000);
+        seq += 1;
     }
 
     return 1;
@@ -290,8 +287,16 @@ int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
+int cmd_gps (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+	nmea0183_update(gps);
+	console_printf("%i.%i, %i.%i, %i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
+	return 1;
+}
+
 
 int setup_persona_commands (void) {
+
+	keyword_add("gps", "- test", cmd_gps);
 
 	keyword_add("otx", "- test", cmd_ofdm_tx);
 	keyword_add("btx", "- test", cmd_bpsk_tx);

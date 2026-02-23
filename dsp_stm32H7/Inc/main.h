@@ -61,10 +61,6 @@ void Error_Handler(void);
 #define SPI_CS1_GPIO_Port GPIOE
 #define SPI_CS2_Pin GPIO_PIN_4
 #define SPI_CS2_GPIO_Port GPIOE
-#define GPIO4_Pin GPIO_PIN_8
-#define GPIO4_GPIO_Port GPIOE
-#define GPIO3_Pin GPIO_PIN_10
-#define GPIO3_GPIO_Port GPIOE
 #define GPIO2_Pin GPIO_PIN_12
 #define GPIO2_GPIO_Port GPIOE
 #define GPIO1_Pin GPIO_PIN_14

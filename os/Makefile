@@ -24,6 +24,7 @@ OBJECTS =                                               \
                         $(OBJDIR)/levelcal.o            \
                         $(OBJDIR)/max2871.o             \
                         $(OBJDIR)/modem.o               \
+                        $(OBJDIR)/nmea0183.o            \
                         $(OBJDIR)/parser.o              \
                         $(OBJDIR)/pcmstream.o           \
                         $(OBJDIR)/program.o             \

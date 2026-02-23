@@ -22,28 +22,31 @@ int parser_expect_expression (lex_instance_t *lex, int *n) {
 	return 1;
 }
 
-int parser_string (lex_instance_t *lex) {
+int parser_string (lex_instance_t *lex, char** s) {
 	if (lex->token != T_STRING) {
 		return 0;
 	}
-	str_value(lex); // CMD in lexeme
+	str_value(lex);
+	*s = t_strdup(lex->lexeme);
+	next_token(lex);
     return 1;
 }
 
 
 int parser_interactive_input_expression (lex_instance_t *lex, int linelen, int *n) {
 	int rc;
+	char* s;
 
-	if (!lex_get(lex, T_DOLLAR, NULL)) {
+	if (!lex_get(lex, T_QUESTIONMARK, NULL)) {
 		return 0;
 	}
 
-	if (!parser_string(lex) ) {
+	if (!parser_string(lex, &s) ) {
 		console_printf("\"prompt\" expected");
 		return 0;
 	}
-	console_printf_e("%s", lex->lexeme);
-	next_token(lex);
+	console_printf_e("%s", s);
+	t_free(s);
 
 	char* line = terminal_get_line(online_input, " > ", 1);
 	parser_t *lcl_parser = parser_create(linelen);
@@ -349,8 +352,7 @@ int parser_lex_read (lex_instance_t *instance, int *b) {
 
 // this is how lex prints an error message on this system
 void parser_lex_error (lex_instance_t *instance, int c, const char *str) {
-	parser_t *parser = (parser_t*)instance->context; // context of lex is the parser
-	console_printf("lex error: %s, \"%s\", %i, [%i]", str, parser->lex->lexeme, parser->lex->token, c);
+	console_printf("lex error: %s, \"%s\", %i, [%i]", str, instance->lexeme, instance->token, c);
 }
 
 
@@ -399,18 +401,9 @@ int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
 	int rc;
 
 	do {
+		char *s;
 		rc = 0;
-		if (parser_string(parser->lex)) {
-			rc = 1;
-			current = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
-			if (!current) {
-				return 0;
-			}
-			current->type = CMD_ARG_TYPE_STR;
-			current->str = t_strdup(parser->lex->lexeme);
-			next_token(parser->lex);
-			cmd_param_insert_end(head, current);
-		} else if (parser_expression(parser->lex, &n)) {
+		if (parser_expression(parser->lex, &n)) {
 			rc = 1;
 			current = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
 			if (!current) {
@@ -418,6 +411,15 @@ int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
 			}
 			current->type = CMD_ARG_TYPE_NUM;
 			current->n = n;
+			cmd_param_insert_end(head, current);
+		} else if (parser_string(parser->lex, &s)) {
+			rc = 1;
+			current = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
+			if (!current) {
+				return 0;
+			}
+			current->type = CMD_ARG_TYPE_STR;
+			current->str = s;
 			cmd_param_insert_end(head, current);
 		}
 	} while (rc);
@@ -500,6 +502,7 @@ int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 
 
 int parser_programline_statement (parser_t *parser) {
+	char *s;
 	if (parser->lex->token != T_INTEGER) { // edit a program line
 		return 0;
 	}
@@ -511,16 +514,16 @@ int parser_programline_statement (parser_t *parser) {
 	next_token(parser->lex);
 	char* line = program_line(program, nline);
 
-	if (!parser_string(parser->lex)) {
+	if (!parser_string(parser->lex, &s)) {
 		console_printf("\"cmd\" expected");
 		return 0;
 	}
-	if ((strlen(parser->lex->lexeme) + 1) < program->header.fields.linelen) {
-		strcpy(line, parser->lex->lexeme);
+	if ((strlen(s) + 1) < program->header.fields.linelen) {
+		strcpy(line, s);
 	} else {
 		console_printf("too long");
 	}
-	next_token(parser->lex);
+	t_free(s);
 	//cmd_program_list(parser);
 
 	return 1;

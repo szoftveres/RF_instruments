@@ -3,6 +3,7 @@
 
 #include "../os/bda4700.h"
 #include "../os/max2871.h"
+#include "../os/nmea0183.h"
 #include "../os/config.h"
 #include "../os/levelcal.h"
 #include "../os/fatsmall_fs.h"
@@ -13,7 +14,7 @@ extern bda4700_t *attenuator;
 
 extern fs_t *eepromfs;  // FORMAT
 
-
+extern nmea0183_t* gps;
 
 int set_fs (int fs);
 int set_fc (int fc);
