@@ -36,54 +36,54 @@ int parse_str_cmd (char* cmdstr, fifo_t* in, fifo_t* out) {
 }
 
 
-int parser_if (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int parser_if (cmd_context_s* ctxt) {
 	int n;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	n = (*params)->n;
-	cmd_param_consume(params);
+	n = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		return 0;
 	}
 	if (!n) {
-		cmd_param_consume(params);
+		cmd_param_consume(&(ctxt->params));
 		return 1; // condition is false
 	}
-	if (!parse_str_cmd((*params)->str, in, out)) {
+	if (!parse_str_cmd(ctxt->params->str, ctxt->in, ctxt->out)) {
 		return 0;
 	}
-	cmd_param_consume(params);
+	cmd_param_consume(&(ctxt->params));
 	return 1;
 }
 
 
-int cmd_show_cfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_show_cfg (cmd_context_s* ctxt) {
 	print_cfg();
 	return 1;
 }
 
 
-int cmd_print (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_print (cmd_context_s* ctxt) {
 	int res;
 	int rc = 0;
 
 	do {
 		res = 0;
 
-		if (get_cmd_arg_type(params) == CMD_ARG_TYPE_NUM) {
-			console_printf_e("%i", (*params)->n);
+		if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_NUM) {
+			console_printf_e("%i", ctxt->params->n);
 			res = 1;
-			cmd_param_consume(params);
+			cmd_param_consume(&(ctxt->params));
 		}
 
-		if (get_cmd_arg_type(params) == CMD_ARG_TYPE_STR) {
-			console_printf_e("%s", (*params)->str);
+		if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_STR) {
+			console_printf_e("%s", ctxt->params->str);
 			res = 1;
-			cmd_param_consume(params);
+			cmd_param_consume(&(ctxt->params));
 		}
 		rc |= res;
 	} while (res);
@@ -130,19 +130,19 @@ _putx (unsigned int num, int digits) {
 }
 
 
-int cmd_printf (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_printf (cmd_context_s* ctxt) {
 	int c = 0;
 	int digits = 0;
 	int rc = 1;
 	char* fmtstring;
 	char* fmt;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		return 0;
 	}
-	fmtstring = t_strdup((*params)->str);
-	cmd_param_consume(params);
+	fmtstring = t_strdup(ctxt->params->str);
+	cmd_param_consume(&(ctxt->params));
 	fmt = fmtstring;
 
 
@@ -160,47 +160,47 @@ int cmd_printf (cmd_param_t** params, fifo_t* in, fifo_t* out) {
         }
         switch (*fmt) {
           case 'c':
-        	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+        	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
         		console_printf(not_a_number);
         	  	rc = 0;
         	  	break;
         	}
-        	console_printf_e("%c", (*params)->n);
-        	cmd_param_consume(params);
+        	console_printf_e("%c", ctxt->params->n);
+        	cmd_param_consume(&(ctxt->params));
             c++;
             break;
           case 's': {
-        	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+        	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
         		console_printf(not_a_string);
         			rc = 0;
         		    break;
         	    }
-        	    console_printf_e("%s", (*params)->str);
-        	    cmd_param_consume(params);
+        	    console_printf_e("%s", ctxt->params->str);
+        	    cmd_param_consume(&(ctxt->params));
             }
             break;
           case 'x':
           case 'X':
-          	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+          	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
           		console_printf(not_a_number);
           	  	rc = 0;
           	  	break;
           	}
-          	c += _putx((*params)->n, digits ? (digits - 1) : 0);
-          	cmd_param_consume(params);
+          	c += _putx(ctxt->params->n, digits ? (digits - 1) : 0);
+          	cmd_param_consume(&(ctxt->params));
 
             digits = 0;
             break;
           case 'd':
           case 'i':
           case 'u':
-        	  if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+        	  if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
         		  console_printf(not_a_number);
         		  rc = 0;
         		  break;
         	  }
-        	  c += _putu((*params)->n, digits ? (digits - 1) : 0);
-        	  cmd_param_consume(params);
+        	  c += _putu(ctxt->params->n, digits ? (digits - 1) : 0);
+        	  cmd_param_consume(&(ctxt->params));
             digits = 0;
             break;
         }
@@ -215,7 +215,7 @@ int cmd_printf (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_savecfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_savecfg (cmd_context_s* ctxt) {
 	int rc = save_devicecfg();
 	if (rc) {
 		console_printf("%i bytes", rc);
@@ -226,7 +226,7 @@ int cmd_savecfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_loadcfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_loadcfg (cmd_context_s* ctxt) {
 	int rc = load_devicecfg();
 	if (rc) {
 		console_printf("%i bytes", rc);
@@ -237,17 +237,17 @@ int cmd_loadcfg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_saveprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_saveprg (cmd_context_s* ctxt) {
 	int fd;
 	int rc;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = open_f(fs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
-	cmd_param_consume(params);
+	fd = open_f(fs, ctxt->params->str, FS_O_CREAT | FS_O_TRUNC);
+	cmd_param_consume(&(ctxt->params));
 
 	if (fd < 0) {
 		console_printf("open fail");
@@ -265,17 +265,17 @@ int cmd_saveprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_loadprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_loadprg (cmd_context_s* ctxt) {
 	int fd;
 	int rc;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = open_f(fs, (*params)->str, FS_O_READONLY);
-	cmd_param_consume(params);
+	fd = open_f(fs, ctxt->params->str, FS_O_READONLY);
+	cmd_param_consume(&(ctxt->params));
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
@@ -292,7 +292,7 @@ int cmd_loadprg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_program_new (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_program_new (cmd_context_s* ctxt) {
 	char* endstr = "";
 	char* line;
 
@@ -304,7 +304,7 @@ int cmd_program_new (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_program_list (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_program_list (cmd_context_s* ctxt) {
 	char *line;
 	for (int i = 0; i != program->header.fields.nlines; i++) {
 		line = program_line(program, i);
@@ -325,26 +325,26 @@ int cmd_program_list (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_program_end (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_program_end (cmd_context_s* ctxt) {
 	program_run = 0;
 	console_printf("Done");
 	return 1;
 }
 
 
-int cmd_program_run (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	execute_program(program, in, out);
+int cmd_program_run (cmd_context_s* ctxt) {
+	execute_program(program, ctxt->in, ctxt->out);
 	return 1;
 }
 
 
-int cmd_program_goto (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_program_goto (cmd_context_s* ctxt) {
 	int line;
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	line = (*params)->n;
-	cmd_param_consume(params);
+	line = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 	if (line < 0 || line >= program->header.fields.nlines) {
 		console_printf(invalid_val, line);
 		return 0;
@@ -354,13 +354,13 @@ int cmd_program_goto (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_program_gosub (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_program_gosub (cmd_context_s* ctxt) {
 	int line;
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	line = (*params)->n;
-	cmd_param_consume(params);
+	line = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 	if (line < 0 || line >= program->header.fields.nlines) {
 		console_printf(invalid_val, line);
 		return 0;
@@ -372,7 +372,7 @@ int cmd_program_gosub (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_program_return (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_program_return (cmd_context_s* ctxt) {
 	if (!subroutine_sp) {
 		console_printf("Not in a subroutine");
 		return 0;
@@ -383,7 +383,7 @@ int cmd_program_return (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_vars (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_vars (cmd_context_s* ctxt) {
 	for (resource_t* r = resource_it_start(); r; r = resource_it_next(r)) {
 		console_printf("%s : %i", r->name, r->get(r));
 	}
@@ -391,28 +391,28 @@ int cmd_vars (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_ver (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_ver (cmd_context_s* ctxt) {
 	console_printf("%s - %s", __DATE__ ,__TIME__);
 	return 1;
 }
 
 
-int cmd_mem (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_mem (cmd_context_s* ctxt) {
 	console_printf("chunks:%i", t_chunks());
 	return 1;
 }
 
 
 
-int cmd_del (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_del (cmd_context_s* ctxt) {
 	int rc;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
-	rc = delete_f(fs, (*params)->str);
-	cmd_param_consume(params);
+	rc = delete_f(fs, ctxt->params->str);
+	cmd_param_consume(&(ctxt->params));
 	if (rc < 0) {
 		console_printf("delete fail");
 	}
@@ -422,15 +422,15 @@ int cmd_del (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 int
-cmd_change_fs (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+cmd_change_fs (cmd_context_s* ctxt) {
 	int rc;
 
-    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
-    rc = change_current_fs(fs, (*params)->str[0]);
-	cmd_param_consume(params);
+    rc = change_current_fs(fs, ctxt->params->str[0]);
+	cmd_param_consume(&(ctxt->params));
 	if (!rc) {
 		console_printf("Invalid fs");
 	}
@@ -439,7 +439,7 @@ cmd_change_fs (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_dir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_dir (cmd_context_s* ctxt) {
 
 	int rc;
 	char* name;
@@ -462,20 +462,20 @@ int cmd_dir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 int
-cmd_hexdump (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+cmd_hexdump (cmd_context_s* ctxt) {
 	char buf[16];
 	int fd;
 	int rc = 16;
     int i;
     int addr = 0;
 
-    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = open_f(fs, (*params)->str, FS_O_READONLY);
-	cmd_param_consume(params);
+	fd = open_f(fs, ctxt->params->str, FS_O_READONLY);
+	cmd_param_consume(&(ctxt->params));
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
@@ -516,7 +516,7 @@ cmd_hexdump (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 #define COPY_UNIT (32)   // XXX for now
-int cmd_copy (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_copy (cmd_context_s* ctxt) {
 	int fdsrc;
 	int fdnew;
 	int totalbytes = 0;
@@ -528,29 +528,29 @@ int cmd_copy (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	    return 0;
 	}
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		t_free(buf);
 		return 0;
 	}
 
-	fdsrc = open_f(fs, (*params)->str, FS_O_READONLY);
-	cmd_param_consume(params);
+	fdsrc = open_f(fs, ctxt->params->str, FS_O_READONLY);
+	cmd_param_consume(&(ctxt->params));
 	if (fdsrc < 0) {
 		console_printf("src open fail");
 		t_free(buf);
 		return 0;
 	}
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		close_f(fs, fdsrc);
 		t_free(buf);
 		return 0;
 	}
 
-	fdnew = open_f(fs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
-	cmd_param_consume(params);
+	fdnew = open_f(fs, ctxt->params->str, FS_O_CREAT | FS_O_TRUNC);
+	cmd_param_consume(&(ctxt->params));
 
 	if (fdnew < 0) {
 		console_printf("dst open fail");
@@ -579,7 +579,7 @@ int cmd_copy (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_help (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_help (cmd_context_s* ctxt) {
 	keyword_t *kw = keyword_it_start();
 	while (kw) {
 		console_printf("  %s %s", kw->token, kw->helpstr);
@@ -589,40 +589,40 @@ int cmd_help (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_alias (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_alias (cmd_context_s* ctxt) {
 	char *aliasname;
 	char *aliascmd;
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		return 0;
 	}
-	aliasname = t_strdup((*params)->str);
-	cmd_param_consume(params);
+	aliasname = t_strdup(ctxt->params->str);
+	cmd_param_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		t_free(aliasname);
 		return 0;
 	}
-	aliascmd = t_strdup((*params)->str);
-	cmd_param_consume(params);
+	aliascmd = t_strdup(ctxt->params->str);
+	cmd_param_consume(&(ctxt->params));
 
 	keyword_add(aliasname, aliascmd, NULL);
 	return 1;
 }
 
 
-int cmd_unalias (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_unalias (cmd_context_s* ctxt) {
 	keyword_t *kw;
 	int rc = 0;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(not_a_string);
 		return 0;
 	}
 	/* TODO check if it was an alias (i.e. not a regular cmd) */
-	kw = keyword_remove((*params)->str);
-	cmd_param_consume(params);
+	kw = keyword_remove(ctxt->params->str);
+	cmd_param_consume(&(ctxt->params));
 
 	if (kw) {
 		t_free(kw->token);
@@ -634,97 +634,97 @@ int cmd_unalias (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_wavfilesnk (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_wavfilesnk (cmd_context_s* ctxt) {
 	int fd;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = open_f(fs, (*params)->str, FS_O_CREAT | FS_O_TRUNC);
-	cmd_param_consume(params);
+	fd = open_f(fs, ctxt->params->str, FS_O_CREAT | FS_O_TRUNC);
+	cmd_param_consume(&(ctxt->params));
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
 	}
 
-	return wavsink_setup(in, fd);
+	return wavsink_setup(ctxt->in, fd);
 }
 
 
-int cmd_nullsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	return nullsink_setup(in);
+int cmd_nullsink (cmd_context_s* ctxt) {
+	return nullsink_setup(ctxt->in);
 }
 
-int cmd_decfir (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_decfir (cmd_context_s* ctxt) {
 	int dec;
 	int bf = 1;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("dec needed");
 		return 0;
 	}
-	dec = (*params)->n;
-	cmd_param_consume(params);
+	dec = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
 	if ((dec < 2) || (dec > 64)) {
 		console_printf("bf out of range %i", dec);
 		return 0;
 	}
-	if (get_cmd_arg_type(params) == CMD_ARG_TYPE_NUM) {
-		bf = (*params)->n;
-		cmd_param_consume(params);
+	if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_NUM) {
+		bf = ctxt->params->n;
+		cmd_param_consume(&(ctxt->params));
 	}
 
 	if ((bf < 1) || ((bf * dec) > 1024)) {
 		console_printf("bf out of range %i", bf);
 		return 0;
 	}
-	return decfir_setup(in, out, dec, bf);
+	return decfir_setup(ctxt->in, ctxt->out, dec, bf);
 }
 
 
 
-int cmd_txmsg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_txmsg (cmd_context_s* ctxt) {
 	int fs;
 	int fc;
     int rc;
     char* msg;
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("fs needed");
 		return 0;
 	}
-	fs = (*params)->n;
-	cmd_param_consume(params);
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	fs = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("fc needed");
 		return 0;
 	}
-	fc = (*params)->n;
-	cmd_param_consume(params);
+	fc = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
-    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf("msg needed");
 		return 0;
     }
-    msg = t_strdup((*params)->str);
-    cmd_param_consume(params);
+    msg = t_strdup(ctxt->params->str);
+    cmd_param_consume(&(ctxt->params));
 
-	rc = txmodem_setup(out, fs, fc, msg);
+	rc = txmodem_setup(ctxt->out, fs, fc, msg);
     t_free(msg);
     return rc;
 }
 
-int cmd_rxmsg (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_rxmsg (cmd_context_s* ctxt) {
 	int fc;
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("fc needed");
 		return 0;
 	}
-	fc = (*params)->n;
-	cmd_param_consume(params);
-	return rxmodem_setup(in, fc);
+	fc = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+	return rxmodem_setup(ctxt->in, fc);
 }
 
 
@@ -746,31 +746,31 @@ task_rc_t noise_sample_producer (void* c, uint16_t* sample_out) {
 }
 
 
-int cmd_noise (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_noise (cmd_context_s* ctxt) {
 	int fs;
 	int samples;
 	noise_pcm_src_t* c;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("fs needed");
 		return 0;
 	}
-	fs = (*params)->n;
-	cmd_param_consume(params);
+	fs = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("samples needed");
 		return 0;
 	}
-	samples = (*params)->n;
-	cmd_param_consume(params);
+	samples = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
 	c = (noise_pcm_src_t*)t_malloc(sizeof(noise_pcm_src_t));
 	if (!c) {
 		return 0;
 	}
 	c->samples = samples;
-	return pcmsrc_setup(out, fs, noise_sample_producer, NULL, c);
+	return pcmsrc_setup(ctxt->out, fs, noise_sample_producer, NULL, c);
 }
 
 /*-----------------------------------------*/
@@ -801,32 +801,32 @@ void sine_producer_cleanup (void* c)  {
 	dds_destroy(lc->dds);
 }
 
-int cmd_sine (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_sine (cmd_context_s* ctxt) {
 	int fs;
 	int fc;
 	int samples;
 	sine_pcm_src_t* c;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("fs needed");
 		return 0;
 	}
-	fs = (*params)->n;
-	cmd_param_consume(params);
+	fs = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("frequency needed");
 		return 0;
 	}
-	fc = (*params)->n;
-	cmd_param_consume(params);
+	fc = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		console_printf("samples needed");
 		return 0;
 	}
-	samples = (*params)->n;
-	cmd_param_consume(params);
+	samples = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
 	c = (sine_pcm_src_t*)t_malloc(sizeof(sine_pcm_src_t));
 	if (!c) {
@@ -834,7 +834,7 @@ int cmd_sine (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 	}
 	c->samples = samples;
 	c->dds = dds_create(fs,fc); // Check is done in the worker
-	return pcmsrc_setup(out, fs, sine_sample_producer, sine_producer_cleanup, c);
+	return pcmsrc_setup(ctxt->out, fs, sine_sample_producer, sine_producer_cleanup, c);
 }
 
 /*-----------------------------------------*/
@@ -899,21 +899,21 @@ void wav_pcm_producer_cleanup (void* c)  {
 }
 
 
-int cmd_wavfilesrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_wavfilesrc (cmd_context_s* ctxt) {
 	int fd;
 	int samplerate;
 
-	if (!out) {
+	if (!ctxt->out) {
 		return 0;
 	}
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_STR) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
 		console_printf(name_expected);
 		return 0;
 	}
 
-	fd = open_f(fs, (*params)->str, FS_O_READONLY);
-	cmd_param_consume(params);
+	fd = open_f(fs, ctxt->params->str, FS_O_READONLY);
+	cmd_param_consume(&(ctxt->params));
 	if (fd < 0) {
 		console_printf("open fail");
 		return 0;
@@ -940,7 +940,7 @@ int cmd_wavfilesrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 		return 0;
 	}
 
-	return pcmsrc_setup(out, samplerate, wav_pcm_producer, wav_pcm_producer_cleanup, c);
+	return pcmsrc_setup(ctxt->out, samplerate, wav_pcm_producer, wav_pcm_producer_cleanup, c);
 }
 
 

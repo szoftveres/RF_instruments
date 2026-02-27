@@ -6,10 +6,9 @@
 #include "keyword.h"
 
 
+
 static const char* syntax_error = "Syntax error \'%s\'";
 static const char* not_an_expression = "Not an expression";
-
-
 
 int parser_primary_expression (lex_instance_t *lex, int *n);
 int parser_expression (lex_instance_t *lex, int *n);
@@ -395,8 +394,9 @@ void parser_destroy (parser_t *parser) {
 //==============================================================
 
 
+
+
 int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
-	cmd_param_t *current = NULL;
 	int n;
 	int rc;
 
@@ -404,26 +404,14 @@ int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
 		char *s;
 		rc = 0;
 		if (parser_expression(parser->lex, &n)) {
+			param_add_num(head, n);
 			rc = 1;
-			current = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
-			if (!current) {
-				return 0;
-			}
-			current->type = CMD_ARG_TYPE_NUM;
-			current->n = n;
-			cmd_param_insert_end(head, current);
 		} else if (parser_string(parser->lex, &s)) {
+			param_add_str(head, s);
+			t_free(s);
 			rc = 1;
-			current = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
-			if (!current) {
-				return 0;
-			}
-			current->type = CMD_ARG_TYPE_STR;
-			current->str = s;
-			cmd_param_insert_end(head, current);
 		}
 	} while (rc);
-
 
 	return rc;
 }
@@ -453,7 +441,6 @@ keyword_t *parser_valid_keyword (parser_t *parser) {
 int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 	int rc;
 	int cont;
-	cmd_param_t *head = NULL;
 	keyword_t*  kw;
 	fifo_t* pipes = NULL;
 
@@ -465,7 +452,10 @@ int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 			rc = 0;
 			break;
 		}
-		parser_build_param_list(parser, &head);
+
+		cmd_context_s *cmd_ctxt = (cmd_context_s*)t_malloc(sizeof(cmd_context_s));
+		cmd_ctxt->params = NULL;
+		parser_build_param_list(parser, &(cmd_ctxt->params));
 
 		if (lex_get(parser->lex, T_ARROW, NULL)) {
 			out_new = fifo_create(512, sizeof(uint16_t));
@@ -474,15 +464,20 @@ int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 			cont = 1;
 		}
 
-		rc = kw->exec(&head, in, out_new);
+		cmd_ctxt->in = in;
+		cmd_ctxt->out = out_new;
+		cmd_ctxt->ret = NULL;
+
+		rc = kw->exec(cmd_ctxt);
 		in = out_new;
 
 		if (rc < 1) {
 			console_printf("%s %s", kw->token, kw->helpstr);
 		}
-		while (cmd_param_consume(&(head))) {
+		while (cmd_param_consume(&(cmd_ctxt->params))) {
 			console_printf("unused parameter");
 		}
+		t_free(cmd_ctxt);
 	} while (rc && cont);
 
 	while (scheduler_burst_run(scheduler)) {

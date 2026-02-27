@@ -181,7 +181,7 @@ int baud_to_samples (int baud) {
 
 #include <stdlib.h>
 
-int cmd_malloctest (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_malloctest (cmd_context_s* ctxt) {
 	int i = 0;
 	const int size = 1024;
 	while (malloc(size)) {
@@ -194,7 +194,7 @@ int cmd_malloctest (cmd_param_t** params __attribute__((unused)), fifo_t* in __a
 
 
 #include "../os/fatsmall_fs.h"
-int cmd_format (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_format (cmd_context_s* ctxt) {
 	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
 	if (strcmp(line, "yes")) {
 		console_printf("aborted");
@@ -205,14 +205,14 @@ int cmd_format (cmd_param_t** params __attribute__((unused)), fifo_t* in __attri
 }
 
 
-int cmd_sleep (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_sleep (cmd_context_s* ctxt) {
 	int ms;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	ms = (*params)->n;
-	cmd_param_consume(params);
+	ms = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		console_printf(invalid_val, ms);
@@ -231,17 +231,17 @@ int cmd_sleep (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t*
 }
 
 
-int cmd_dacsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	return dacsink_setup(in);
+int cmd_dacsink (cmd_context_s* ctxt) {
+	return dacsink_setup(ctxt->in);
 }
 
 
-int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_ofdm_tx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
 
-	if (get_cmd_arg_type(params) == CMD_ARG_TYPE_STR) {
-		ofdm_packetize(&p, (*params)->str, strlen((*params)->str)+1);
-		cmd_param_consume(params);
+	if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_STR) {
+		ofdm_packetize(&p, ctxt->params->str, strlen(ctxt->params->str)+1);
+		cmd_param_consume(&(ctxt->params));
 		ofdm_txpkt(&p);
 		return 1;
 	}
@@ -261,12 +261,12 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_bpsk_tx (cmd_context_s* ctxt) {
     bpsk_pkt_t p;
 
-	if (get_cmd_arg_type(params) == CMD_ARG_TYPE_STR) {
-		bpsk_packetize(&p, (*params)->str, strlen((*params)->str)+1);
-		cmd_param_consume(params);
+	if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_STR) {
+		bpsk_packetize(&p, ctxt->params->str, strlen(ctxt->params->str)+1);
+		cmd_param_consume(&(ctxt->params));
 		bpsk_txpkt(&p);
 		return 1;
 	}
@@ -287,7 +287,7 @@ int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_gps (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_gps (cmd_context_s* ctxt) {
 	nmea0183_update(gps);
 	console_printf("%i.%i, %i.%i, %i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
 	return 1;

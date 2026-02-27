@@ -93,7 +93,7 @@ int unixfswrapper_open (unixfs_wrapper_t* instance, char* name, int flags) {
 
 void unixfswrapper_close (unixfs_wrapper_t* instance, int fd) {
 	if (fd < 0) {
-		return fd;
+		return;
 	}
 	if (!instance->fp[fd].reserved) {
 		return;
@@ -105,7 +105,7 @@ void unixfswrapper_close (unixfs_wrapper_t* instance, int fd) {
 
 void unixfswrapper_rewind (unixfs_wrapper_t* instance, int fd) {
 	if (fd < 0) {
-		return fd;
+		return;
 	}
     lseek(instance->fp[fd].fd, 0, SEEK_SET);
 }

@@ -150,7 +150,7 @@ int dac1_setter (void * context, int aval) {
 
 #include <stdlib.h>
 
-int cmd_malloctest (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_malloctest (cmd_context_s* ctxt) {
 	int i = 0;
 	const int size = 1024;
 	while (malloc(size)) {
@@ -163,7 +163,7 @@ int cmd_malloctest (cmd_param_t** params __attribute__((unused)), fifo_t* in __a
 
 
 #include "../os/fatsmall_fs.h"
-int cmd_format (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_format (cmd_context_s* ctxt) {
 	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
 	if (strcmp(line, "yes")) {
 		console_printf("aborted");
@@ -174,14 +174,14 @@ int cmd_format (cmd_param_t** params __attribute__((unused)), fifo_t* in __attri
 }
 
 
-int cmd_sleep (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_sleep (cmd_context_s* ctxt) {
 	int ms;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	ms = (*params)->n;
-	cmd_param_consume(params);
+	ms = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		console_printf(invalid_val, ms);
@@ -201,14 +201,14 @@ int cmd_sleep (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t*
 
 
 
-int cmd_amtone (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_amtone (cmd_context_s* ctxt) {
 	int ms;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	ms = (*params)->n;
-	cmd_param_consume(params);
+	ms = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		console_printf(invalid_val, ms);
@@ -236,26 +236,26 @@ int cmd_amtone (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t
 }
 
 
-int cmd_fmtone (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_fmtone (cmd_context_s* ctxt) {
 	int ms;
 	int dev;
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	dev = (*params)->n;
-	cmd_param_consume(params);
+	dev = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
-	if (dev < 10 || dev > 1000) { // 10 kHz - 1 MHz
+	if (dev < 1 || dev > 1000) { // 10 kHz - 1 MHz
 		console_printf(invalid_val, dev);
 		return 0;
 	}
 
-	if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		return 0;
 	}
-	ms = (*params)->n;
-	cmd_param_consume(params);
+	ms = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		console_printf(invalid_val, ms);
@@ -285,14 +285,14 @@ int cmd_fmtone (cmd_param_t** params, fifo_t* in __attribute__((unused)), fifo_t
 
 
 
-int cmd_rfon (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_rfon (cmd_context_s* ctxt) {
 	set_rf_output(1);
 	print_cfg();
 	return 1;
 }
 
 
-int cmd_rfoff (cmd_param_t** params __attribute__((unused)), fifo_t* in __attribute__((unused)), fifo_t* out __attribute__((unused))) {
+int cmd_rfoff (cmd_context_s* ctxt) {
 	set_rf_output(0);
 	print_cfg();
 	return 1;

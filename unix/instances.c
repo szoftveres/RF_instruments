@@ -138,26 +138,26 @@ int dac1_setter (void * context, int aval) {
 }
 */
 
-int cmd_dacsink (cmd_param_t** params, fifo_t* in, fifo_t* out) {
-	return dacsink_setup(in);
+int cmd_dacsink (cmd_context_s* ctxt) {
+	return dacsink_setup(ctxt->in);
 }
 
 
-int cmd_adcsrc (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_adcsrc (cmd_context_s* ctxt) {
     int fs;
-    if (get_cmd_arg_type(params) != CMD_ARG_TYPE_NUM) {
+    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
         console_printf("fs needed");
         return 0;
     }
-    fs = (*params)->n;
-    cmd_param_consume(params);
+    fs = ctxt->params->n;
+    cmd_param_consume(&(ctxt->params));
 
-    return adcsrc_setup(out, fs);
+    return adcsrc_setup(ctxt->out, fs);
 }
 
 
 
-int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_ofdm_tx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
 
     char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
@@ -180,7 +180,7 @@ int cmd_ofdm_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 }
 
 
-int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_ofdm_rx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
     char* data;
 
@@ -199,7 +199,7 @@ int cmd_ofdm_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
 
 
 
-int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_bpsk_tx (cmd_context_s* ctxt) {
     bpsk_pkt_t p;
 
     char* data[] = {"Kellemes es Boldog Karacsonyt kivan onnek a Vodafone",
@@ -222,7 +222,7 @@ int cmd_bpsk_tx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
     return 1;
 }
 
-int cmd_bpsk_rx (cmd_param_t** params, fifo_t* in, fifo_t* out) {
+int cmd_bpsk_rx (cmd_context_s* ctxt) {
     bpsk_pkt_t p;
     char* data;
 
