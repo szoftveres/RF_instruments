@@ -1,3 +1,4 @@
+#include "main.h" // PIN names
 #include "instances.h"
 #include "config_def.h"
 #include "../os/globals.h"  // config instance
@@ -23,6 +24,7 @@ double set_rf_frequency (uint32_t khz) {
 
 	get_cal_range_index((int)khz);
 	actual_kHz = max2871_freq(rf_pll, khz);
+	while (!HAL_GPIO_ReadPin(PLL1_LOCK_DETECT_GPIO_Port, PLL1_LOCK_DETECT_Pin)); // Wait for LD
 	if (actual_kHz > 0) {
 		config.fields.khz = khz;
 	}
@@ -200,7 +202,6 @@ int cmd_sleep (cmd_context_s* ctxt) {
 }
 
 
-
 int cmd_amtone (cmd_context_s* ctxt) {
 	int ms;
 
@@ -283,8 +284,6 @@ int cmd_fmtone (cmd_context_s* ctxt) {
 }
 
 
-
-
 int cmd_rfon (cmd_context_s* ctxt) {
 	set_rf_output(1);
 	print_cfg();
@@ -299,8 +298,25 @@ int cmd_rfoff (cmd_context_s* ctxt) {
 }
 
 
-int setup_persona_commands (void) {
+int cmd_instctl_test (cmd_context_s* ctxt) {
+	int n;
 
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	n = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+
+	console_send_u32(0xB43355AA);
+
+	console_send_i32(n);
+
+	return 1;
+}
+
+
+int setup_persona_commands (void) {
+	keyword_add("instctltest", "- test", cmd_instctl_test);
 	keyword_add("malloctest", "", cmd_malloctest);
 	keyword_add("sleep", "[millisecs] - sleep", cmd_sleep);
 	keyword_add("format", "- format EEPROM", cmd_format);

@@ -40,14 +40,6 @@ int adc2_getter (void * context) {
 	return (int)HAL_ADC_GetValue(&hadc2);
 }
 
-int adc3_getter (void * context) {
-	HAL_ADC_Start(&hadc3);
-	delay_ms(2);
-	return (int)HAL_ADC_GetValue(&hadc3);
-}
-
-
-
 void dac_sample_stream_callback (void* ctxt) {
 	uint16_t aval;
 	if (fifo_pop((fifo_t*)ctxt, &aval)) {

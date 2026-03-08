@@ -56,7 +56,6 @@ fifo_t* aux_usart_stream;
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
-ADC_HandleTypeDef hadc3;
 
 DAC_HandleTypeDef hdac1;
 
@@ -82,7 +81,6 @@ static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_ADC2_Init(void);
-static void MX_ADC3_Init(void);
 static void MX_DAC1_Init(void);
 static void MX_SDMMC1_SD_Init(void);
 static void MX_UART5_Init(void);
@@ -209,7 +207,6 @@ int main(void)
   blockdevice_t *eeprom;
   blockdevice_t *ramdrive;
   fs_t *ramfs;
-  sdfatfs_wrapper_t sdfatfs;
 
   /* USER CODE END 1 */
 
@@ -257,7 +254,6 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
-  MX_ADC3_Init();
   MX_DAC1_Init();
   MX_SDMMC1_SD_Init();
   MX_UART5_Init();
@@ -296,14 +292,8 @@ int main(void)
   resource_add("dac1", NULL, dac1_setter, variable_getter);
   resource_add("adc1", NULL, void_setter, adc1_getter);
   resource_add("adc2", NULL, void_setter, adc2_getter);
-  resource_add("adc3", NULL, void_setter, adc3_getter);
 
   resource_add("button", NULL, void_setter, pushbutton_getter);
-
-  if (!sdfatfswrapper_init(&sdfatfs)) {
-  	  console_printf("SDFATFS init error");
-  	  cpu_halt();
-  }
 
   // EEPROM instance
   eeprom = blockdevice_create(AT24C256_PAGE, AT24C256_MAX_PAGEADDRESS, at24c256_read_page, at24c256_write_page, NULL);
@@ -366,19 +356,6 @@ int main(void)
 						(int (*) (void*)) fs_closedir);
 
   fs_broker_register_fs(fs,
-		  	  	  	    &sdfatfs,
-						'S',
-		  	  	  	    (int (*)(void*, char*, int)) sdfatfswrapper_open,
-						(void (*) (void* fs, int fd)) sdfatfswrapper_close,
-						(void (*) (void*, int)) sdfatfswrapper_rewind,
-						(int (*) (void* fs, int fd, char* buf, int count)) sdfatfswrapper_read,
-						(int (*) (void* fs, int fd, char* buf, int count)) sdfatfswrapper_write,
-						(int (*) (void*, char*)) sdfatfswrapper_delete,
-						(int (*) (void*)) sdfatfswrapper_opendir,
-						(int (*) (void*, char**, int*)) sdfatfswrapper_walkdir,
-						(int (*) (void*)) sdfatfswrapper_closedir);
-
-  fs_broker_register_fs(fs,
 		  	  	  	    ramfs,
 						'M',
 		  	  	  	    (int (*)(void*, char*, int)) fs_open,
@@ -390,6 +367,26 @@ int main(void)
 						(int (*) (void*)) fs_opendir,
 						(int (*) (void*, char**, int*)) fs_walkdir,
 						(int (*) (void*)) fs_closedir);
+
+  if (!HAL_GPIO_ReadPin(_SD_DETECT__GPIO_Port, _SD_DETECT__Pin)) { // grounded pin means SD card is inserted
+	  sdfatfs_wrapper_t sdfatfs;
+	  if (!sdfatfswrapper_init(&sdfatfs)) {
+		  console_printf("SDFATFS init error");
+		  cpu_halt();
+	  }
+	  fs_broker_register_fs(fs,
+							&sdfatfs,
+							'S',
+							(int (*)(void*, char*, int)) sdfatfswrapper_open,
+							(void (*) (void* fs, int fd)) sdfatfswrapper_close,
+							(void (*) (void*, int)) sdfatfswrapper_rewind,
+							(int (*) (void* fs, int fd, char* buf, int count)) sdfatfswrapper_read,
+							(int (*) (void* fs, int fd, char* buf, int count)) sdfatfswrapper_write,
+							(int (*) (void*, char*)) sdfatfswrapper_delete,
+							(int (*) (void*)) sdfatfswrapper_opendir,
+							(int (*) (void*, char**, int*)) sdfatfswrapper_walkdir,
+							(int (*) (void*)) sdfatfswrapper_closedir);
+  }
 
   setup_commands();
   setup_persona_commands();
@@ -693,70 +690,6 @@ static void MX_ADC2_Init(void)
 }
 
 /**
-  * @brief ADC3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC3_Init(void)
-{
-
-  /* USER CODE BEGIN ADC3_Init 0 */
-
-  /* USER CODE END ADC3_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC3_Init 1 */
-
-  /* USER CODE END ADC3_Init 1 */
-
-  /** Common config
-  */
-  hadc3.Instance = ADC3;
-  hadc3.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV2;
-  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc3.Init.LowPowerAutoWait = DISABLE;
-  hadc3.Init.ContinuousConvMode = DISABLE;
-  hadc3.Init.NbrOfConversion = 1;
-  hadc3.Init.DiscontinuousConvMode = DISABLE;
-  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc3.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
-  hadc3.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc3.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-  hadc3.Init.OversamplingMode = DISABLE;
-  hadc3.Init.Oversampling.Ratio = 1;
-  if (HAL_ADC_Init(&hadc3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  hadc3.Init.Resolution = ADC_RESOLUTION_16B;
-  if (HAL_ADC_Init(&hadc3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_0;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  sConfig.OffsetSignedSaturation = DISABLE;
-  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC3_Init 2 */
-
-  /* USER CODE END ADC3_Init 2 */
-
-}
-
-/**
   * @brief DAC1 Initialization Function
   * @param None
   * @retval None
@@ -892,7 +825,7 @@ static void MX_SPI4_Init(void)
   /* SPI4 parameter configuration*/
   hspi4.Instance = SPI4;
   hspi4.Init.Mode = SPI_MODE_MASTER;
-  hspi4.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi4.Init.Direction = SPI_DIRECTION_2LINES_TXONLY;
   hspi4.Init.DataSize = SPI_DATASIZE_4BIT;
   hspi4.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi4.Init.CLKPhase = SPI_PHASE_1EDGE;
@@ -1086,6 +1019,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, SPI_CS1_Pin|SPI_CS2_Pin|SPI_CS3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CHANNEL_SELECT_GPIO_Port, CHANNEL_SELECT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : SPI_CS1_Pin SPI_CS2_Pin SPI_CS3_Pin */
@@ -1094,6 +1030,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : MOSI_INPUT_Pin */
+  GPIO_InitStruct.Pin = MOSI_INPUT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(MOSI_INPUT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CHANNEL_SELECT_Pin */
+  GPIO_InitStruct.Pin = CHANNEL_SELECT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(CHANNEL_SELECT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : GPIO2_Pin GPIO1_Pin */
   GPIO_InitStruct.Pin = GPIO2_Pin|GPIO1_Pin;

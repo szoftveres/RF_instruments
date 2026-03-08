@@ -294,7 +294,48 @@ int cmd_gps (cmd_context_s* ctxt) {
 }
 
 
+int cmd_instctl_test (cmd_context_s* ctxt) {
+	int n;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	n = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+
+	// Sync word
+	console_send_u32(0xB43355AA);
+
+	// Data
+	console_send_i32(n);
+
+	return 1;
+}
+
+#include "rfport_rx.h"
+
+int cmd_vna_test (cmd_context_s* ctxt) {
+	int samples;
+	rfport_rx_t v;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	samples = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+
+	rfport_rx_meas(10000, samples, &v);
+
+	console_printf("ref_i:%i ref_q:%i meas_i:%i, meas_q:%i", v.ref_i, v.ref_q, v.meas_i, v.meas_q);
+
+	return 1;
+}
+
 int setup_persona_commands (void) {
+
+	keyword_add("vnatest", "- test", cmd_vna_test);
+
+	keyword_add("instctltest", "- test", cmd_instctl_test);
 
 	keyword_add("gps", "- test", cmd_gps);
 

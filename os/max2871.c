@@ -302,14 +302,13 @@ void max2871WriteRegisters (max2871_t* instance) {
 
 
 // Setup of the MAX2871 PLL, 50MHz, output off
-max2871_t* max2871_create (void (*register_write) (uint32_t), int (*check_ld) (void), void (*idle_wait) (void)) {
+max2871_t* max2871_create (void (*register_write) (uint32_t), void (*idle_wait) (void)) {
 
 	max2871_t* instance = (max2871_t*) t_malloc(sizeof(max2871_t));
 	if (!instance) {
 		return instance;
 	}
 	instance->register_write = register_write;
-	instance->check_ld = check_ld;
 	instance->idle_wait = idle_wait;
 
 	instance->registers[0] = 0x0;
@@ -451,10 +450,6 @@ double max2871_freq (max2871_t* instance, double khz) {
 
 	max2871WriteRegisters(instance);
 
-	while (!instance->check_ld()) {
-		instance->idle_wait();
-	}
-
     return fPFD_khz * ((double)N + ((double)F / (double)mod)) / div;
 }
 
@@ -475,9 +470,6 @@ int max2871_rfa_power (max2871_t* instance, int dbm) {
 	return 1;
 }
 
-int max2871_ld (max2871_t* instance) {
-	return instance->check_ld();
-}
 
 void max2871_rfa_out (max2871_t* instance, int onoff) {
 	max2871Set_RFA_EN(instance, (onoff & 0x01));

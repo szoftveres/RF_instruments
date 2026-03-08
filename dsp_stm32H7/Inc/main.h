@@ -61,6 +61,10 @@ void Error_Handler(void);
 #define SPI_CS1_GPIO_Port GPIOE
 #define SPI_CS2_Pin GPIO_PIN_4
 #define SPI_CS2_GPIO_Port GPIOE
+#define MOSI_INPUT_Pin GPIO_PIN_5
+#define MOSI_INPUT_GPIO_Port GPIOE
+#define CHANNEL_SELECT_Pin GPIO_PIN_2
+#define CHANNEL_SELECT_GPIO_Port GPIOC
 #define GPIO2_Pin GPIO_PIN_12
 #define GPIO2_GPIO_Port GPIOE
 #define GPIO1_Pin GPIO_PIN_14

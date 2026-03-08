@@ -111,6 +111,32 @@ uint32_t u32_swap_endian (uint32_t n) {
 }
 
 
+void console_send_u32 (uint32_t v) {
+	union {
+		uint32_t		u32;
+		unsigned char	c[4];
+	} u32;
+
+	u32.u32 = v;
+	for (int i = 0; i != 4; i++) {
+		console_putchar(u32.c[i]);
+	}
+}
+
+
+void console_send_i32 (int32_t v) {
+	union {
+		uint32_t		i32;
+		unsigned char	c[4];
+	} i32;
+
+	i32.i32 = v;
+	for (int i = 0; i != 4; i++) {
+		console_putchar(i32.c[i]);
+	}
+}
+
+
 static int chunks = 0;
 
 void *t_malloc (size_t size) {

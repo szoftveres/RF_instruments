@@ -27,6 +27,8 @@ void leading_wspace (int start, int stop);
 
 uint32_t u32_swap_endian (uint32_t n);
 
+void console_send_u32 (uint32_t v);
+void console_send_i32 (int32_t v);
 
 void *t_malloc (size_t size);
 char *t_strdup (const char *c);

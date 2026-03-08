@@ -152,24 +152,6 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
 
   /* USER CODE END ADC2_MspInit 1 */
   }
-  else if(hadc->Instance==ADC3)
-  {
-  /* USER CODE BEGIN ADC3_MspInit 0 */
-
-  /* USER CODE END ADC3_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_ADC3_CLK_ENABLE();
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    /**ADC3 GPIO Configuration
-    PC2_C     ------> ADC3_INP0
-    */
-    HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PC2, SYSCFG_SWITCH_PC2_OPEN);
-
-  /* USER CODE BEGIN ADC3_MspInit 1 */
-
-  /* USER CODE END ADC3_MspInit 1 */
-  }
 
 }
 
@@ -220,18 +202,6 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
   /* USER CODE BEGIN ADC2_MspDeInit 1 */
 
   /* USER CODE END ADC2_MspDeInit 1 */
-  }
-  else if(hadc->Instance==ADC3)
-  {
-  /* USER CODE BEGIN ADC3_MspDeInit 0 */
-
-  /* USER CODE END ADC3_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_ADC3_CLK_DISABLE();
-
-  /* USER CODE BEGIN ADC3_MspDeInit 1 */
-
-  /* USER CODE END ADC3_MspDeInit 1 */
   }
 
 }
@@ -478,10 +448,9 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
     __HAL_RCC_GPIOE_CLK_ENABLE();
     /**SPI4 GPIO Configuration
     PE2     ------> SPI4_SCK
-    PE5     ------> SPI4_MISO
     PE6     ------> SPI4_MOSI
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_5|GPIO_PIN_6;
+    GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_6;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -514,10 +483,9 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
 
     /**SPI4 GPIO Configuration
     PE2     ------> SPI4_SCK
-    PE5     ------> SPI4_MISO
     PE6     ------> SPI4_MOSI
     */
-    HAL_GPIO_DeInit(GPIOE, GPIO_PIN_2|GPIO_PIN_5|GPIO_PIN_6);
+    HAL_GPIO_DeInit(GPIOE, GPIO_PIN_2|GPIO_PIN_6);
 
   /* USER CODE BEGIN SPI4_MspDeInit 1 */
 

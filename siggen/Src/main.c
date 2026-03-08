@@ -81,10 +81,6 @@ void rf_pll_register_write (uint32_t r) {
 	HAL_GPIO_WritePin(PLL1_CS_GPIO_Port, PLL1_CS_Pin, GPIO_PIN_SET); // LE high
 }
 
-int rf_pll_check_ld (void) {
-	return HAL_GPIO_ReadPin(PLL1_LOCK_DETECT_GPIO_Port, PLL1_LOCK_DETECT_Pin);
-}
-
 void rf_pll_idle_wait (void) {
 	HAL_GPIO_WritePin(PLL1_CS_GPIO_Port, PLL1_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(30);
@@ -252,7 +248,7 @@ int main(void)
 
 
   // Main PLL instance
-  rf_pll = max2871_create(rf_pll_register_write, rf_pll_check_ld, rf_pll_idle_wait);
+  rf_pll = max2871_create(rf_pll_register_write, rf_pll_idle_wait);
   if (!rf_pll) {
 	  console_printf("MAX2871 init error");
 	  cpu_halt();
