@@ -95,6 +95,37 @@ static void MX_UART7_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+
+void rf_pll_register_write (uint32_t r) {
+	uint32_t n = u32_swap_endian(r); // max2871 needs big-endian
+	HAL_GPIO_WritePin(SPI_CS3_GPIO_Port, SPI_CS3_Pin, GPIO_PIN_RESET); // LE low
+	HAL_SPI_Transmit(&hspi4, (uint8_t*)&n, sizeof(n), 500); // Transmit 32 bits
+	HAL_GPIO_WritePin(SPI_CS3_GPIO_Port, SPI_CS3_Pin, GPIO_PIN_SET); // LE high
+}
+
+void rf_pll_idle_wait (void) {
+	HAL_GPIO_WritePin(SPI_CS3_GPIO_Port, SPI_CS3_Pin, GPIO_PIN_SET);
+	HAL_Delay(30);
+}
+
+void lo_pll_register_write (uint32_t r) {
+	uint32_t n = u32_swap_endian(r); // max2871 needs big-endian
+	HAL_GPIO_WritePin(SPI_CS2_GPIO_Port, SPI_CS2_Pin, GPIO_PIN_RESET); // LE low
+	HAL_SPI_Transmit(&hspi4, (uint8_t*)&n, sizeof(n), 500); // Transmit 32 bits
+	HAL_GPIO_WritePin(SPI_CS2_GPIO_Port, SPI_CS2_Pin, GPIO_PIN_SET); // LE high
+}
+
+void lo_pll_idle_wait (void) {
+	HAL_GPIO_WritePin(SPI_CS2_GPIO_Port, SPI_CS2_Pin, GPIO_PIN_SET);
+	HAL_Delay(30);
+}
+
+void attenuator_write (bda4700_t* instance, uint8_t n) {
+	HAL_GPIO_WritePin(SPI_CS1_GPIO_Port, SPI_CS1_Pin, GPIO_PIN_RESET); // LE low
+	HAL_SPI_Transmit(&hspi4, &n, sizeof(n), 500); // Transmit 8 bits
+	HAL_GPIO_WritePin(SPI_CS1_GPIO_Port, SPI_CS1_Pin, GPIO_PIN_SET); // LE high
+}
+
 #define AT24C256_I2CADDR (0xA0)
 #define AT24C256_PAGE (64)
 #define AT24C256_MAX_PAGEADDRESS ((32768) / (AT24C256_PAGE))
@@ -294,6 +325,35 @@ int main(void)
   resource_add("adc2", NULL, void_setter, adc2_getter);
 
   resource_add("button", NULL, void_setter, pushbutton_getter);
+
+
+  // RF PLL instance
+  rf_pll = max2871_create(rf_pll_register_write, rf_pll_idle_wait);
+  if (!rf_pll) {
+	  console_printf("RF PLL init error");
+	  cpu_halt();
+  }
+
+  // LO PLL instance
+  lo_pll = max2871_create(lo_pll_register_write, lo_pll_idle_wait);
+  if (!lo_pll) {
+	  console_printf("LO PLL init error");
+	  cpu_halt();
+  }
+
+	max2871_rfa_power(rf_pll, -1);
+	max2871_rfa_power(lo_pll, -1);
+
+	max2871_rfa_out(rf_pll, 1);
+	max2871_rfa_out(lo_pll, 1);
+
+
+  // Attenuator instance
+  attenuator = bda4700_create(attenuator_write);
+  if (!attenuator) {
+  	  console_printf("Attenuator init error");
+  	  cpu_halt();
+  }
 
   // EEPROM instance
   eeprom = blockdevice_create(AT24C256_PAGE, AT24C256_MAX_PAGEADDRESS, at24c256_read_page, at24c256_write_page, NULL);
@@ -826,11 +886,11 @@ static void MX_SPI4_Init(void)
   hspi4.Instance = SPI4;
   hspi4.Init.Mode = SPI_MODE_MASTER;
   hspi4.Init.Direction = SPI_DIRECTION_2LINES_TXONLY;
-  hspi4.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi4.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi4.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi4.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi4.Init.NSS = SPI_NSS_SOFT;
-  hspi4.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi4.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
   hspi4.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi4.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi4.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -1031,11 +1091,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : MOSI_INPUT_Pin */
-  GPIO_InitStruct.Pin = MOSI_INPUT_Pin;
+  /*Configure GPIO pin : MISO_INPUT_Pin */
+  GPIO_InitStruct.Pin = MISO_INPUT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(MOSI_INPUT_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(MISO_INPUT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : CHANNEL_SELECT_Pin */
   GPIO_InitStruct.Pin = CHANNEL_SELECT_Pin;

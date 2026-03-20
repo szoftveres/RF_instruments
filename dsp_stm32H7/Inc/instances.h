@@ -9,7 +9,7 @@
 #include "../os/fatsmall_fs.h"
 
 extern max2871_t *rf_pll;
-
+extern max2871_t *lo_pll;
 extern bda4700_t *attenuator;
 
 extern fs_t *eepromfs;  // FORMAT

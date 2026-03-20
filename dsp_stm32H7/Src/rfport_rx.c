@@ -14,8 +14,8 @@ extern ADC_HandleTypeDef hadc2;
 
 
 typedef struct rfport_rx_sample_s {
-	uint16_t ref;
-	uint16_t meas;
+	int ref;
+	int meas;
 } rfport_rx_sample_t;
 
 
@@ -25,8 +25,8 @@ static fifo_t* rfport_rx_sample_stream;
 void rfport_rx_daq_callback (void* ctxt) {
 	rfport_rx_sample_t sample;
 
-	sample.ref = hadc1.Instance->DR;
-	sample.meas = hadc2.Instance->DR;
+	sample.ref = ((int)hadc1.Instance->DR) - 32768;
+	sample.meas = ((int)hadc2.Instance->DR) - 32768;
 
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_Start(&hadc2);
@@ -68,16 +68,19 @@ void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
 		int q;
 		int mag = magnitude_const();
 
-		//int window = raised_cos_window(c, cycles);
+		int window = raised_cos_window(c, samples);
 
 		dds_next_sample(mixer, &i, &q);
 
 		fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
 
-		m->ref_i += ((((int)sample.ref) * i) / mag);
-		m->ref_q += ((((int)sample.ref) * q) / mag);
-		m->meas_i += ((((int)sample.meas) * i) / mag);
-		m->meas_q += ((((int)sample.meas) * q) / mag);
+		sample.ref = sample.ref * window / mag;
+		sample.meas = sample.meas * window / mag;
+
+		m->ref_i += ((sample.ref * i) / mag);
+		m->ref_q += ((sample.ref * q) / mag);
+		m->meas_i += ((sample.meas * i) / mag);
+		m->meas_q += ((sample.meas * q) / mag);
 	}
 
 	m->ref_i /= samples;

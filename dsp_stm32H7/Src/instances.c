@@ -1,4 +1,5 @@
 #include <adcdac.h>
+#include "main.h" // GPIO custom names
 #include "instances.h"
 #include "config_def.h"
 #include "../os/globals.h"  // config instance
@@ -9,10 +10,12 @@
 #include "../os/resource.h"
 #include "../os/modem.h"
 #include "stm32h7xx_hal.h"  // HAL get tick
+#include "rfport_rx.h"
+
 
 
 max2871_t* rf_pll;
-
+max2871_t* lo_pll;
 bda4700_t *attenuator;
 
 fs_t *eepromfs; // FORMAT
@@ -312,7 +315,62 @@ int cmd_instctl_test (cmd_context_s* ctxt) {
 	return 1;
 }
 
-#include "rfport_rx.h"
+
+
+void vnameas (int f) {
+	rfport_rx_t rfmeas;
+
+	max2871_freq(rf_pll, (double)f);
+	max2871_freq(lo_pll, (double)(f + 10));
+
+	HAL_GPIO_WritePin(CHANNEL_SELECT_GPIO_Port, CHANNEL_SELECT_Pin, GPIO_PIN_SET); // 1: reflected, 0: through
+
+	while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
+		console_printf("waiting for lock");
+		HAL_Delay(500);
+	}
+	console_printf("Done");
+
+	rfport_rx_meas(10000, 800, &rfmeas);
+
+	//max2871_rfa_out(rf_pll, 0);
+	//max2871_rfa_out(lo_pll, 0);
+
+	//console_printf ("ref_i:%i, ref_q:%i, power:%i ", rfmeas.ref_i, rfmeas.ref_q, (rfmeas.ref_i * rfmeas.ref_i) + (rfmeas.ref_q * rfmeas.ref_q));
+	//console_printf ("meas_i:%i, meas_q:%i, power:%i ", rfmeas.meas_i, rfmeas.meas_q, (rfmeas.meas_i * rfmeas.meas_i) + (rfmeas.meas_q * rfmeas.meas_q));
+
+	//return;
+
+	/* Syncword */
+	console_send_u32(0xB43355AA);
+
+	/* Ref */
+	console_send_i32(rfmeas.ref_i);
+	console_send_i32(rfmeas.ref_q);
+
+	/* Port 1 */
+	console_send_i32(rfmeas.meas_i);
+	console_send_i32(rfmeas.meas_q);
+}
+
+int cmd_vna (cmd_context_s* ctxt) {
+
+	int freq;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		console_printf("Freq needed");
+		return 0;
+	}
+	freq = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+
+	vnameas(freq);
+
+	// Sync word
+	//console_send_u32(0xB43355AA);
+
+	return 1;
+}
 
 int cmd_vna_test (cmd_context_s* ctxt) {
 	int samples;
@@ -333,7 +391,9 @@ int cmd_vna_test (cmd_context_s* ctxt) {
 
 int setup_persona_commands (void) {
 
-	keyword_add("vnatest", "- test", cmd_vna_test);
+	resource_add("level", NULL, rflevel_setter, rflevel_getter);
+
+	keyword_add("vna", "- test", cmd_vna);
 
 	keyword_add("instctltest", "- test", cmd_instctl_test);
 

@@ -968,8 +968,8 @@ int setup_commands (void) {
 	keyword_add("rxmsg", "->rxmsg [fc]", cmd_rxmsg);
 	keyword_add("txmsg", "[fs] [fc]->", cmd_txmsg);
 
-	keyword_add("noise", "noise [fs] [samples]->", cmd_noise);
-	keyword_add("sine", "sine [fs] [freq] [samples]->", cmd_sine);
+	keyword_add("noise", "[fs] [samples]->", cmd_noise);
+	keyword_add("sine", "[fs] [freq] [samples]->", cmd_sine);
 	keyword_add("nullsnk", "->NULL", cmd_nullsink);
 	keyword_add("df", "->decimating filter [n] <[bf]>->", cmd_decfir);
 	keyword_add("wavfilesnk", "\"file\" ->WAV", cmd_wavfilesnk);
@@ -977,7 +977,7 @@ int setup_commands (void) {
 
 
 	// FILE OPS  ==================================
-	keyword_add("del", "\"file\" - del file", cmd_del);
+	keyword_add("del", "\"file\"", cmd_del);
 	keyword_add("hexdump", "\"file\"", cmd_hexdump);
 	keyword_add("dir", "- list files", cmd_dir);
 	keyword_add("copy", "\"src\" \"new\"", cmd_copy);
@@ -985,8 +985,8 @@ int setup_commands (void) {
 
 
 	// PROGRAM ==================================
-	keyword_add("saveprg", "\"name\" - save program", cmd_saveprg);
-	keyword_add("loadprg", "\"name\" - load program", cmd_loadprg);
+	keyword_add("saveprg", "\"name\"", cmd_saveprg);
+	keyword_add("loadprg", "\"name\"", cmd_loadprg);
 	keyword_add("return", "- return", cmd_program_return);
 	keyword_add("gosub", "[line] - call", cmd_program_gosub);
 	keyword_add("goto", "[line] - jump", cmd_program_goto);
