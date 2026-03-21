@@ -253,8 +253,8 @@ void dds_reset (dds_t* instance) {
 }
 
 void dds_next_sample (dds_t* instance, int *i, int *q) {
-	*i = sinewave[(instance->phaseaccumulator) >> 24];
-	*q = sinewave[(instance->phaseaccumulator + 0x40000000) >> 24];
+	*q = sinewave[(instance->phaseaccumulator) >> 24];
+	*i = sinewave[(instance->phaseaccumulator + 0x40000000) >> 24];
 	instance->phaseaccumulator += instance->phaseshift;
 }
 
