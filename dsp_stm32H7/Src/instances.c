@@ -178,6 +178,19 @@ int baud_to_samples (int baud) {
 }
 
 
+int asel_setter (void * context, int value) {
+	resource_t* resource = (resource_t*)context;
+	resource->value = value;
+	HAL_GPIO_WritePin(CHANNEL_SELECT_GPIO_Port, CHANNEL_SELECT_Pin, value ? GPIO_PIN_SET : GPIO_PIN_RESET); // 1: reflected, 0: through
+	return 1;
+}
+
+
+int asel_getter (void * context) {
+	resource_t* resource = (resource_t*)context;
+	return resource->value;
+}
+
 
 
 /*-----------------------------------------*/
@@ -316,30 +329,10 @@ int cmd_instctl_test (cmd_context_s* ctxt) {
 }
 
 
-
-void vnameas (int f) {
+void cmd_rfport_meas (void) {
 	rfport_rx_t rfmeas;
 
-	max2871_freq(rf_pll, (double)f);
-	max2871_freq(lo_pll, (double)(f + 10));
-
-	HAL_GPIO_WritePin(CHANNEL_SELECT_GPIO_Port, CHANNEL_SELECT_Pin, GPIO_PIN_SET); // 1: reflected, 0: through
-
-	while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
-		console_printf("waiting for lock");
-		HAL_Delay(500);
-	}
-	console_printf("Done");
-
 	rfport_rx_meas(10000, 800, &rfmeas);
-
-	//max2871_rfa_out(rf_pll, 0);
-	//max2871_rfa_out(lo_pll, 0);
-
-	//console_printf ("ref_i:%i, ref_q:%i, power:%i ", rfmeas.ref_i, rfmeas.ref_q, (rfmeas.ref_i * rfmeas.ref_i) + (rfmeas.ref_q * rfmeas.ref_q));
-	//console_printf ("meas_i:%i, meas_q:%i, power:%i ", rfmeas.meas_i, rfmeas.meas_q, (rfmeas.meas_i * rfmeas.meas_i) + (rfmeas.meas_q * rfmeas.meas_q));
-
-	//return;
 
 	/* Syncword */
 	console_send_u32(0xB43355AA);
@@ -353,6 +346,7 @@ void vnameas (int f) {
 	console_send_i32(rfmeas.meas_q);
 }
 
+
 int cmd_vna (cmd_context_s* ctxt) {
 
 	int freq;
@@ -364,33 +358,29 @@ int cmd_vna (cmd_context_s* ctxt) {
 	freq = ctxt->params->n;
 	cmd_param_consume(&(ctxt->params));
 
-	vnameas(freq);
+	max2871_freq(rf_pll, (double)freq);
+	max2871_freq(lo_pll, (double)(freq + 10));
 
-	// Sync word
-	//console_send_u32(0xB43355AA);
-
-	return 1;
-}
-
-int cmd_vna_test (cmd_context_s* ctxt) {
-	int samples;
-	rfport_rx_t v;
-
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
-		return 0;
+	while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
+		console_printf("waiting for lock");
+		HAL_Delay(500);
 	}
-	samples = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
 
-	rfport_rx_meas(10000, samples, &v);
-
-	console_printf("ref_i:%i ref_q:%i meas_i:%i, meas_q:%i", v.ref_i, v.ref_q, v.meas_i, v.meas_q);
+	cmd_rfport_meas();
 
 	return 1;
 }
+
 
 int setup_persona_commands (void) {
 
+	max2871_rfa_power(rf_pll, -1);
+	max2871_rfa_power(lo_pll, -1);
+
+	max2871_rfa_out(rf_pll, 1);
+	max2871_rfa_out(lo_pll, 1);
+
+	resource_add("asel", NULL, asel_setter, asel_getter);
 	resource_add("level", NULL, rflevel_setter, rflevel_getter);
 
 	keyword_add("vna", "- test", cmd_vna);

@@ -341,13 +341,6 @@ int main(void)
 	  cpu_halt();
   }
 
-	max2871_rfa_power(rf_pll, -1);
-	max2871_rfa_power(lo_pll, -1);
-
-	max2871_rfa_out(rf_pll, 1);
-	max2871_rfa_out(lo_pll, 1);
-
-
   // Attenuator instance
   attenuator = bda4700_create(attenuator_write);
   if (!attenuator) {
