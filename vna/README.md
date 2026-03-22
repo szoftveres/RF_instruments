@@ -51,6 +51,8 @@ On this VNA, at -25 dB attenuator setting (approximately -30 dBm RF power on Por
 
 The throguh (S2,1) calibration is based on through standard and isolation measurements. Technically only a through calibration measurement would be sufficient as long as the isolation between the two ports was acceptable; in this case the dynamic range would be ensured by the isolation. The corrected S2,1 in this case is the quotient of the measured S2,1 and the S2,1 of the through standard:
 
+![thru](thru.jpg)
+
 ![eq1](eq1.png)
 
 On this VNA, the result of through-only correction is a somewhat limited dynamic range, because of lack of proper isolation (being built on a single PCB, with parts close to each other and not being shielded):
