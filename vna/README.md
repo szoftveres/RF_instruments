@@ -12,6 +12,8 @@ A better solution is by building a programmable attenuator into the VNA, after t
 
 Usually VNAs with a top frequency of at least 6 GHz and programmable RF output level are at premium prices (an economical 4.5 GHz Siglent SNA5002A costs somewhere near $10k), a DIY option is much more economical.
 
+![photo1](photo1.jpg)
+
 ### Description
 
 ![photo2](vna_funcblock.png)
@@ -45,7 +47,7 @@ The slight difference in the reflection at the band edges is due to the fact tha
 
 #### SMA cable phase stability measurement
 
-A cheap RG316 SMA cable was included in the through calibration standard, then it was bent at a sharp curve to observe phase change at high frequency.
+A cheap RG316 SMA cable was included in the through calibration, then it was bent at a sharp curve to observe phase change at high frequency.
 
 Straight:
 
