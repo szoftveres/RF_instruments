@@ -45,11 +45,11 @@ Since the 3-term model expects perfect termintaion on all other ports for multi-
 
 ![calkit](calkit.jpg)
 
-At -25 dB attenuator setting (approximately -30 dBm RF power on Port 1) S1,1 dynamic range is more than 40 dB across the full frequency span, which allows for very precise (> 20 dB) input tuning of small-signal active devices (e.g. LNAs) with a healthy 20 dB of extra margin. The dynamic range improves with increased power level.
+On this VNA, at -25 dB attenuator setting (approximately -30 dBm RF power on Port 1) S1,1 dynamic range is more than 40 dB across the full frequency span, which allows for very precise (> 20 dB) input tuning of small-signal active devices (e.g. LNAs) with a healthy 20 dB of extra margin. The dynamic range improves with increased power level.
 
 ![cal_refl](cal_refl.png)
 
-The throguh (S2,1) calibration uses through- and isolation measurements for error correction. Technically only a through calibration would be sufficient as long as the isolation between the two ports was acceptable; in this case the dynamic range would be ensured by the isolation. The corrected S2,1 in this case is the quotient of the measured S2,1 and the S2,1 of the through standard:
+The throguh (S2,1) calibration is based on through standard and isolation measurements. Technically only a through calibration measurement would be sufficient as long as the isolation between the two ports was acceptable; in this case the dynamic range would be ensured by the isolation. The corrected S2,1 in this case is the quotient of the measured S2,1 and the S2,1 of the through standard:
 
 ![eq1](eq1.png)
 
