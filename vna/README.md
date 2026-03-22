@@ -12,7 +12,7 @@ A better solution is by building a programmable attenuator into the VNA, after t
 
 Usually VNAs with a top frequency of at least 6 GHz and programmable RF output level are at premium prices (an economical 4.5 GHz Siglent SNA5002A costs somewhere near $10k), a DIY option is much more economical.
 
-### Functional Description
+### Description
 
 ![photo2](vna_funcblock.png)
 
@@ -22,8 +22,24 @@ The RF board is mostly made of off-the shelf parts, except for the broadband cou
 
 The connection between the analog and digital boards is made using short ribbon cables, where each signal line is surrounded by ground (or capacitively grounded power rail) in order to ensre minimal crosstalk between the lines (G-S-G-S-G... topology). All the digital lines (20 MHz reference clock, SPI, GPIO) are damped by 47 ohm resistors. The analog IF lines are also driven by 47 ohm source impedance and are filtered on both ends for higher frequencies - since the IF frequency is low (10 kHz), no further cable shielding is necessary.
 
-The [DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) samples both (reference and measurement) IF signals simultaneously at 80 ksps with its two 16-bit ADCs. The IFs are down-converted in the digital domain by two complex mixers (a lookup-table based DDS generates the 10 kHz LO for the digital mixers) and 800 samples are accumulated (also a raised-cosine window is applied on the samples). When a full acquisition cycle is completed, the result (complex reference- and measured baseband values) is sent to the host PC for further processing. Since the 20 MHz reference clock is shared between the RF PLLs and the microcontroller (running the ADCs and the DDS), there's always a perfect phase coherence between the IF signal and the DDS. The DSP / controller board is also responsile for controlling the RF board via SPI bus and GPIO. The board is running this [OS](https://github.com/szoftveres/RF_instruments/tree/main/os), therefore implementing its services.
+The [DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) samples both (reference and measurement) IF signals simultaneously at 80 ksps with its two 16-bit ADCs. The IFs are down-converted in the digital domain by two complex mixers (a lookup-table based DDS generates the 10 kHz LO for the digital mixers) and 800 samples are accumulated (also a raised-cosine window is applied on the samples). When a full acquisition cycle is completed, the result (complex reference- and measured baseband values) is sent to the host PC for further processing. Since the 20 MHz reference clock is shared between the RF PLLs and the microcontroller, there's always a perfect phase coherence between the analog IF signal, the ADC clock and the DDS. The DSP / controller board is also responsile for controlling the RF board via SPI bus and GPIO. The board is running this [OS](https://github.com/szoftveres/RF_instruments/tree/main/os), therefore implementing its services.
 
 The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna.m) is built on top of GNU Octave and my [RF toolkit library](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib), and is communicating with the DSP / controller board via UART. A benefit of doing the initial signal processing on the DSP / controller board is that only several bytes need to be transferred via the UART per each measurement point, hence the baud rate is not a factor. The drawback is that the individual samples are not available at the host, therefore some parameters (like the windowing function) can only be modified by changing the firmware.
 
+
+### Measurements
+
+Stub filter for the 420 MHz - 450 MHz amateur band
+
+![stubphoto](stubphoto.jpg)
+
+Measured with this VNA:
+
+![stubmeas1](stubmeas1.png)
+
+Measured with a LiteVNA:
+
+![stubmeas_litevna](stubmeas_litevna.jpg)
+
+The slight difference in the reflection at the band edges is due to the fact that the matching conditions for the two setups (different Port 2 impedances of the two VNAs, different measurement cables) are different, and the S11 correction of this VNA doesn't account for Port 2 impedance (it's assumed to be perfect 50 Ω).
 
