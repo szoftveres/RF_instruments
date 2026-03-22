@@ -41,7 +41,7 @@ Several great methods (like the 12-term error model) were developed for 2-port V
 
 The reflected (S1,1) error correction is based on the well-known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the accuracy depends on the knowledge of the actual cal kit parameters (the method is capable of precise error correction if the cal kit parameters are known and models can be built for them). I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal; having access to a quality cal kit and its models would allow for characterizing this DIY cal kit and building proper models.
 
-Since the 3-term model expects perfect termintaion on all other ports for multi-port multilateral networks, a precise S1,1 measurement of such a network (e.g. a passive filter) requires the other terminal to be momentariy disconnected from Port 2 and terminated by a good quality load (e.g. the load cal standard). This is not much of an issue as long as Port 2 is well isolated (e.g. uni-lateral networks, amplifiers with an output attenuator calibrated into S2,1) or not involved at all (e.g. antennas).
+Since the 3-term model expects perfect termintaion on all other ports for multi-port multilateral networks, a precise S1,1 measurement of such network (e.g. a passive filter) requires the other terminal to be momentariy disconnected from Port 2 and terminated by a good quality load (e.g. the load cal standard). This is not much of an issue as long as Port 2 is well isolated (e.g. uni-lateral networks, amplifiers with output attenuator calibrated into S2,1) or not involved at all (e.g. antennas).
 
 ![calkit](calkit.jpg)
 
@@ -61,7 +61,7 @@ The dynamic range can be increased by including the signal leakage (isolation) i
 
 ![eq2](eq2.png)
 
-The result is some ~ 20 dB improvement on the S2,1 dynamic range on this VNA. Any further improvement can only be realistically expected by using proper isolation and shielding.
+The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any further improvement can only be realistically expected by using proper isolation and shielding.
 
 ![cal_iso_corrected](cal_iso_corrected.png)
 
