@@ -37,29 +37,29 @@ The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrct
 
 ### Calibration and Performance
 
-Several great methods (like the 12-term error model) were developed for 2-port VNA calibration which (among other things) account for leakage and port impedance mismatch. These models assume that the port impedances (matching conditions) stay constant for the reflected- and through measurements. This is not the case however with this VNA; during reflected measurement, the QPC6324 switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer. The difference between these two matching conditions can be decreased by using an attenuator (pad) at Port 2 (the PCB includes a 3 dB pad between Port 2 and the QPC6324 switch) to some degree, however this comes at the expense of reduced S2,1 dynamic range. Therefore, the error correction process on this VNA is separated for through- and reflected cases.
+Several great methods (like the 12-term error model) were developed for 2-port VNA calibration which (among other things) account for leakage and port impedance mismatch. These models assume that the port impedances (matching conditions) stay constant for the reflected- and through measurements. This is not the case however with this VNA; during reflected measurement, the QPC6324 switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer. The difference between these two matching conditions can be decreased by using an attenuator (pad) on Port 2 (the PCB includes a 3 dB pad between Port 2 and the QPC6324 switch) to some degree, however this comes at the expense of reduced S2,1 dynamic range. Therefore, the error correction process on this VNA is separated to through- and reflected cases.
 
-The reflected (S1,1) error correction is based on the well-known 3-term error model ([implementation](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the accuracy depends on the knowledge of the actual cal kit parameters (the method is capable of precise error correction if the cal kit parameters are known and models can be built for them). I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal; having access to a quality cal kit and its models would allow for characterizing this DIY cal kit and building proper models for it. Since the 3-term model expects perfect termintaion on all other ports for multilateral networks (passive filters, attenuators, etc..), the other terminal of e.g. a filter has to be momentariy disconnected from Port 2 and must be terminated by a good quality load for very precise S1,1 measurement.
+The reflected (S1,1) error correction is based on the well-known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the accuracy depends on the knowledge of the actual cal kit parameters (the method is capable of precise error correction if the cal kit parameters are known and models can be built for them). I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal; having access to a quality cal kit and its models would allow for characterizing this DIY cal kit and building proper models for it. Since the 3-term model expects perfect termintaion on all other ports for multi-port multilateral networks (passive filters, attenuators, etc..), a precise S1,1 measurement requires the other terminal (of e.g. a filter) to be momentariy disconnected from Port 2 and terminated by a good quality load (e.g. the load cal standard). 
 
 ![calkit](calkit.jpg)
 
-At -25 dB attenuator setting (approximately -30 dBm RF power on Port 1) S1,1 dynamic range is more than 40 dB across the full frequency range, which allows for very precise (> 20 dB) input tuning of small-signal active devices with a healthy 20 dB of extra margin. The dynamic range improves as the power level is increased.
+At -25 dB attenuator setting (approximately -30 dBm RF power on Port 1) S1,1 dynamic range is more than 40 dB across the full frequency span, which allows for very precise (> 20 dB) input tuning of small-signal active devices (e.g. LNAs) with a healthy 20 dB of extra margin. The dynamic range improves with increased power level.
 
 ![cal_refl](cal_refl.png)
 
-The throguh (S2,1) calibration uses through- and isolation measurements for error correction. Technically as long as the isolation between the two ports was acceptable, a through calibration would be sufficient; the dynamic range would be ensured by the isolation. In this case the corrected S2,1 of the DUT is the quotient of the measured S2,1 and the S2,1 of the through standard:
+The throguh (S2,1) calibration uses through- and isolation measurements for error correction. Technically only a through calibration would be sufficient as long as the isolation between the two ports was acceptable; in this case the dynamic range would be ensured by the isolation. The corrected S2,1 in this case is the quotient of the measured S2,1 and the S2,1 of the through standard:
 
 ![eq1](eq1.png)
 
-On this VNA, this results in a somewhat limited dynamic range, because of lack of proper isolation (being built on a single PCB, with parts close to each other and not being shielded):
+On this VNA, the result of through-only correction is a somewhat limited dynamic range, because of lack of proper isolation (being built on a single PCB, with parts close to each other and not being shielded):
 
 ![cal_iso_uncorrected](cal_iso_uncorrected.png)
 
-The dynamic range can be increased by including the signal leakage (isolation) into the equation. The assumption is that the leakage adds to both S2,1 measurements (the through standard and the DUT), therefore once it is known ("isolation" calibration measurement), it can be subtracted. The equation changes like this:
+The dynamic range can be increased by including the signal leakage (isolation) into the equation. The assumption is that the leakage adds to the S2,1 measurment of the through standard as well as to the DUT, therefore once it is known ("isolation" calibration measurement), it can be subtracted. The equation changes like this:
 
 ![eq2](eq2.png)
 
-The result is some extra S2,1 dynamic range, now 50 dB on average. Any further improvement can only be realistically expected with proper isolation and shielding.
+The result is some ~ 20 dB improvement on the S2,1 dynamic range on this VNA. Any further improvement can only be realistically expected by using proper isolation and shielding.
 
 ![cal_iso_corrected](cal_iso_corrected.png)
 
