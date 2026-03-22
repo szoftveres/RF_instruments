@@ -52,6 +52,20 @@ Measured using a LiteVNA:
 
 The slight difference in the reflection at the higher band edge (~ 450 MHz) is due to the fact that the matching conditions for the two setups (different Port 2 impedances of the two VNAs, different measurement cables) are different, and the S11 correction of this VNA doesn't account for imperfect Port 2 impedance (it's assumed to be perfect 50 Ω).
 
+#### 915 MHZ SAW filter
+
+Abracon AFS915.0W03-TS3
+
+![sawphoto](sawphoto.jpg)
+
+Measured:
+
+![sawmeas](sawmeas.png)
+
+From the datasheet:
+
+![sawdata](sawdata.png)
+
 #### SMA cable phase stability measurement
 
 A cheap RG316 SMA cable was included in the through calibration, then it was bent at a sharp curve to observe phase change at high frequency.
