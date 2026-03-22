@@ -29,7 +29,7 @@ The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrct
 
 ### Measurements
 
-Stub filter for the 420 MHz - 450 MHz amateur band
+#### Stub filter for the 420 MHz - 450 MHz amateur band
 
 ![stubphoto](stubphoto.jpg)
 
@@ -42,4 +42,23 @@ Measured with a LiteVNA:
 ![stubmeas_litevna](stubmeas_litevna.jpg)
 
 The slight difference in the reflection at the band edges is due to the fact that the matching conditions for the two setups (different Port 2 impedances of the two VNAs, different measurement cables) are different, and the S11 correction of this VNA doesn't account for Port 2 impedance (it's assumed to be perfect 50 Ω).
+
+#### SMA cable phase stability measurement
+
+A cheap RG316 SMA cable was included in the through calibration standard, then it was bent at a sharp curve to observe phase change at high frequency.
+
+Straight:
+
+![bend1photo](bend1photo.jpg)
+
+![bend1](bend1.png)
+
+Bent:
+
+![bend2photo](bend2photo.jpg)
+
+![bend2](bend2.png)
+
+Conclusion: the difference between straight and bent states at 5.5 GHz was approximately 1.5°, which is (surprisingly) negligible.
+
 
