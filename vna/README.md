@@ -47,7 +47,7 @@ At -25 dB attenuator setting (approximately -30 dBm RF power on Port 1) S1,1 dyn
 
 ![cal_refl](cal_refl.png)
 
-The throguh (S2,1) calibration uses through- and isolation measurements for error correction. Technically as long as the isolation between the two ports is acceptable, a through calibration is sufficient; the dynamic range is ensured by the isolation. In this case the corrected S2,1 of the DUT is the quotient of the measured S2,1 and the S2,1 of the through standard:
+The throguh (S2,1) calibration uses through- and isolation measurements for error correction. Technically as long as the isolation between the two ports was acceptable, a through calibration would be sufficient; the dynamic range would be ensured by the isolation. In this case the corrected S2,1 of the DUT is the quotient of the measured S2,1 and the S2,1 of the through standard:
 
 ![eq1](eq1.png)
 
@@ -59,7 +59,7 @@ The dynamic range can be increased by including the signal leakage (isolation) i
 
 ![eq2](eq2.png)
 
-The result is some extra S2,1 dynamic range, now 50 dB on average. Any further improvement can only be realisticly expected with proper isolation and shielding.
+The result is some extra S2,1 dynamic range, now 50 dB on average. Any further improvement can only be realistically expected with proper isolation and shielding.
 
 ![cal_iso_corrected](cal_iso_corrected.png)
 
