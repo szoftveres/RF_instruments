@@ -38,7 +38,7 @@ The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrct
 
 ### Measurements
 
-#### Stub filter for the 420 MHz - 450 MHz amateur band
+#### Bandpass stub filter for the 420 MHz - 450 MHz amateur band
 
 ![stubphoto](stubphoto.jpg)
 
@@ -46,11 +46,11 @@ Measured with this VNA:
 
 ![stubmeas1](stubmeas1.png)
 
-Measured with a LiteVNA:
+Measured using a LiteVNA:
 
 ![stubmeas_litevna](stubmeas_litevna.jpg)
 
-The slight difference in the reflection at the band edges is due to the fact that the matching conditions for the two setups (different Port 2 impedances of the two VNAs, different measurement cables) are different, and the S11 correction of this VNA doesn't account for Port 2 impedance (it's assumed to be perfect 50 Ω).
+The slight difference in the reflection at the higher band edge (~ 450 MHz) is due to the fact that the matching conditions for the two setups (different Port 2 impedances of the two VNAs, different measurement cables) are different, and the S11 correction of this VNA doesn't account for imperfect Port 2 impedance (it's assumed to be perfect 50 Ω).
 
 #### SMA cable phase stability measurement
 
