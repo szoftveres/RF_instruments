@@ -115,6 +115,6 @@ Bent:
 
 ![bend2](bend2.png)
 
-The difference between straight and bent states at 5.5 GHz is approximately -2.5°, meaning that the delay slightly decreases with bending, presumably because the center conductor is squished and therefore getting shorter. After straightening the cable out, the phase shift returned to near its original value.
+The difference between straight and bent states at 5.5 GHz is approximately -2.7°, meaning that the delay slightly decreases with bending, presumably because the center conductor is squished and therefore the RF path is shortened. After straightening the cable out, the phase shift returned to near its original value.
 
 
