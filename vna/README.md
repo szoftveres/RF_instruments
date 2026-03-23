@@ -49,11 +49,13 @@ On this VNA, at -25 dB attenuator setting (approximately -30 dBm RF power on Por
 
 ![cal_refl](cal_refl.png)
 
-The throguh (S2,1) calibration is based on through standard and isolation measurements. Technically only a through calibration measurement would be sufficient as long as the isolation between the two ports was acceptable; in this case the dynamic range would be ensured by the isolation. The corrected S2,1 in this case is the quotient of the measured S2,1 and the S2,1 of the through standard:
-
-![thru](thru.jpg)
+The through (S2,1) calibration is based on through standard and isolation measurements. Technically only a through calibration measurement would be sufficient as long as the isolation between the two ports was acceptable; in this case the dynamic range would be ensured by the isolation. The corrected S2,1 in this case is the quotient of the measured S2,1 and the S2,1 of the through standard:
 
 ![eq1](eq1.png)
+
+This simple method assumes a perfect through standard, i.e. with zero delay without loss. This is not really a practical limitation; a short, high quality SMA through has virtually no loss, and calibrating out its delay has no practical benefit. In most cases, through phase measurements are comparative, i.e. phase change due to changing conditions, or relative phase difference (e.g. between two identical units) carries the value in the measurement. There are some cases where measuring the absolute phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace can be perfectly used as a through cal standard, resulting in the ability to make accurate *absolute* phase and gain/loss measurements at the device level.
+
+![thru](thru.jpg)
 
 On this VNA, the result of through-only correction is a somewhat limited dynamic range, because of lack of proper isolation (being built on a single PCB, with parts close to each other and not being shielded):
 
@@ -86,7 +88,7 @@ The slight difference in the reflection at the higher band edge (~ 450 MHz) is d
 
 #### 915 MHZ SAW filter
 
-Abracon AFS915.0W03-TS3
+Abracon AFS915.0W03-TS3 ISM band filter on a DIY SMA breakout board
 
 ![sawphoto](sawphoto.jpg)
 
