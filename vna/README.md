@@ -39,7 +39,7 @@ The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrct
 
 Several great methods (like the 12-term error model) have been developed for 2-port VNA calibration which (among other things) account for leakage and port impedance mismatch. These models assume that the port impedances (matching conditions) stay constant for the reflected- and through measurements. This is not the case however with this VNA; during reflected measurement, the QPC6324 switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer. The difference between these two matching conditions can be decreased by using an attenuator (pad) on Port 2 (the PCB includes a 3 dB pad between Port 2 and the QPC6324 switch) to some degree, however this comes at the expense of reduced S2,1 dynamic range. Therefore, the error correction process on this VNA is separated into through- and reflected cases.
 
-The reflected (S1,1) error correction is based on the well-known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the accuracy depends on the knowledge of the actual cal kit parameters (the method is capable of precise error correction if the cal kit parameters are known and models can be built for them). I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal; having access to a quality cal kit and its models would allow for characterizing this DIY cal kit and building proper models.
+The reflected (S1,1) error correction is based on the well-known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the accuracy depends on the knowledge of the actual cal kit parameters (the method is capable of precise error correction if the cal kit parameters are known and models can be built for them). I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal; gaining access to a high-quality cal kit and its models would allow for characterizing this DIY cal kit and building proper models.
 
 Since the 3-term model expects perfect termintaion on all other ports for multi-port multilateral networks, a precise S1,1 measurement of such network (e.g. a passive filter) requires the other terminal to be momentariy disconnected from Port 2 and terminated by a good quality load (e.g. the load cal standard). This is not much of an issue as long as Port 2 is well isolated (e.g. uni-lateral networks, amplifiers with output attenuator calibrated into S2,1) or not involved at all (e.g. antennas).
 
@@ -87,7 +87,7 @@ The slight difference in the reflection at the higher band edge (~ 450 MHz) is d
 
 #### 915 MHZ SAW filter
 
-Abracon AFS915.0W03-TS3 ISM band filter on a DIY SMA breakout board
+Abracon AFS915.0W03-TS3 ISM band filter mounted on a DIY SMA breakout board
 
 ![sawphoto](sawphoto.jpg)
 
@@ -115,6 +115,6 @@ Bent:
 
 ![bend2](bend2.png)
 
-Conclusion: the difference between straight and bent states at 5.5 GHz was approximately 1.5°, which is (surprisingly) negligible.
+The difference between straight and bent states at 5.5 GHz is approximately -2.5°, meaning that the delay slightly decreases with bending, presumably because the center conductor is squished and therefore getting shorter. After straightening the cable out, the phase shift returned to near its original value.
 
 
