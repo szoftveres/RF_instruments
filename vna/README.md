@@ -29,7 +29,7 @@ The RF board is mostly made of off-the shelf parts, except for the broadband cou
 
 ![rfboard](rfboard.jpg)
 
-The connection between the analog and digital boards is made using short ribbon cables, with each signal line being surrounded by ground (or capacitively grounded power rail) in order to ensre minimal crosstalk between the lines (G-S-G-S-G... topology). All the digital lines (20 MHz reference clock, SPI, GPIO) are damped by 47 Ω resistors. The analog IF lines are also driven by 47 Ω source impedance and are filtered on both ends for higher frequencies - since the IF frequency is low (10 kHz), no further cable shielding is necessary.
+The connection between the RF and DSP / controller boards is made using short ribbon cables, with each signal line being surrounded by ground (or capacitively grounded power rail) in order to ensre minimal crosstalk between the lines (G-S-G-S-G... topology). All the digital lines (20 MHz reference clock, SPI, GPIO) are damped by 47 Ω resistors. The analog IF lines are also driven by 47 Ω source impedance and are filtered on both ends for higher frequencies - since the IF frequency is low (10 kHz), no further cable shielding is necessary.
 
 The [DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) ([schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf)) samples both (reference and measurement) IF signals simultaneously at 80 ksps with its two 16-bit ADCs. The IFs are down-converted in the digital domain by two complex mixers (a lookup-table based DDS generates the 10 kHz LO for the digital mixers) and 800 samples are accumulated (also a raised-cosine window is applied on the samples). When a full acquisition cycle is completed, the result (complex reference- and measured baseband values) is sent to the host PC for further processing. Since the 20 MHz reference clock is shared between the RF PLLs and the microcontroller, there's always a perfect phase coherence between the analog IF signal, the ADC clock and the DDS. The DSP / controller board is also responsile for controlling the RF board via SPI bus and GPIO. The board is running this [OS](https://github.com/szoftveres/RF_instruments/tree/main/os), therefore implementing its services.
 
@@ -53,10 +53,6 @@ The through (S2,1) calibration is based on through standard and isolation measur
 
 ![eq1](eq1.png)
 
-This simple method assumes a perfect through standard, i.e. with zero delay and loss. This is not really a practical limitation; a short, high quality SMA through has virtually no loss, and accounting for its delay at the connector plane has little practical value. There are some cases where measuring the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace can be perfectly used as a through cal standard, resulting in the ability to make accurate *absolute* phase and gain/loss measurements at the device level. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift due to changing conditions, comparing the phase shift of two similar DUTs, etc..) is satisfactory. 
-
-![thru](thru.jpg)
-
 On this VNA, the result of through-only correction is a somewhat limited dynamic range, because of lack of proper isolation (being built on a single PCB, with parts close to each other and not being shielded):
 
 ![cal_iso_uncorrected](cal_iso_uncorrected.png)
@@ -69,6 +65,9 @@ The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any furth
 
 ![cal_iso_corrected](cal_iso_corrected.png)
 
+This simple error correction method assumes a perfect through standard i.e. doesn't take delay and loss into account, but this is not really a practical limitation. A short, high quality SMA through has virtually no loss, and accounting for its delay at the connector plane has little practical value. There are some cases where measuring the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace can be perfectly used as a through cal standard, resulting in the ability to make accurate *absolute* phase and gain/loss measurements at the device level. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift due to changing conditions, comparing the phase shift of two similar DUTs, etc..) is satisfactory.
+
+![thru](thru.jpg)
 
 ### Measurements
 
