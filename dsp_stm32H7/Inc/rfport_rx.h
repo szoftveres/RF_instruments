@@ -5,6 +5,7 @@
 typedef struct rfport_rx_s {
 	int ref_i;
 	int ref_q;
+	int ref_ampl;
 	int meas_i;
 	int meas_q;
 } rfport_rx_t;

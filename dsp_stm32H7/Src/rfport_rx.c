@@ -3,6 +3,7 @@
 #include "../os/hal_plat.h"
 #include "../os/fifo.h"
 #include <string.h> //memset
+#include <limits.h> //int max and int min
 #include "stm32h7xx_hal.h"
 
 
@@ -53,6 +54,8 @@ void rfport_rx_daq_off (void) {
 void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
 	dds_t* mixer;
 	rfport_rx_sample_t sample;
+	int min = INT_MAX;
+	int max = INT_MIN;
 
 	rfport_rx_daq_on();
 
@@ -68,14 +71,17 @@ void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
 		int q;
 		int mag = magnitude_const();
 
-		int window = raised_cos_window(c, samples);
+		//int window = raised_cos_window(c, samples);
 
 		dds_next_sample(mixer, &i, &q);
 
 		fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
 
-		sample.ref = sample.ref * window / mag;
-		sample.meas = sample.meas * window / mag;
+		if (sample.ref < min) {min = sample.ref;}
+		if (sample.ref > max) {max = sample.ref;}
+
+		//sample.ref = sample.ref * window / mag;
+		//sample.meas = sample.meas * window / mag;
 
 		m->ref_i += ((sample.ref * i) / mag);
 		m->ref_q += ((sample.ref * q) / mag);
@@ -87,6 +93,7 @@ void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
 	m->ref_q /= samples;
 	m->meas_i /= samples;
 	m->meas_q /= samples;
+	m->ref_ampl = max - min;
 
 	dds_destroy(mixer);
 

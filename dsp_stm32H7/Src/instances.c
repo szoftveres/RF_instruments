@@ -341,6 +341,9 @@ void cmd_rfport_meas (void) {
 	console_send_i32(rfmeas.ref_i);
 	console_send_i32(rfmeas.ref_q);
 
+	/* Ref ampl */
+	console_send_i32(rfmeas.ref_ampl);
+
 	/* Port 1 */
 	console_send_i32(rfmeas.meas_i);
 	console_send_i32(rfmeas.meas_q);
