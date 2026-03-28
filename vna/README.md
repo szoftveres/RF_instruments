@@ -119,11 +119,11 @@ The difference between straight and bent states at 5.5 GHz is approximately -2.7
 
 #### Power sweep
 
-S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz, showing gain compression with increasing input power. This VNA only has about -5dBm RF power at its maximum output setting, which is barely sufficient to overdrive the LNA, hence a driver preamp needed to be added which brings up the maximum power level to about +5 dBm; this preamp as well as a 20 dB attenuator was included in the through calibration.
+S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz, showing gain compression with increasing input power. The VNA can only provide about -5 dBm RF power at its maximum output setting, which is barely sufficient to overdrive the DUT LNA, hence a driver preamp was added, which brings up the maximum power level to about +5 dBm; this preamp as well as a 20 dB attenuator was included in the through calibration.
 
 ![pwrsweepsetup](pwrsweepsetup.png)
 
-P1dB of the driver preamp is more than +10 dBm and its gain is also around +10 dB therefore it is able to operate in its linear region up to the maximum required +5 dBm level. The combined insertion loss of the DUT (18 dB LNA) and the 20 dB attenuator is -2 dB, which could theretically end up in the VNA Port 2 receiver being exposed to +3 dBm power level (which is more than what it's designed for), however the DUT LNA starts compressing approximately 10 dB below that point, hence the VNA input also stays in its safe (linear) region.
+P1dB of the driver preamp is more than +10 dBm and its gain is around +10 dB therefore it is able to operate in its linear region up to the maximum required +5 dBm level. The combined insertion loss of the DUT (18 dB LNA) and the 20 dB attenuator is -2 dB, which could theretically bring the VNA Port 2 receiver into compression by exposing it to +3 dBm power level (which is more than what it's designed for). However the DUT LNA starts compressing approximately 10 dB below that point, therefore the power level at the VNA receiver never reaches more than approximately -5 dBm, which is well within its linear region.
 
 ![pwrsweep](pwrsweep.png)
 
