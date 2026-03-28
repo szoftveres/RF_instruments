@@ -119,7 +119,9 @@ The difference between straight and bent states at 5.5 GHz is approximately -2.7
 
 #### Power sweep
 
-S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz. This VNA only has about -5dBm RF power at its maximum output setting, which is barely sufficient to overdrive the LNA, hence a driver preamp needed to be added which brings up the power level to about +5 dBm; this preamp and an attenuator was included in the through calibration.
+S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz, showing gain compression with increasing input power. This VNA only has about -5dBm RF power at its maximum output setting, which is barely sufficient to overdrive the LNA, hence a driver preamp needed to be added which brings up the maximum power level to about +5 dBm; this preamp (as well as 20 dB attenuation) was included in the through calibration.
+
+![pwrsweepsetup](pwrsweepsetup.png)
 
 ![pwrsweep](pwrsweep.png)
 
