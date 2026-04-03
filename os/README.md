@@ -1,6 +1,6 @@
 ## Generic single-threaded OS library for small embedded systems
 
-This software was made to be used on small single-CPU embedded systems as the main human access- and programming library.
+This software was made to be used on small single-CPU embedded systems as the main human access- and programming library. It features a command interpreter (accessible via console), program storing- loading- and running capability, and various libraries (device drivers, DSP functions, file system implementations and abstraction layers, etc..) to support multiple tasks.
 
 Features:
  * Command line interpreter
@@ -19,9 +19,11 @@ Features:
 
 
 Projects using this library:
- * [6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
+ * [6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) runs this OS as its main human access and programming interface and driver library. RF signal generator functionalities are added as application-specific commands.
+ * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) also uses this OS as its main human interface and device driver library.
+   * [6 GHz Vector Network Analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna) is built using the [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7)
  * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7)
- * [Unix runtime / development environment](https://github.com/szoftveres/RF_instruments/tree/main/unix)
+ * [Unix runtime / development environment](https://github.com/szoftveres/RF_instruments/tree/main/unix) makes this OS runnable on Linux (thanks to its hardware abstraction layer), thereby enabling its development on a regular PC without any specific hardware.
 
 
 ## DSP chain
