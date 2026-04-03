@@ -33,7 +33,7 @@ The RF and DSP / controller boards are connected together with short ribbon cabl
 
 The [DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) (schematics [here](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf)) samples both (reference and measurement) IF signals simultaneously at 80 ksps with its two 16-bit ADCs. The IFs are down-converted in the digital domain by two complex mixers (a lookup-table based DDS generates the 10 kHz LO for the digital mixers) and 800 samples are accumulated. When a full acquisition cycle is completed, the result (complex reference- and measured baseband values) is sent to the host PC for further processing. Since the 20 MHz reference clock is shared between the RF PLLs and the microcontroller, there's always a perfect phase coherence between the analog IF signal, the ADC clock and the DDS. The DSP / controller board is also responsile for controlling the RF board via SPI bus and GPIO. The board is running this [OS](https://github.com/szoftveres/RF_instruments/tree/main/os), therefore implementing its services.
 
-The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna.m) is built on top of GNU Octave and my [RF toolkit library](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib), and is communicating with the DSP / controller board via UART. A benefit of doing the initial signal processing on the DSP / controller board is that only several bytes need to be transferred via the UART per each measurement point, hence the baud rate is not a factor. The drawback is that the individual samples are not available at the host, therefore some parameters (like the windowing function) can only be modified by changing the firmware.
+The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna.m) is built on top of GNU Octave and my [RF toolkit library](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib), and is communicating with the DSP / controller board via UART. A benefit of doing the initial signal processing on the DSP / controller board is that only several bytes need to be transferred via the UART per each measurement point, hence the low baud rate of the UART is not a factor. The drawback is that the individual samples are not available at the host, therefore some parameters (like the windowing function) can only be modified by changing the firmware.
 
 ### Calibration and Performance
 
@@ -65,13 +65,15 @@ The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any furth
 
 ![cal_iso_corrected](cal_iso_corrected.png)
 
-This simple through error correction method assumes a perfect through standard i.e. doesn't take delay and loss into account, but this isn't really a problem or a practical limitation. A short, high quality SMA through has virtually zero loss, and knowing its absolute delay (or phase shift) at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace can be perfectly used as a through cal standard, resulting in the ability to make accurate *absolute* phase and gain/loss measurements at the device level. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
+This simple through error correction method assumes a perfect through standard i.e. doesn't take delay and loss into account, but this isn't really a problem or a practical limitation. A short, high quality SMA through has virtually zero loss, and knowing its absolute delay (or phase shift) at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace can be perfectly used as a through cal standard, resulting in the ability to make accurate *absolute* phase and gain/loss measurements at the device level. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift of a DUT due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
 
 ![thru](thru.jpg)
 
 ### Measurements
 
 #### Bandpass stub filter for the 420 MHz - 450 MHz amateur band
+
+DIY two-element high-Q bandpass filter
 
 ![stubphoto](stubphoto.jpg)
 
@@ -123,8 +125,14 @@ S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microw
 
 ![pwrsweepsetup](pwrsweepsetup.png)
 
-P1dB of the driver preamp is more than +10 dBm and its gain is around +10 dB therefore it is able to operate in its linear region up to the maximum required +5 dBm level. The combined insertion loss of the DUT (18 dB LNA) and the 20 dB attenuator is -2 dB, which could theretically bring the VNA Port 2 receiver into compression by exposing it to +3 dBm power level (which is more than what it's designed for). However the DUT LNA starts compressing approximately 10 dB below that point, therefore the power level at the VNA receiver never reaches more than approximately -5 dBm, which is well within its linear region.
+The DUT:
+
+![cascode_photo](cascode_photo.jpg)
 
 ![pwrsweep](pwrsweep.png)
+
+Linearity analysis of the measurement system:
+
+The driver preamp is capable of producing more than +10 dBm on its output before saturation, therefore it is able to operate in its linear region up to the maximum required +5 dBm level (it has 10 dB gain and the VNA can produce -5 dBm at most). The combined insertion loss of the DUT (LNA with 18 dB gain) and the 20 dB attenuator is -2 dB, which could theretically bring the VNA Port 2 receiver into compression by exposing it to +3 dBm power level (which is more than what it's designed for). However the DUT starts compressing approximately 10 dB below that point, therefore the power level at the VNA receiver never reaches more than approximately -5 dBm, which is within its linear region. The output of the LNA is tuned, meaning that higher order harmonic products that could also reach high levels (inherent result of overdriving the DUT) are naturally attenuated.
 
 
