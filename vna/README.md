@@ -135,8 +135,10 @@ Power sweep:
 
 ![pwrsweep](pwrsweep.png)
 
-Linearity analysis of the measurement system:
+Linearity of the measurement system:
 
 The driver preamp is capable of producing more than +10 dBm on its output before saturation, therefore it is able to operate in its linear region up to the maximum required +5 dBm level (it has 10 dB gain and the VNA can produce -5 dBm at most). The combined insertion loss of the DUT (LNA with 18 dB gain) and the 20 dB attenuator is -2 dB, which could theretically bring the VNA Port 2 receiver into compression by exposing it to +3 dBm power level (which is more than what it's designed for). However the DUT starts compressing approximately 10 dB below that point, therefore the power level at the VNA receiver never reaches more than approximately -5 dBm, which is within its linear region. The output of the LNA is tuned, meaning that higher order harmonic products that could also reach high levels (inherent result of overdriving the DUT) are naturally attenuated.
+
+Since the reference changes together with the measured path, theoretically the VNA would stay in calibration even if it was calibrated only at a single power setting. This is not realistic however; the mixer as well as the amplifiers don't stay fully linear across their dynamic range, hence calibration for the full measurement range must be carried out for power sweeps as well.
 
 
