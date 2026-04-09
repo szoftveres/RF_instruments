@@ -126,3 +126,73 @@ int dacsink_setup (fifo_t* in_stream) {
 	return 1;
 }
 
+/* ==========================*/
+/* PCM audio ADC source */
+
+typedef struct adcsrc_context_s {
+	int stuck_sample;
+	uint16_t sample;
+
+	uint16_t samplerate;
+	fifo_t* out_stream;
+	fifo_t* adc_stream;
+} adcsrc_context_t;
+
+
+task_rc_t adcsrc_task (void* context) {
+	adcsrc_context_t *c = (adcsrc_context_t*)context;
+
+	if (!c->out_stream->readers) {
+		return TASK_RC_END;
+	}
+
+	if (c->stuck_sample) {
+		if (!fifo_push(c->out_stream, &(c->sample))) {
+			return TASK_RC_YIELD;
+		}
+		c->stuck_sample = 0;
+	}
+
+	if (fifo_pop(c->adc_stream, &(c->sample))) {
+		if (fifo_push(c->out_stream, &(c->sample))) {
+			return TASK_RC_AGAIN;
+		}
+		c->stuck_sample = 1;
+	}
+
+	return TASK_RC_YIELD;
+}
+
+
+void adcsrc_celanup (void* context) {
+	adcsrc_context_t *c = (adcsrc_context_t*)context;
+	c->out_stream->writers--;
+	stop_sampler();
+	fifo_destroy(c->adc_stream);
+	t_free(context);
+}
+
+
+int adcsrc_setup (fifo_t* out_stream, int fs) {
+	if (!out_stream) {
+		return 0;
+	}
+	adcsrc_context_t* context = (adcsrc_context_t*)t_malloc(sizeof(adcsrc_context_t));
+	context->stuck_sample = 0;
+	context->out_stream = out_stream;
+	context->out_stream->writers++;
+	context->samplerate = fs;
+
+	fifo_push(context->out_stream, &(context->samplerate)); //sending FS
+
+	context->adc_stream = fifo_create(4096, sizeof(uint16_t));
+
+	scheduler_install_task(scheduler, adcsrc_task, adcsrc_celanup, context);
+	set_sampler_frequency(fs);
+	start_sampler(adc1_sample_stream_callback, context->adc_stream);
+
+	fifo_pop_or_sleep(context->adc_stream, &(context->sample)); // Throw out the first sample
+
+	return 1;
+}
+

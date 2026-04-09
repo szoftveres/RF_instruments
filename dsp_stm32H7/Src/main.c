@@ -450,6 +450,12 @@ int main(void)
   	  cpu_halt();
   }
 
+  gps = nmea0183_create(get_gps_char);
+  if (!gps) {
+	  console_printf("gps create error");
+	  cpu_halt();
+  }
+
   ledflash(2);
 
   program_ip = 0;
@@ -469,11 +475,7 @@ int main(void)
   	  cpu_halt();
   }
 
-  gps = nmea0183_create(get_gps_char);
-  if (!gps) {
-	  console_printf("gps create error");
-	  cpu_halt();
-  }
+
 
   /* USER CODE END 2 */
 

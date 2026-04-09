@@ -252,6 +252,19 @@ int cmd_dacsink (cmd_context_s* ctxt) {
 }
 
 
+int cmd_adcsrc (cmd_context_s* ctxt) {
+	int fs;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		return 0;
+	}
+	fs = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+
+	return adcsrc_setup(ctxt->out, fs);
+}
+
+
 int cmd_ofdm_tx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
 
@@ -269,12 +282,29 @@ int cmd_ofdm_tx (cmd_context_s* ctxt) {
     	sprintf(msg, "%04i OFDM message", seq);
         ofdm_packetize(&p, msg, strlen(msg)+1);
         ofdm_txpkt(&p);
-        delay_ms(2000);
+        //delay_ms(2000);
         seq += 1;
     }
     return 1;
 }
 
+
+int cmd_ofdm_rx (cmd_context_s* ctxt) {
+    ofdm_pkt_t p;
+    char* data;
+
+    while (!switchbreak()) {
+        memset(&p, 0x00, sizeof(ofdm_pkt_t));
+        if (ofdm_rxpkt(&p) < 0) {
+            continue;
+        }
+        if (ofdm_depacketize(&p, &data) >= 0) {
+            console_printf("%s", data);
+        }
+    }
+
+    return 1;
+}
 
 
 int cmd_bpsk_tx (cmd_context_s* ctxt) {
@@ -302,10 +332,33 @@ int cmd_bpsk_tx (cmd_context_s* ctxt) {
 }
 
 
+int cmd_bpsk_rx (cmd_context_s* ctxt) {
+    bpsk_pkt_t p;
+    char* data;
+
+    while (!switchbreak()) {
+        memset(&p, 0x00, sizeof(ofdm_pkt_t));
+        if (bpsk_rxpkt(&p) < 0) {
+            continue;
+        }
+        if (bpsk_depacketize(&p, &data) >= 0) {
+            console_printf("[%s]", data);
+        }
+    }
+
+    return 1;
+}
+
 
 int cmd_gps (cmd_context_s* ctxt) {
+	char msg[64];
+	ofdm_pkt_t p;
+
 	nmea0183_update(gps);
-	console_printf("%i.%i, %i.%i, %i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
+	sprintf(msg, "%i.%i, %i.%i, %i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
+	console_printf(msg);
+	ofdm_packetize(&p, msg, strlen(msg)+1);
+	ofdm_txpkt(&p);
 	return 1;
 }
 
@@ -393,11 +446,14 @@ int setup_persona_commands (void) {
 	keyword_add("gps", "- test", cmd_gps);
 
 	keyword_add("otx", "- test", cmd_ofdm_tx);
+	keyword_add("orx", "- test", cmd_ofdm_rx);
 	keyword_add("btx", "- test", cmd_bpsk_tx);
+	keyword_add("brx", "- test", cmd_bpsk_rx);
 
 	keyword_add("malloctest", "", cmd_malloctest);
 
 	keyword_add("dacsnk", "->DAC", cmd_dacsink);
+	keyword_add("adcsrc", "[fs] ADC->", cmd_adcsrc);
 
 	keyword_add("sleep", "[millisecs] - sleep", cmd_sleep);
 	keyword_add("format", "- format EEPROM", cmd_format);

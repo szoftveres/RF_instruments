@@ -275,11 +275,19 @@ int set_TIM_reload_frequency (int fs) {
 */
 
 static fifo_t *aout_fifo;
+static fifo_t *ain_fifo;
 
+int start_audio_in (int fs) {
+	ain_fifo = fifo_create(4096, sizeof(uint16_t));
+	set_sampler_frequency(fs);
+	start_sampler(adc1_sample_stream_callback, ain_fifo);
+	return 1;
+}
 
-
-int start_audio_in (int fs);
-void stop_audio_in (void);
+void stop_audio_in (void) {
+	stop_sampler();
+	fifo_destroy(ain_fifo);
+}
 
 int start_audio_out (int fs) {
 	aout_fifo = fifo_create(4096, sizeof(uint16_t));
@@ -296,7 +304,12 @@ void stop_audio_out (void) {
 	fifo_destroy(aout_fifo);
 }
 
-int record_int16_sample (int16_t *s);
+int record_int16_sample (int16_t *s) {
+	uint16_t formatted_sample;
+	fifo_pop_or_sleep(ain_fifo, &formatted_sample);
+	*s = (int16_t)((int)formatted_sample - 32768);
+	return 1;
+}
 
 int play_int16_sample (int16_t *s) {
 	uint16_t formatted_sample = (uint16_t)((((int)*s)+32768) / 16);

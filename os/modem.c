@@ -196,7 +196,6 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
 
     start_audio_out(fs);
     tx_on();
-    play_silence_ms(200);
 
     dds_t *mixer = dds_create(fs, OFDM_FC);
 
@@ -209,7 +208,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     int *q_baseband = (int*)t_malloc(fft_len * sizeof(int));
 
     // Sending some noise
-    for (int t = 0; t != 4; t++) {
+    for (int t = 0; t != 2; t++) {
         ofdm_tx_noise (mixer, dec, fft_len,  4096);
     }
 
@@ -234,7 +233,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     }
 
     // Sending some noise
-    for (int t = 0; t != 4; t++) {
+    for (int t = 0; t != 2; t++) {
         ofdm_tx_noise (mixer, dec, fft_len,  4096);
     }
 
@@ -346,6 +345,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
         if (bp < taps) {
             continue;
         }
+        running = !switchbreak();
         bp -= dec;  // due to memmove in fir_work
         i_a = fir_work(buf_i, tap, taps, dec) / norm / 4;
         q_a = fir_work(buf_q, tap, taps, dec) / norm / 4;
@@ -397,7 +397,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
             // A drop in correlation between the current value (compared to the value at the previous symbol)
             // inndicates the end of the preamble
             if ((lcl_corravg > threshold) && (magn < (lcl_corravg / 2))) {
-                console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
+                //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
 
                 statemachine += 1;
                 wp = 0;
@@ -589,6 +589,7 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
     int16_t sample;
     bpsk_context_t c;
     int fs = BPSK_FS;
+    int running = 1;
 
     rx_on();
     start_audio_in(fs);
@@ -626,7 +627,7 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
     int rss;
     int rc = -1;
 
-    while (1) {
+    while (running) {
         // Downconverting to baseband
         int i_a;
         int q_a;
@@ -644,6 +645,8 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
         if (c.ds.bp < c.ds.taps) {
             continue;
         }
+
+        running = !switchbreak();
         c.ds.bp -= c.ds.dec;  // due to memmove in fir_work
 
         // Downsampling (lowpass and decimate)
@@ -749,7 +752,7 @@ int bpsk_txpkt (bpsk_pkt_t *p) {
 
     start_audio_out(fs);
     tx_on();
-    play_silence_ms(200);
+    play_silence_ms(50);
 
     c.mixer = dds_create(fs, BPSK_FC);
     c.fft_len = 1; // carrier pairs * Nyquist * Oversample rate
