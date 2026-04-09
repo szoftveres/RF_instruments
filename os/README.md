@@ -21,8 +21,7 @@ Features:
 Projects using this library:
  * [6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) runs this OS as its main human access and programming interface and driver library. RF signal generator functionalities are added as application-specific commands.
  * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) also uses this OS as its main human interface and device driver library.
-   * [6 GHz Vector Network Analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna) is built using the [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7)
- * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7)
+   * [6 GHz Vector Network Analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna)
  * [Unix runtime / development environment](https://github.com/szoftveres/RF_instruments/tree/main/unix) makes this OS runnable on Linux (thanks to its hardware abstraction layer), thereby enabling its development on a regular PC without any specific hardware.
 
 
