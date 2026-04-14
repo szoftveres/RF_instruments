@@ -27,7 +27,7 @@ The RF board is mostly made of off-the shelf parts, except for the broadband cou
 
 -->> [RF board schematics](VNA_RF_schem.pdf) <<--
 
-![rfboard](rfboard.jpg)
+![rfboard1](rfboard1.jpg)
 
 The RF and DSP / controller boards are connected together with short ribbon cables, with a ground wire (or capacitively grounded power wire) going between each signal wire, in order to ensure minimal crosstalk (G-S-G-S-G... topology). All the digital lines (20 MHz reference clock, SPI, GPIO) are damped by 47 Ω resistors. The analog IF lines are also driven by 47 Ω source impedance and are capacitively filtered on both ends for higher frequencies - since the IF frequency is low (10 kHz), no further cable shielding is necessary.
 
@@ -121,7 +121,7 @@ Bent:
 
 The difference between straight and bent states at 5.5 GHz is approximately -2.7°, meaning that the delay slightly decreases with bending, presumably because the center conductor is squished and therefore the RF path is shortened. After straightening the cable out, the phase shift returned to near its original value.
 
-#### Power sweep
+#### LNA power sweep
 
 S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz, showing gain compression with increasing input power. The VNA can only provide about -5 dBm RF power at its maximum output setting, which is barely sufficient to overdrive the DUT LNA, hence a driver preamp was added, which brings up the maximum power level to about +5 dBm; this preamp as well as a 20 dB attenuator was included in the through calibration.
 

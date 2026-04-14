@@ -13,7 +13,6 @@
 #include "rfport_rx.h"
 
 
-
 max2871_t* rf_pll;
 max2871_t* lo_pll;
 bda4700_t *attenuator;
@@ -38,7 +37,12 @@ double set_rf_frequency (uint32_t khz) {
 
 
 void set_rf_output (int on) {
+	max2871_rfa_power(rf_pll, -1);
+	max2871_rfa_power(lo_pll, -1);
+
 	max2871_rfa_out(rf_pll, on);
+	max2871_rfa_out(lo_pll, on);
+
 	config.fields.rfon = on;
 	if (on) {
 		ledon();
@@ -99,8 +103,6 @@ void cfg_override (void) {
 void print_cfg (void) {
 	console_printf("RF: %i kHz, %i dBm, output %s", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
 }
-
-
 
 
 int frequency_setter (void * context, int khz) {
@@ -292,7 +294,7 @@ int cmd_ofdm_tx (cmd_context_s* ctxt) {
 int cmd_ofdm_rx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
     char* data;
-
+    ledon();
     while (!switchbreak()) {
         memset(&p, 0x00, sizeof(ofdm_pkt_t));
         if (ofdm_rxpkt(&p) < 0) {
@@ -302,7 +304,7 @@ int cmd_ofdm_rx (cmd_context_s* ctxt) {
             console_printf("%s", data);
         }
     }
-
+    ledoff();
     return 1;
 }
 
@@ -423,21 +425,31 @@ int cmd_vna (cmd_context_s* ctxt) {
 	}
 
 	cmd_rfport_meas();
+	return 1;
+}
 
+
+int cmd_rfon (cmd_context_s* ctxt) {
+	set_rf_output(1);
+	print_cfg();
+	return 1;
+}
+
+
+int cmd_rfoff (cmd_context_s* ctxt) {
+	set_rf_output(0);
+	print_cfg();
 	return 1;
 }
 
 
 int setup_persona_commands (void) {
 
-	max2871_rfa_power(rf_pll, -1);
-	max2871_rfa_power(lo_pll, -1);
-
-	max2871_rfa_out(rf_pll, 1);
-	max2871_rfa_out(lo_pll, 1);
-
 	resource_add("asel", NULL, asel_setter, asel_getter);
 	resource_add("level", NULL, rflevel_setter, rflevel_getter);
+
+	keyword_add("rfoff", "- RF off", cmd_rfoff);
+	keyword_add("rfon", "- RF on", cmd_rfon);
 
 	keyword_add("vna", "- test", cmd_vna);
 
