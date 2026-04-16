@@ -51,7 +51,7 @@ int bpsk_packetize (bpsk_pkt_t* p, void *data, int len);
 int bpsk_depacketize (bpsk_pkt_t* p, void **data);
 
 int bpsk_txpkt (bpsk_pkt_t *p);
-int bpsk_rxpkt (bpsk_pkt_t *p);
+int bpsk_rxpkt (bpsk_pkt_t *p, int* level);
 
 
 

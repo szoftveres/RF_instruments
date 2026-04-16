@@ -191,7 +191,7 @@ int cmd_ofdm_rx (cmd_context_s* ctxt) {
             continue;
         }
         if (ofdm_depacketize(&p, &data) >= 0) {
-            console_printf("[%s], level:%i", data, level);
+            console_printf("%s, level:%i", data, level);
         }
     }
 
@@ -226,14 +226,15 @@ int cmd_bpsk_tx (cmd_context_s* ctxt) {
 int cmd_bpsk_rx (cmd_context_s* ctxt) {
     bpsk_pkt_t p;
     char* data;
+    int level;
 
     while (1) {
         memset(&p, 0x00, sizeof(ofdm_pkt_t));
-        if (bpsk_rxpkt(&p) < 0) {
+        if (bpsk_rxpkt(&p, &level) < 0) {
             continue;
         }
         if (bpsk_depacketize(&p, &data) >= 0) {
-            console_printf("[%s]", data);
+            console_printf("%s, level:%i", data, level);
         }
     }
 

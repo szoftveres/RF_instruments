@@ -392,10 +392,8 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
             corravg_acc += corravg[wp];
             int lcl_corravg = corravg_acc / fft_len;
 
-            //console_printf("magn:%i, magn_avg:%i, sigpwr:%i", magn, lcl_corravg, sigpwr);
-            // A drop in correlation between the current value (compared to the value at the previous symbol)
-            // inndicates the end of the preamble
-            if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 3 / 4))) {
+            // A drop in correlation inndicates the end of the preamble
+            if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 2 / 3))) {
                 //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
             	if (level) {
             		*level = sigpwr;
@@ -406,7 +404,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
                 training_due = 0;
                 // The trigger occurs somewhere in the early section of the cyclic prefix,
                 // shooting for the middle
-                pfx = PFXLEN * 1 / 4;
+                pfx = 0; //PFXLEN * 1 / 4;
                 p->h.len = MODEM_PKT_PAYLOAD_MAX;
                 p->h.antipreamble = OFDM_ANTIPREAMBLE;
             } else {
@@ -422,51 +420,53 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
                 q_baseband[wp] = q_a;
                 wp += 1;
             }
-            if (wp == fft_len) {
-                pfx = PFXLEN;
-                wp = 0;
-                ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
-                if (!training_due) {
-                    save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len);
-                    training_due = OFDM_TRAINING_FREQUENCY;
-                } else {
-                    training_due -= 1;
+            if (wp != fft_len) {
+            	break;
+            }
+			pfx = PFXLEN;
+			wp = 0;
+			ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
+			if (!training_due) {
+				save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len);
+				training_due = OFDM_TRAINING_FREQUENCY;
+				break;
+			}
+			training_due -= 1;
 
-                    for (int n = -OFDM_CARRIER_PAIRS; n <= OFDM_CARRIER_PAIRS; n++) {
-                        int idx = ofdm_carrier_to_idx(n, fft_len);
+			// Per carrier equalization (phase and amplitude)
+			for (int n = -OFDM_CARRIER_PAIRS; n <= OFDM_CARRIER_PAIRS; n++) {
+				int idx = ofdm_carrier_to_idx(n, fft_len);
 
-                        cplx_mul(&(i_symbol[idx]),
-                                 &(q_symbol[idx]),
-                                    i_eq[idx],
-                                    q_eq[idx],
-                                    symbolampl);
+				cplx_mul(&(i_symbol[idx]),
+						 &(q_symbol[idx]),
+							i_eq[idx],
+							q_eq[idx],
+							symbolampl);
 
-                    }
-                    uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
+			}
+			uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
 
-                    p->byte[pp++] = scrambler(&scrambler_core, c);
+			p->byte[pp++] = scrambler(&scrambler_core, c);
 
-                    if (p->h.len > MODEM_PKT_PAYLOAD_MAX) {
-                        statemachine = 0; // lost it due to garbage length
-                        running = 0;
-                        rc = -1;
-                    }
-                    if (p->h.antipreamble != OFDM_ANTIPREAMBLE) {
-                        statemachine = 0; // lost it due garbage data (sync issue probably)
-                        running = 0;
-                        rc = -1;
-                    }
-                    if (pp >= OFDM_PKT_TOTAL_LEN(p->h.len)) {
-                        if (ofdm_depacketize(p, NULL) < 0) {
-                            statemachine = 0; // lost it due to CRC error
-                            running = 0;
-                            rc = -1;
-                        } else {
-                            running = 0; // OK, return
-                            rc = p->h.len;
-                        }
-                    }
-                }
+			if (p->h.len > MODEM_PKT_PAYLOAD_MAX) {
+				statemachine = 0; // lost it due to garbage length
+				running = 0;
+				rc = -1;
+			}
+			if (p->h.antipreamble != OFDM_ANTIPREAMBLE) {
+				statemachine = 0; // lost it due garbage data (sync issue probably)
+				running = 0;
+				rc = -1;
+			}
+			if (pp >= OFDM_PKT_TOTAL_LEN(p->h.len)) {
+				if (ofdm_depacketize(p, NULL) < 0) {
+					statemachine = 0; // lost it due to CRC error
+					running = 0;
+					rc = -1;
+				} else {
+					running = 0; // OK, return
+					rc = p->h.len;
+				}
             }
             break;
         }
@@ -586,7 +586,7 @@ typedef struct bpsk_context_s {
 
 
 
-int bpsk_rxpkt (bpsk_pkt_t *p) {
+int bpsk_rxpkt (bpsk_pkt_t *p, int* level) {
     int16_t sample;
     bpsk_context_t c;
     int fs = BPSK_FS;
@@ -623,7 +623,6 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
     c.wp = 0;
     c.ds.bp = 0;
     c.pp = -1;
-
 
     int rss;
     int rc = -1;
@@ -721,7 +720,6 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
         c.sync = c.fft_len;
         if (((c.pp == 1) && (p->byte[c.pp] != BPSK_PKT_PREAMBLE2)) ||
             (p->h.len > MODEM_PKT_PAYLOAD_MAX)) {
-            //console_printf("lost it: :0x%02X, rss:%i", p->byte[c.pp], rss);
             c.pp = -1; // We lost it
             c.wp = 0;
             continue;
@@ -731,10 +729,13 @@ int bpsk_rxpkt (bpsk_pkt_t *p) {
         continue;
     }
 
+    *level = c.cm / c.pp;
+
     stop_audio_in();
     rx_off();
 
     dds_destroy(c.mixer);
+    t_free(c.ds.tap);
     t_free(c.i);
     t_free(c.q);
     t_free(c.bitval);
@@ -766,7 +767,7 @@ int bpsk_txpkt (bpsk_pkt_t *p) {
     c.ds.dec = fs / c.ds.target_fs;
 
 
-    c.pp = -2;   // XXX should be -2
+    c.pp = -2;   // playing carrier tone at the beginning
     c.bitcounter = 7;
     c.wp = 0;
 
@@ -810,13 +811,13 @@ int bpsk_txpkt (bpsk_pkt_t *p) {
         // Next byte
         c.pp += 1;
         if (c.pp < 0) {
-            c.byte[c.ds.bp] = 0;
-            c.i[c.ds.bp] = 16384;
+            c.byte[c.ds.bp] = 0x00;
+            c.i[c.ds.bp] = 16384; // The amplitude
             c.q[c.ds.bp] = 0;
         } else if (c.pp < BPSK_PKT_TOTAL_LEN(p->h.len)) {
             c.byte[c.ds.bp] = p->byte[c.pp];
         } else {
-            c.byte[c.ds.bp] = 0;
+            c.byte[c.ds.bp] = 0x00;
         }
     }
 

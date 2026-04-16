@@ -296,6 +296,7 @@ int cmd_ofdm_rx (cmd_context_s* ctxt) {
     char* data;
     ledon();
     int level;
+
     while (!switchbreak()) {
         memset(&p, 0x00, sizeof(ofdm_pkt_t));
         if (ofdm_rxpkt(&p, &level) < 0) {
@@ -328,7 +329,7 @@ int cmd_bpsk_tx (cmd_context_s* ctxt) {
     	sprintf(msg, "%04i BPSK message", seq);
     	bpsk_packetize(&p, msg, strlen(msg)+1);
     	bpsk_txpkt(&p);
-        delay_ms(2000);
+        //delay_ms(2000);
         seq += 1;
     }
 
@@ -339,14 +340,16 @@ int cmd_bpsk_tx (cmd_context_s* ctxt) {
 int cmd_bpsk_rx (cmd_context_s* ctxt) {
     bpsk_pkt_t p;
     char* data;
+    int level;
 
     while (!switchbreak()) {
         memset(&p, 0x00, sizeof(ofdm_pkt_t));
-        if (bpsk_rxpkt(&p) < 0) {
+        if (bpsk_rxpkt(&p, &level) < 0) {
             continue;
         }
         if (bpsk_depacketize(&p, &data) >= 0) {
-            console_printf("[%s]", data);
+            console_printf("%s, level:%i", data, level);
+            break;
         }
     }
 
@@ -422,8 +425,8 @@ int cmd_vna (cmd_context_s* ctxt) {
 	max2871_freq(lo_pll, (double)(freq + 10));
 
 	while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
-		console_printf("waiting for lock");
 		HAL_Delay(500);
+		console_printf("waiting for lock");
 	}
 
 	cmd_rfport_meas();
