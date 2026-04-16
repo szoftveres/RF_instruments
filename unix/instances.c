@@ -182,15 +182,16 @@ int cmd_ofdm_tx (cmd_context_s* ctxt) {
 
 int cmd_ofdm_rx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
+    int level;
     char* data;
 
     while (1) {
         memset(&p, 0x00, sizeof(ofdm_pkt_t));
-        if (ofdm_rxpkt(&p) < 0) {
+        if (ofdm_rxpkt(&p, &level) < 0) {
             continue;
         }
         if (ofdm_depacketize(&p, &data) >= 0) {
-            console_printf("[%s]", data);
+            console_printf("[%s], level:%i", data, level);
         }
     }
 
