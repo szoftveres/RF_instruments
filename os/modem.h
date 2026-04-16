@@ -25,7 +25,7 @@ int ofdm_packetize (ofdm_pkt_t* p, void *data, int len);
 int ofdm_depacketize (ofdm_pkt_t* p, void **data);
 
 int ofdm_txpkt (ofdm_pkt_t *p);
-int ofdm_rxpkt (ofdm_pkt_t *p);
+int ofdm_rxpkt (ofdm_pkt_t *p, int* level);
 
 
 

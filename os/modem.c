@@ -268,8 +268,7 @@ int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int sy
 }
 
 
-
-int ofdm_rxpkt (ofdm_pkt_t *p) {
+int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     int fs = OFDM_FS;
     int rc;
     int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
@@ -329,7 +328,6 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
     int wp = 0;
     int statemachine = 0;
     int pfx;
-    int threshold = 256 * 1;
 
     while (running) {
 
@@ -347,10 +345,10 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
         }
         running = !switchbreak();
         bp -= dec;  // due to memmove in fir_work
-        i_a = fir_work(buf_i, tap, taps, dec) / norm / 4;
-        q_a = fir_work(buf_q, tap, taps, dec) / norm / 4;
+        i_a = fir_work(buf_i, tap, taps, dec) / norm / 2;
+        q_a = fir_work(buf_q, tap, taps, dec) / norm / 2;
         switch (statemachine) {
-        case 0:
+        case 0: // Preamble detection
             int lcl_acc_i;
             int lcl_acc_q;
 
@@ -380,12 +378,13 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
             lcl_acc_q = acc_q / fft_len;
             int sigpwr = sigpwr_acc / fft_len;
 
-            if (!sigpwr) {
+            if (!sigpwr) { // This avoids division by zero
                 break;
             }
 
+            // Forming the normalized absolute value
             int magn = ((lcl_acc_i * lcl_acc_i / sigpwr) + (lcl_acc_q * lcl_acc_q / sigpwr));
-            // magn /= sigpwr;  <-  This will be correct
+            magn = (magn * 1024) / sigpwr;  // Normalizing to 1024
 
             // Correlator magnitude delay line
             corravg_acc -= corravg[wp];
@@ -396,9 +395,11 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
             //console_printf("magn:%i, magn_avg:%i, sigpwr:%i", magn, lcl_corravg, sigpwr);
             // A drop in correlation between the current value (compared to the value at the previous symbol)
             // inndicates the end of the preamble
-            if ((lcl_corravg > threshold) && (magn < (lcl_corravg / 2))) {
+            if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 3 / 4))) {
                 //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
-
+            	if (level) {
+            		*level = sigpwr;
+            	}
                 statemachine += 1;
                 wp = 0;
                 pp = 0;
@@ -412,7 +413,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p) {
                 wp = (wp + 1) % fft_len;
             }
             break;
-        default:
+        default: // Receiving the packet
 
             if (pfx) {
                 pfx -= 1;

@@ -295,13 +295,15 @@ int cmd_ofdm_rx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
     char* data;
     ledon();
+    int level;
     while (!switchbreak()) {
         memset(&p, 0x00, sizeof(ofdm_pkt_t));
-        if (ofdm_rxpkt(&p) < 0) {
+        if (ofdm_rxpkt(&p, &level) < 0) {
             continue;
         }
         if (ofdm_depacketize(&p, &data) >= 0) {
-            console_printf("%s", data);
+            console_printf("%s, level:%i", data, level);
+            break;
         }
     }
     ledoff();
@@ -357,7 +359,7 @@ int cmd_gps (cmd_context_s* ctxt) {
 	ofdm_pkt_t p;
 
 	nmea0183_update(gps);
-	sprintf(msg, "%i.%i, %i.%i, %i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
+	sprintf(msg, "%i.%i,%i.%i,%i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
 	console_printf(msg);
 	ofdm_packetize(&p, msg, strlen(msg)+1);
 	ofdm_txpkt(&p);
