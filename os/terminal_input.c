@@ -3,7 +3,7 @@
 #include "hal_plat.h" // malloc free
 
 
-terminal_input_t* terminal_input_create (char (*getchar) (void)) {
+terminal_input_t* terminal_input_create (char (*getchar) (void), int echo) {
 	terminal_input_t* instance;
 
 	instance = (terminal_input_t*)t_malloc(sizeof(terminal_input_t));
@@ -12,6 +12,7 @@ terminal_input_t* terminal_input_create (char (*getchar) (void)) {
 	}
 
 	instance->getchar = getchar;
+	instance->echo = echo;
 
 	return instance;
 }
@@ -32,7 +33,7 @@ char* terminal_get_line (line_reader_t* reader) {
 	reader->line[n] = '\0';
 
 	while (run) {
-		int printable = 1;
+		int printable = ((terminal_input_t *)(reader->context))->echo;
 		char c = ((terminal_input_t *)(reader->context))->getchar();
 
 		if (c == '\r') {

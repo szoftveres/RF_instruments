@@ -368,7 +368,7 @@ int main(void)
   	  }
   }
 
-  online_reader = line_reader_create(program->header.fields.linelen - 2, terminal_get_line, terminal_input_create(get_online_char));
+  online_reader = line_reader_create(program->header.fields.linelen - 2, terminal_get_line, terminal_input_create(get_online_char, 1));
   if (!online_reader) {
   	  console_printf("input init error");
   	  cpu_halt();
