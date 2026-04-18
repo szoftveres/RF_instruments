@@ -166,7 +166,8 @@ int cmd_malloctest (cmd_context_s* ctxt) {
 
 #include "../os/fatsmall_fs.h"
 int cmd_format (cmd_context_s* ctxt) {
-	char* line = terminal_get_line(online_input, " type \"yes\"> ", 1);
+	console_printf_e(" type \"yes\"> ");
+	char* line = online_reader->getline(online_reader);
 	if (strcmp(line, "yes")) {
 		console_printf("aborted");
 		return 1;

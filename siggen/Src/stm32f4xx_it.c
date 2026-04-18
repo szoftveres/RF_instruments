@@ -46,7 +46,7 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
 
-extern fifo_t* usart_stream;
+extern fifo_t* console_usart_stream;
 
 /* USER CODE END PV */
 
@@ -219,7 +219,7 @@ void USART1_IRQHandler(void)
 	  // Make sure this handler has the lowest priority (15)
 	  HAL_UART_Receive(&huart1, &res, 1, 500);
 	  //res = USART_ReceiveData();
-	  fifo_push(usart_stream, &res);
+	  fifo_push(console_usart_stream, &res);
   }
   /* USER CODE END USART1_IRQn 1 */
 }

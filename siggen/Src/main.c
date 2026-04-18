@@ -29,6 +29,7 @@
 #include "instances.h"
 #include "../os/resource.h"
 #include "../os/parser.h"
+#include "../os/terminal_input.h"
 
 /* USER CODE END Includes */
 
@@ -40,7 +41,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-fifo_t* usart_stream;
+fifo_t* console_usart_stream;
 
 /* USER CODE END PD */
 
@@ -91,7 +92,6 @@ void attenuator_write (bda4700_t* instance, uint8_t n) {
 	HAL_SPI_Transmit(&hspi2, &n, sizeof(n), 500); // Transmit 8 bits
 	HAL_GPIO_WritePin(ATTENUATOR_CS_GPIO_Port, ATTENUATOR_CS_Pin, GPIO_PIN_SET); // LE high
 }
-
 
 #define AT24C256_I2CADDR (0xA0)
 #define AT24C256_PAGE (64)
@@ -174,9 +174,10 @@ ramdrive_write_page (blockdevice_t* blockdevice, int pageaddress) {
 }
 
 
+
 char get_online_char (void) {
 	char c;
-	fifo_pop_or_sleep(usart_stream, &c);
+	fifo_pop_or_sleep(console_usart_stream, &c);
 	return c;
 }
 
@@ -204,8 +205,8 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  usart_stream = fifo_create(16, sizeof(char));
-  if (!usart_stream) {
+  console_usart_stream = fifo_create(16, sizeof(char));
+  if (!console_usart_stream) {
 	  cpu_halt();
   }
 
@@ -282,7 +283,6 @@ int main(void)
   	  console_printf("Formatting EEPROM");
   	  //fs_format(eepromfs, 16);
   }
-
 
   void* ramdrvmem = t_malloc(RAMDRIVE_SIZE);
   if (!ramdrvmem) {
@@ -368,8 +368,8 @@ int main(void)
   	  }
   }
 
-  online_input = terminal_input_create(get_online_char, program->header.fields.linelen - 2);
-  if (!online_input) {
+  online_reader = line_reader_create(program->header.fields.linelen - 2, terminal_get_line, terminal_input_create(get_online_char));
+  if (!online_reader) {
   	  console_printf("input init error");
   	  cpu_halt();
   }
@@ -391,7 +391,8 @@ int main(void)
 	  char prompt[8];
 	  sprintf(&(prompt[prompt_pidx]), "%c:> ", get_current_fs(fs));
 	  // Interpreting and executing commands, till the eternity
-	  cmd_line_parser(online_parser, terminal_get_line(online_input, prompt, 1), NULL, NULL);
+	  console_printf_e(prompt);
+	  cmd_line_parser(online_parser, online_reader->getline(online_reader), NULL, NULL);
 	  parser_destroy(online_parser);
 
 	  chunks -= t_chunks();

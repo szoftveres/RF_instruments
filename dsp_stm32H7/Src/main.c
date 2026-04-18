@@ -32,6 +32,7 @@
 #include "../os/parser.h"
 #include "sdfatfs_wrapper.h"
 #include "adcdac.h"
+#include "../os/terminal_input.h"
 
 /* USER CODE END Includes */
 
@@ -469,13 +470,11 @@ int main(void)
   	  }
   }
 
-  online_input = terminal_input_create(get_online_char, program->header.fields.linelen - 2);
-  if (!online_input) {
+  online_reader = line_reader_create(program->header.fields.linelen - 2, terminal_get_line, terminal_input_create(get_online_char));
+  if (!online_reader) {
   	  console_printf("input init error");
   	  cpu_halt();
   }
-
-
 
   /* USER CODE END 2 */
 
@@ -494,7 +493,8 @@ int main(void)
 	  char prompt[8];
 	  sprintf(&(prompt[prompt_pidx]), "%c:> ", get_current_fs(fs));
 	  // Interpreting and executing commands, till the eternity
-	  cmd_line_parser(online_parser, terminal_get_line(online_input, prompt, 1), NULL, NULL);
+	  console_printf_e(prompt);
+	  cmd_line_parser(online_parser, online_reader->getline(online_reader), NULL, NULL);
 	  parser_destroy(online_parser);
 
 	  chunks -= t_chunks();

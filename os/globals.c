@@ -11,7 +11,7 @@ config_t config;
 
 program_t* program;
 
-terminal_input_t* online_input;
+line_reader_t* online_reader;
 
 taskscheduler_t *scheduler;
 

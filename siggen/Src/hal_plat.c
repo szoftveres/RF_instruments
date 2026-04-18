@@ -214,6 +214,7 @@ void cpu_halt (void) {
 
 void (*sampler_callback) (void*);
 void* sampler_context;
+int sampler_fs;
 
 int set_sampler_frequency (int fs) {
 	uint32_t TIM2Clock = 200000000;
@@ -228,6 +229,7 @@ int set_sampler_frequency (int fs) {
 	if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
 		return 0;
 	}
+	sampler_fs = fs;
 	return 1;
 }
 

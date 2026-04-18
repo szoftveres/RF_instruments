@@ -47,7 +47,8 @@ int parser_interactive_input_expression (lex_instance_t *lex, int linelen, int *
 	console_printf_e("%s", s);
 	t_free(s);
 
-	char* line = terminal_get_line(online_input, " > ", 1);
+	console_printf_e(" > ");
+	char* line = online_reader->getline(online_reader);
 	parser_t *lcl_parser = parser_create(linelen);
 	if (!lcl_parser) {
 		console_printf("malloc fail");

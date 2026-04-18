@@ -6,7 +6,7 @@
 #include "program.h"
 #include "levelcal.h"
 #include "dsp_maths.h"
-#include "terminal_input.h"
+#include "line_reader.h"
 #include "taskscheduler.h"
 #include "fifo.h" // execute_program
 
@@ -15,7 +15,7 @@ extern config_t config;
 
 extern program_t* program;
 
-extern terminal_input_t* online_input;
+extern line_reader_t* online_reader;
 
 extern taskscheduler_t *scheduler;
 
