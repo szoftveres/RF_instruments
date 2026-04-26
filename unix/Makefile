@@ -34,7 +34,6 @@ LD_OBJECTS =                                     \
                         os/globals.o             \
                         os/keyword.o             \
                         os/levelcal.o            \
-                        os/line_reader.o         \
                         os/max2871.o             \
                         os/modem.o               \
                         os/nmea0183.o            \

@@ -6,7 +6,6 @@
 #include "program.h"
 #include "levelcal.h"
 #include "dsp_maths.h"
-#include "line_reader.h"
 #include "taskscheduler.h"
 #include "fifo.h" // execute_program
 #include <stdarg.h>  // console_printf
@@ -21,8 +20,6 @@ extern stdio_stack_t *iostack;
 extern config_t config;
 
 extern program_t* program;
-
-extern line_reader_t* online_reader;
 
 extern taskscheduler_t *scheduler;
 

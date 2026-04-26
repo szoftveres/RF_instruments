@@ -147,10 +147,10 @@ int main(void)
   }
 
 
-  online_reader = line_reader_create(program->header.fields.linelen - 2, terminal_input_create(get_online_char, put_online_char, 1));
-  if (!online_reader) {
-  	  console_printf("input init error");
-  	  cpu_halt();
+  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, program->header.fields.linelen - 2);
+  if (!terminal) {
+        console_printf("terminal init error");
+        cpu_halt();
   }
 
   generic_fs_t *devfs = generic_fs_create();
@@ -170,7 +170,7 @@ int main(void)
 	  cpu_halt();
   }
 
-  generic_file_t *confile = generic_file_create ("con", online_reader,
+  generic_file_t *confile = generic_file_create ("con", terminal,
 													  nullfile_open,
 													  nullfile_close,
 													  consolefile_read_raw,
@@ -212,11 +212,8 @@ int main(void)
   iostack = NULL;
   stdiostack_push(&iostack, fcon, fcon, fcon);
 
-  while (1)
-  {
-	  command_line_loop();
-	  printf_f(STDERR, "respawning..\n");
-  }
+  command_line_loop();
+  console_printf("\nDone");
 
 }
 

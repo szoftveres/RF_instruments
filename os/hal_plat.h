@@ -23,7 +23,6 @@ int pushbuttonstate (void);
 void console_putchar (const unsigned char c);
 void console_printf (const char* fmt, ...);
 int console_printf_e (const char* fmt, ...);
-void leading_wspace (int start, int stop);
 
 uint32_t u32_swap_endian (uint32_t n);
 

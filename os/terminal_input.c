@@ -3,13 +3,20 @@
 #include "hal_plat.h" // t_malloc
 
 
-terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo) {
+terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo, int linelen) {
 	terminal_input_t* instance;
 
 	instance = (terminal_input_t*)t_malloc(sizeof(terminal_input_t));
 	if (!instance) {
 		return instance;
 	}
+	instance->line = (char*)t_malloc(linelen);
+	if (!instance->line) {
+		t_free(instance);
+		instance = NULL;
+		return instance;
+	}
+	instance->linelen = linelen;
 
 	instance->getchar = getchar;
 	instance->putchar = putchar;
@@ -25,21 +32,23 @@ void terminal_input_destroy (terminal_input_t *instance) {
 	if (!instance) {
 		return;
 	}
+	if (instance->line) {
+		t_free(instance->line);
+	}
 	t_free(instance);
 }
 
 
 int consolefile_read_canonical (struct generic_file_s* thisfile, int b, char* buf) {
 
-	line_reader_t *reader = (line_reader_t *)(thisfile->context);
-	terminal_input_t *this = (terminal_input_t *)(reader->context);
+	terminal_input_t *this = (terminal_input_t *)(thisfile->context);
 
 	while (1) {
 
 		if (this->rp >= 0) { // Line is ready to be read
 			int bytes = 0;
 			while (b && (this->rp < this->pos)) {
-				buf[bytes] = reader->line[this->rp] ;
+				buf[bytes] = this->line[this->rp] ;
 				bytes++;
 				b--;
 				this->rp++;
@@ -87,8 +96,8 @@ int consolefile_read_canonical (struct generic_file_s* thisfile, int b, char* bu
 				if (c < 0x20 || c > 0x7E) {
 					printable = (c == '\n');
 				}
-				reader->line[this->pos++] = c;
-				if ((this->pos + 1) >= (reader->linelen - 1)) {
+				this->line[this->pos++] = c;
+				if ((this->pos + 1) >= (this->linelen - 1)) {
 					this->pos -= 1;
 					printable = 0;
 				}
@@ -107,8 +116,7 @@ int consolefile_read_canonical (struct generic_file_s* thisfile, int b, char* bu
 
 int consolefile_read_raw (struct generic_file_s* thisfile, int b, char* buf) {
 
-	line_reader_t *reader = (line_reader_t *)(thisfile->context);
-	terminal_input_t *this = (terminal_input_t *)(reader->context);
+	terminal_input_t *this = (terminal_input_t *)(thisfile->context);
 
 	int bytes = 0;
 	char c;
@@ -130,8 +138,7 @@ int consolefile_read_raw (struct generic_file_s* thisfile, int b, char* buf) {
 
 int consolefile_write (struct generic_file_s* thisfile, int count, char* buf) {
 
-	line_reader_t *reader = (line_reader_t *)(thisfile->context);
-	terminal_input_t *this = (terminal_input_t *)(reader->context);
+	terminal_input_t *this = (terminal_input_t *)(thisfile->context);
 
 	int b = 0;
 	while (count) {

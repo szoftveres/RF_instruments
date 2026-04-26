@@ -98,10 +98,10 @@ int cmd_print (cmd_context_s* ctxt) {
 
 
 static int
-_putu (cmd_context_s* ctxt, unsigned int num, int digits) {
+_putu (unsigned int num, int digits) {
     int n = 1;
     if (num / 10){
-        n += _putu(ctxt, num / 10, digits ? (digits - 1) : 0);
+        n += _putu(num / 10, digits ? (digits - 1) : 0);
     } else {
         while (digits) {
         	printf_f(STDOUT, " ");
@@ -114,10 +114,10 @@ _putu (cmd_context_s* ctxt, unsigned int num, int digits) {
 }
 
 static int
-_putx (cmd_context_s* ctxt, unsigned int num, int digits) {
+_putx (unsigned int num, int digits) {
     int n = 1;
     if (num / 0x10) {
-        n += _putx(ctxt, num / 0x10, digits ? (digits - 1) : 0);
+        n += _putx(num / 0x10, digits ? (digits - 1) : 0);
     } else {
         while (digits) {
         	printf_f(STDOUT, "0");
@@ -186,7 +186,7 @@ int cmd_printf (cmd_context_s* ctxt) {
           	  	rc = 0;
           	  	break;
           	}
-          	c += _putx(ctxt, ctxt->params->n, digits ? (digits - 1) : 0);
+          	c += _putx(ctxt->params->n, digits ? (digits - 1) : 0);
           	cmd_param_consume(&(ctxt->params));
 
             digits = 0;
@@ -199,7 +199,7 @@ int cmd_printf (cmd_context_s* ctxt) {
         		  rc = 0;
         		  break;
         	  }
-        	  c += _putu(ctxt, ctxt->params->n, digits ? (digits - 1) : 0);
+        	  c += _putu(ctxt->params->n, digits ? (digits - 1) : 0);
         	  cmd_param_consume(&(ctxt->params));
             digits = 0;
             break;
@@ -437,6 +437,12 @@ cmd_change_fs (cmd_context_s* ctxt) {
 	return rc;
 }
 
+
+void leading_wspace (int start, int stop) {
+	for (int i = start; i < stop; i++) {
+		printf_f(STDOUT, " ");
+	}
+}
 
 
 int cmd_dir (cmd_context_s* ctxt) {

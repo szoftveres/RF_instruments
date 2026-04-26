@@ -105,12 +105,6 @@ int console_printf_e (const char* fmt, ...) {
 }
 
 
-void leading_wspace (int start, int stop) {
-	for (int i = start; i < stop; i++) {
-		console_printf_e(" ");
-	}
-}
-
 uint32_t u32_swap_endian (uint32_t n) {
 	return (((n & 0xFF) << 24) +
 			((n & 0xFF00) << 8) +

@@ -12,7 +12,7 @@ config_t config;
 
 program_t* program;
 
-line_reader_t* online_reader;
+
 
 taskscheduler_t *scheduler;
 
@@ -146,10 +146,10 @@ int cmd_fsinfo (void) {
 	//fs_dump_fat(eepromfs);
 	//printf_f(STDOUT, "file_entry_t %i\n", sizeof(file_entry_t));
 	//printf_f(STDOUT, "device_params_t %i\n", sizeof(device_params_t));
-	leading_wspace(0, 20);
+	//leading_wspace(0, 20);
 	//printf_f(STDOUT, "%i entries free\n", fs_count_empyt_direntries(eepromfs));
 	//n = fs_count_empyt_blocks(eepromfs);
-	leading_wspace(0, 20);
+	//leading_wspace(0, 20);
 	//printf_f(STDOUT, "%i blocks (%i Bytes) free\n", n, (n * eepromfs->device->blocksize));
 	return 1;
 }
@@ -234,6 +234,10 @@ void command_line_loop () {
 				}
 			}
 			ip += bytes;
+		}
+
+		if (bytes < 1) {
+			continue;
 		}
 
 		int chunks = t_chunks();

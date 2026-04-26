@@ -2,19 +2,18 @@
 #define INC_TERMINAL_INPUT_H_
 
 
-#include "line_reader.h"
-
-
 typedef struct terminal_input_s {
 	char (*getchar) (void);
 	void (*putchar) (char);
     int echo;
     int pos;
     int rp;
+	int linelen;
+	char *line;
 } terminal_input_t;
 
 
-terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo);
+terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo, int linelen);
 void terminal_input_destroy (terminal_input_t *instance);
 
 

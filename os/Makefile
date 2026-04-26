@@ -21,7 +21,6 @@ OBJECTS =                                               \
                         $(OBJDIR)/fs_broker.o           \
                         $(OBJDIR)/globals.o             \
                         $(OBJDIR)/keyword.o             \
-                        $(OBJDIR)/line_reader.o         \
                         $(OBJDIR)/levelcal.o            \
                         $(OBJDIR)/max2871.o             \
                         $(OBJDIR)/modem.o               \
