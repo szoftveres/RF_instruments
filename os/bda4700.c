@@ -1,5 +1,5 @@
 #include "bda4700.h"
-#include "hal_plat.h" // malloc
+#include "hal_plat.h" // t_malloc
 
 
 bda4700_t* bda4700_create (void (*writer) (struct bda4700_s*, uint8_t)) {

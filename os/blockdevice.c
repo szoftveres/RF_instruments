@@ -1,5 +1,5 @@
 #include "blockdevice.h"
-#include "hal_plat.h" //malloc free
+#include "hal_plat.h" //t_malloc t_free
 
 
 blockdevice_t* blockdevice_create (int blocksize, int blocks, int (*reader) (struct blockdevice_s*, int), int (*writer) (struct blockdevice_s*, int), void *context) {

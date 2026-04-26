@@ -6,11 +6,10 @@ typedef struct line_reader_s {
 	int linelen;
 	void *context;
 	char *line;
-	char* (*getline) (struct line_reader_s*);
 } line_reader_t;
 
 
-line_reader_t* line_reader_create (int linelen, char* (*getline) (struct line_reader_s*), void *context);
+line_reader_t* line_reader_create (int linelen, void *context);
 void line_reader_destroy (line_reader_t *instance);
 
 

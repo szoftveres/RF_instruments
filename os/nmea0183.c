@@ -1,5 +1,5 @@
 #include "nmea0183.h"
-#include "hal_plat.h" // malloc
+#include "hal_plat.h" // t_malloc
 #include <string.h> // strcmp
 #include "globals.h"
 #include "lex/lex.h"  // This is somewhat annoying
@@ -15,7 +15,6 @@ int nmea0183_lex_read (lex_instance_t *instance, int *b) {
 
 // this is how lex prints an error message on this system
 void nmea0183_lex_error (lex_instance_t *instance, int c, const char *str) {
-	//console_printf("lex error: %s, \"%s\", %i, [%i]", str, instance->lexeme, instance->token, c);
 }
 
 

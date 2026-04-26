@@ -1,5 +1,5 @@
 #include "fatsmall_fs.h"
-#include "hal_plat.h" //malloc free
+#include "hal_plat.h" // t_malloc
 #include <string.h> //memcpy
 
 #define BLOCK_VALID(b)  ((b) && ((b) != FS_FAT_END))
@@ -349,13 +349,13 @@ void fs_dump_fat (fs_t* instance) {
 	for (i = 0; i != instance->device->blocks; i++) {
 		fat = fs_load_fatblock(instance, i);
 		if (!(i % 32)) {
-			console_printf("");
+			printf_f(STDOUT, "\n");
 		}
-		console_printf_e("%02x ", *fat % 256);
+		printf_f(STDOUT, "%02x ", *fat % 256);
 	}
-	console_printf("");
-	console_printf("Data first : %i", fs_dataarea_start_block(instance));
-	console_printf("First empty: %i", fs_fat_find_empyt_block(instance));
+	printf_f(STDOUT, "\n");
+	printf_f(STDOUT, "Data first : %i\n", fs_dataarea_start_block(instance));
+	printf_f(STDOUT, "First empty: %i\n", fs_fat_find_empyt_block(instance));
 }
 */
 
@@ -483,7 +483,7 @@ void fs_rewind (fs_t* instance, int fd) {
 }
 
 
-int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
+int fs_read (fs_t* instance, int fd, char* buf, int count) {
 	block_t block;
 	uint16_t pos_in_block = instance->fp[fd].rp % instance->device->blocksize;
 	uint16_t bytes = instance->device->blocksize - pos_in_block; // available bytes in the block at rp
@@ -517,8 +517,7 @@ int fs_read__ (fs_t* instance, int fd, char* buf, int count) {
 }
 
 
-
-int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
+int fs_write (fs_t* instance, int fd, char* buf, int count) {
 	block_t block;
 	int reserve = 0;
 	int new_wp = instance->fp[fd].wp;
@@ -570,11 +569,12 @@ int fs_write__ (fs_t* instance, int fd, char* buf, int count) {
 	return bytes;
 }
 
+/*
 
-int fs_read (fs_t* instance, int fd, char* buf, int count) {
+int fs_read_all (fs_t* instance, int fd, char* buf, int count) {
 	int b = 0;
 	while (count) {
-		int rc = fs_read__(instance, fd, buf, count);
+		int rc = fs_read(instance, fd, buf, count);
 
 		if (rc < 1) {
 			break;
@@ -587,10 +587,10 @@ int fs_read (fs_t* instance, int fd, char* buf, int count) {
 }
 
 
-int fs_write (fs_t* instance, int fd, char* buf, int count) {
+int fs_write_all (fs_t* instance, int fd, char* buf, int count) {
 	int b = 0;
 	while (count) {
-		int rc = fs_write__(instance, fd, buf, count);
+		int rc = fs_write(instance, fd, buf, count);
 		if (rc < 1) {
 			break;
 		}
@@ -600,3 +600,5 @@ int fs_write (fs_t* instance, int fd, char* buf, int count) {
 	}
 	return b;
 }
+
+*/

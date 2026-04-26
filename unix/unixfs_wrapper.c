@@ -6,22 +6,6 @@
 #include <unistd.h>
 
 
-int unix_rw (ssize_t (*func)(int, const void*, size_t), int fp, void* buf, int count) {
-	int b = 0;
-	ssize_t bytesProcessed;
-
-	while (count) {
-		bytesProcessed = func(fp, buf, count);
-		if (bytesProcessed < 1) {
-			break;
-		}
-		b += (int)bytesProcessed;
-		count -= (int)bytesProcessed;
-		buf += (int)bytesProcessed;
-	}
-	return b;
-}
-
 
 int unixfswrapper_reserve_filp (unixfs_wrapper_t* instance) {
 	for (int fd = 0; fd != UNIXFSWRAPPER_MAX_FILES; fd++) {
@@ -118,7 +102,7 @@ int unixfswrapper_write (unixfs_wrapper_t* instance, int fd, void* buf, int coun
 	if (instance->fp[fd].flags & FS_O_READONLY) {
 		return -1;
 	}
-	return unix_rw(write, instance->fp[fd].fd, buf, count);
+	return write(instance->fp[fd].fd, buf, count);
 }
 
 
@@ -126,7 +110,7 @@ int unixfswrapper_read (unixfs_wrapper_t* instance, int fd, void* buf, int count
 	if (fd < 0) {
 		return fd;
 	}
-	return unix_rw(read, instance->fp[fd].fd, buf, count);
+	return read(instance->fp[fd].fd, buf, count);
 }
 
 

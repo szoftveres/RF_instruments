@@ -16,7 +16,7 @@ bda4700_t *attenuator;
 
 fs_t *eepromfs; // FORMAT
 
-static const char* invalid_val = "Invalid value \'%i\'";
+static const char* invalid_val = "Invalid value \'%i\'\n";
 
 
 double set_rf_frequency (uint32_t khz) {
@@ -78,9 +78,8 @@ void cfg_override (void) {
 
 
 void print_cfg (void) {
-	console_printf("RF: %i kHz, %i dBm, output %s", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
+	printf_f(STDERR, "RF: %i kHz, %i dBm, output %s\n", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
 }
-
 
 
 int frequency_setter (void * context, int khz) {
@@ -89,10 +88,10 @@ int frequency_setter (void * context, int khz) {
 	int hzpart = (actual - (double)khzpart) * 1000.0;
 	int error = (khz - actual) * 1000.0;
 	if (actual < 0) {
-		console_printf(invalid_val, khz);
+		printf_f(STDERR, invalid_val, khz);
 		return 0;
 	}
-	console_printf("actual: %i.%03i kHz, error: %i Hz", khzpart, hzpart, error);
+	printf_f(STDERR, "actual: %i.%03i kHz, error: %i Hz\n", khzpart, hzpart, error);
 	print_cfg();
 	return 1;
 }
@@ -103,7 +102,7 @@ int frequency_getter (void * context) {
 
 int rflevel_setter (void * context, int dBm) {
 	if (!set_rf_level(dBm)) {
-		console_printf(invalid_val, dBm);
+		printf_f(STDERR, invalid_val, dBm);
 		return 0;
 	}
 	print_cfg();
@@ -118,26 +117,26 @@ int rflevel_getter (void * context) {
 /*
 int fs_setter (void * context, int fs) {
 	if (!set_fs(fs)) {
-		console_printf(invalid_val, fs);
+		printf_f(STDERR, invalid_val, fs);
 		return 0;
 	}
-	console_printf("fs: %i Hz", fs);
+	printf_f(STDERR, "fs: %i Hz\n", fs);
 	return 1;
 }
 
 int fc_setter (void * context, int fc) {
 	if (!set_fc(fc)) {
-		console_printf(invalid_val, fc);
+		printf_f(STDERR, invalid_val, fc);
 		return 0;
 	}
-	console_printf("fc: %i Hz", fc);
+	printf_f(STDERR, "fc: %i Hz\n", fc);
 	return 1;
 }
 
 int dac1_setter (void * context, int aval) {
 	resource_t* resource = (resource_t*)context;
 	if (aval < 0 || aval >= dac_max()) {
-		console_printf(invalid_val, aval);
+		printf_f(STDERR, invalid_val, aval);
 		return 0;
 	}
 	resource->value = aval;
@@ -158,21 +157,24 @@ int cmd_malloctest (cmd_context_s* ctxt) {
 	while (malloc(size)) {
 		i++;
 	}
-	console_printf("size:%i, total:%i", size, size*i);
+	printf_f(STDOUT, "size:%i, total:%i\n", size, size*i);
 	cpu_halt();
 	return 1;
 }
 
 
 #include "../os/fatsmall_fs.h"
+
 int cmd_format (cmd_context_s* ctxt) {
-	console_printf_e(" type \"yes\"> ");
+	printf_f(STDERR, " type \"yes\"> ");
+	/*
 	char* line = online_reader->getline(online_reader);
 	if (strcmp(line, "yes")) {
-		console_printf("aborted");
+		printf_f(STDERR, "aborted\n");
 		return 1;
 	}
 	fs_format(eepromfs, 16);
+	*/
 	return cmd_fsinfo();
 }
 
@@ -187,7 +189,7 @@ int cmd_sleep (cmd_context_s* ctxt) {
 	cmd_param_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
-		console_printf(invalid_val, ms);
+		printf_f(STDERR, invalid_val, ms);
 		return 0;
 	}
 
@@ -195,7 +197,7 @@ int cmd_sleep (cmd_context_s* ctxt) {
 
 	while((HAL_GetTick() - tickstart) < ms) {
 		if (switchbreak()) {
-			console_printf("Break");
+			printf_f(STDERR, "Break\n");
 			break;
 		}
 	}
@@ -213,7 +215,7 @@ int cmd_amtone (cmd_context_s* ctxt) {
 	cmd_param_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
-		console_printf(invalid_val, ms);
+		printf_f(STDERR, invalid_val, ms);
 		return 0;
 	}
 
@@ -224,7 +226,7 @@ int cmd_amtone (cmd_context_s* ctxt) {
 
 	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
 		if (switchbreak()) {
-			console_printf("Break");
+			printf_f(STDERR, "Break\n");
 			break;
 		}
 		if (!set_rf_level(state ? -30 : level)) {
@@ -249,7 +251,7 @@ int cmd_fmtone (cmd_context_s* ctxt) {
 	cmd_param_consume(&(ctxt->params));
 
 	if (dev < 1 || dev > 1000) { // 10 kHz - 1 MHz
-		console_printf(invalid_val, dev);
+		printf_f(STDERR, invalid_val, dev);
 		return 0;
 	}
 
@@ -260,7 +262,7 @@ int cmd_fmtone (cmd_context_s* ctxt) {
 	cmd_param_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
-		console_printf(invalid_val, ms);
+		printf_f(STDERR, invalid_val, ms);
 		return 0;
 	}
 
@@ -271,7 +273,7 @@ int cmd_fmtone (cmd_context_s* ctxt) {
 
 	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
 		if (switchbreak()) {
-			console_printf("Break");
+			printf_f(STDERR, "Break\n");
 			break;
 		}
 		if (!set_rf_frequency(freq + (state ? dev : -dev))) {

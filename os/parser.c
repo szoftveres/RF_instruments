@@ -1,5 +1,5 @@
 #include "parser.h"
-#include "hal_plat.h" // malloc
+#include "hal_plat.h" // t_malloc
 #include <string.h> // strcmp
 #include "globals.h"
 #include "resource.h"
@@ -7,7 +7,7 @@
 
 
 
-static const char* syntax_error = "Syntax error \'%s\'";
+static const char* syntax_error = "Syntax error \'%s\'\n";
 static const char* not_an_expression = "Not an expression";
 
 int parser_primary_expression (lex_instance_t *lex, int *n);
@@ -15,7 +15,7 @@ int parser_expression (lex_instance_t *lex, int *n);
 
 int parser_expect_expression (lex_instance_t *lex, int *n) {
 	if (!parser_expression(lex, n) ) {
-		console_printf(syntax_error, not_an_expression);
+		printf_f(STDERR, syntax_error, not_an_expression);
 		return 0;
 	}
 	return 1;
@@ -41,17 +41,17 @@ int parser_interactive_input_expression (lex_instance_t *lex, int linelen, int *
 	}
 
 	if (!parser_string(lex, &s) ) {
-		console_printf("\"prompt\" expected");
+		printf_f(STDERR, "\"prompt\" expected\n");
 		return 0;
 	}
-	console_printf_e("%s", s);
+	printf_f(STDERR, "%s", s);
 	t_free(s);
 
-	console_printf_e(" > ");
-	char* line = online_reader->getline(online_reader);
+	printf_f(STDERR, " > ");
+	char* line = ""; //online_reader->getline(online_reader);
 	parser_t *lcl_parser = parser_create(linelen);
 	if (!lcl_parser) {
-		console_printf("malloc fail");
+		printf_f(STDERR, "malloc fail\n");
 		return 0;
 	}
 
@@ -205,7 +205,7 @@ int parser_binary_operation (lex_instance_t *lex, int min_prec, int *left) {
     next_token(lex);
 
     if (!parser_primary_expression(lex, &right)) {
-    	console_printf("expected expression after operator");
+    	printf_f(STDERR, "expected expression after operator\n");
         return 0;
     }
 
@@ -213,7 +213,7 @@ int parser_binary_operation (lex_instance_t *lex, int min_prec, int *left) {
     parser_binary_operation(lex, prec + 1, &right);
 
     if (!do_operations(op, left, right)) {
-    	console_printf("unknown operator");
+    	printf_f(STDERR, "unknown operator\n");
     	return 0;
     }
 
@@ -279,7 +279,7 @@ int parser_parentheses (lex_instance_t *lex, int *n) {
     	return 0;
     }
     if (!lex_get(lex, T_RIGHT_PARENTH, NULL)) {
-    	console_printf("expected ')'");
+    	printf_f(STDERR, "expected ')'\n");
     	return 0;
     }
     return 1;
@@ -343,7 +343,7 @@ int parser_lex_read (lex_instance_t *instance, int *b) {
 	byte = parser->cmdbuf[parser->cmd_op];
 	*b = (int)byte;
 
-	if (byte == '\0') {
+	if ((byte == '\0') || (byte == '\n')) {
 		return 0;
 	}
 	parser->cmd_op += 1;
@@ -352,7 +352,7 @@ int parser_lex_read (lex_instance_t *instance, int *b) {
 
 // this is how lex prints an error message on this system
 void parser_lex_error (lex_instance_t *instance, int c, const char *str) {
-	console_printf("lex error: %s, \"%s\", %i, [%i]", str, instance->lexeme, instance->token, c);
+	printf_f(STDERR, "lex error: %s, \"%s\", %i, [%i]\n", str, instance->lexeme, instance->token, c);
 }
 
 
@@ -372,6 +372,7 @@ parser_t* parser_create (int line_length) {
 		return instance;
 	}
 	instance->cmd_op = 0;
+	instance->cmd_ip = 0;
 	instance->lex = lex_create(instance, instance->line_length, parser_lex_read, parser_lex_error, 0x00); // context of lex is the parser
 	if (!instance->lex) {
 		t_free(instance->cmdbuf);
@@ -426,13 +427,13 @@ keyword_t *parser_valid_keyword (parser_t *parser) {
 	}
 	keyword = locate_keyword(parser->lex->lexeme);
 	if (!keyword) {
-		console_printf("Bad cmd \'%s\'", parser->lex->lexeme);
+		printf_f(STDERR, "Bad cmd \'%s\'\n", parser->lex->lexeme);
 		next_token(parser->lex);
 		return NULL;
 	}
 	next_token(parser->lex);
 	if (!keyword->exec) {
-		console_printf("Invalid cmd");
+		printf_f(STDERR, "Invalid cmd\n");
 		return NULL;
 	}
 	return keyword;
@@ -472,14 +473,14 @@ int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 		rc = kw->exec(cmd_ctxt);
 		in = out_new;
 
-		if (rc < 1) {
-			console_printf("%s %s", kw->token, kw->helpstr);
+		if (!rc) {
+			printf_f(STDERR, "%s %s\n", kw->token, kw->helpstr);
 		}
 		while (cmd_param_consume(&(cmd_ctxt->params))) {
-			console_printf("unused parameter");
+			printf_f(STDERR, "unused parameter\n");
 		}
 		t_free(cmd_ctxt);
-	} while (rc && cont);
+	} while ((rc > 0) && cont);
 
 	while (scheduler_burst_run(scheduler)) {
 		if (switchbreak()) {
@@ -504,20 +505,20 @@ int parser_programline_statement (parser_t *parser) {
 	}
 	int nline = integer_value(parser->lex);
 	if (nline < 0 || nline >= program->header.fields.nlines) {
-		console_printf("Bad line \'%i\'", nline);
+		printf_f(STDERR, "Bad line \'%i\'\n", nline);
 		return 0;
 	}
 	next_token(parser->lex);
 	char* line = program_line(program, nline);
 
 	if (!parser_string(parser->lex, &s)) {
-		console_printf("\"cmd\" expected");
+		printf_f(STDERR, "\"cmd\" expected\n");
 		return 0;
 	}
 	if ((strlen(s) + 1) < program->header.fields.linelen) {
 		strcpy(line, s);
 	} else {
-		console_printf("too long");
+		printf_f(STDERR, "too long\n");
 	}
 	t_free(s);
 	//cmd_program_list(parser);
@@ -535,10 +536,9 @@ int parser_statement (parser_t *parser, fifo_t* in, fifo_t* out) {
 	} else if (parser_programline_statement(parser)) {
 		rc = 1;
 	} else if (parser_resource_expression(parser->lex, &n)) {
-		//console_printf("%i", n);
 		rc = 1;
-	} else if (parser_keyword_train(parser, in, out)) {
-		rc = 1;
+	} else {
+		rc = parser_keyword_train(parser, in, out);
 	}
 
 	return rc;
@@ -561,7 +561,7 @@ int cmd_line_parser (parser_t *parser, char* line, fifo_t* in, fifo_t* out) {
 			return 1; // Empty line is valid
 		}
 		rc = parser_statement(parser, in, out);
-	} while (rc && lex_get(parser->lex, T_SEMICOLON, NULL));
+	} while ((rc > 0) && lex_get(parser->lex, T_SEMICOLON, NULL));
 
 	return rc;
 }

@@ -36,7 +36,7 @@ int config_save (config_t* instance, fs_broker_t *fs, int fd) {
 
 	validate_config(instance);
 
-	rc += write_f(fs, fd, (char*)instance, sizeof(config_t));
+	rc += write_f_all(fs, fd, (char*)instance, sizeof(config_t));
 
 	return rc;
 }
@@ -45,7 +45,7 @@ int config_save (config_t* instance, fs_broker_t *fs, int fd) {
 int config_load (config_t* instance, fs_broker_t *fs, int fd) {
 	int rc = 0;
 
-	rc += read_f(fs, fd, (char*)instance, sizeof(config_t));
+	rc += read_f_all(fs, fd, (char*)instance, sizeof(config_t));
 
 	if (!verify_config(instance)) {
 		rc = 0;

@@ -10,9 +10,9 @@
 typedef struct {
 	int				line_length;
 	char* 			cmdbuf;
+	int 			cmd_ip;
 	int 			cmd_op; // lex read pointer
 	lex_instance_t 	*lex;
-
 } parser_t;
 
 

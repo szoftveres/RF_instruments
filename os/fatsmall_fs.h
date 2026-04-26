@@ -103,6 +103,9 @@ int fs_read (fs_t* instance, int fd, char* buf, int count);
 int fs_write (fs_t* instance, int fd, char* buf, int count);
 int fs_stats (fs_t* instance);
 
+int fs_read_all (fs_t* instance, int fd, char* buf, int count);
+int fs_write_all (fs_t* instance, int fd, char* buf, int count);
+
 //void fs_dump_fat (fs_t* instance);
 
 

@@ -1,5 +1,5 @@
 #include "taskscheduler.h"
-#include "hal_plat.h" //malloc
+#include "hal_plat.h" // t_malloc
 
 
 void scheduler_remove_current (taskscheduler_t* instance) {

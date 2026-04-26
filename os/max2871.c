@@ -1,6 +1,6 @@
 #include "max2871.h"
 #include <math.h> // math functions, double
-#include "hal_plat.h" // malloc
+#include "hal_plat.h" // t_malloc
 
 uint32_t max2871GetRegister (max2871_t* instance, uint8_t reg) {
 	return instance->registers[reg];

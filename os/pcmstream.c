@@ -1,6 +1,6 @@
 #include "pcmstream.h"
 #include "globals.h"
-#include "hal_plat.h" // malloc, DAC, sampler
+#include "hal_plat.h" // t_malloc, DAC, sampler
 
 #include <string.h>
 
@@ -8,29 +8,29 @@
 int wav_read_header (fs_broker_t* fs, int fd, int* samplerate, int* channels, int* bytespersample, int* samples) {
 	riff_header_t riff;
 
-	if (read_f(fs, fd, (char*)&riff, sizeof(riff_header_t)) < (int)sizeof(riff_header_t)) {
-		console_printf("read fail");
+	if (read_f_all(fs, fd, (char*)&riff, sizeof(riff_header_t)) < (int)sizeof(riff_header_t)) {
+		printf_f(STDERR, "read fail\n");
 		return 0;
 	}
 
 	if (memcmp(riff.riff_header, "RIFF", 4)) {
-		console_printf("RIFF header");
+		printf_f(STDERR, "RIFF header\n");
 		return 0;
 	}
 	if (memcmp(riff.wave.wave_header, "WAVE", 4)) {
-		console_printf("WAVE header");
+		printf_f(STDERR, "WAVE header\n");
 		return 0;
 	}
 	if (memcmp(riff.wave.fmt_header, "fmt ", 4)) {
-		console_printf("fmt header");
+		printf_f(STDERR, "fmt header\n");
 		return 0;
 	}
 	if (riff.wave.fmt_chunk_size != 16) {
-		console_printf("chunk size:%i", riff.wave.fmt_chunk_size);
+		printf_f(STDERR, "chunk size:%i\n", riff.wave.fmt_chunk_size);
 		return 0;
 	}
 	if (riff.wave.audio_format != 1) {
-		console_printf("audio format:%i", riff.wave.audio_format);
+		printf_f(STDERR, "audio format:%i\n", riff.wave.audio_format);
 		return 0;
 	}
 
@@ -63,8 +63,8 @@ int wav_write_header (fs_broker_t* fs, int fd, int samplerate, int channels, int
 	memcpy(riff.wave.data_header, "data", 4);
 	riff.wave.data_bytes = bytespersample * samples;
 
-	if (write_f(fs, fd, (char*)&riff, sizeof(riff_header_t)) < 0) {
-		console_printf("write fail");
+	if (write_f_all(fs, fd, (char*)&riff, sizeof(riff_header_t)) < 0) {
+		printf_f(STDERR, "write fail\n");
 		return 0;
 	}
 
@@ -98,7 +98,7 @@ task_rc_t wavsink_task (void* context) {
 			c->samplerate = sample;
 			return TASK_RC_YIELD;
 		}
-		write_f(c->fs, c->fd, (char*)&fmt_sample, sizeof(int16_t));
+		write_f_all(c->fs, c->fd, (char*)&fmt_sample, sizeof(int16_t));
 		c->samples += 1;
 	}
 
@@ -258,7 +258,7 @@ int decfir_setup (fifo_t* in_stream, fifo_t* out_stream, int n, int bf) {
 	context->taps = fir_ntaps(n, bf);
     context->tap = fir_create_taps(n, bf);
 	context->norm = fir_normf(context->tap, context->taps);
-	console_printf("df: taps=%i", context->taps);
+	printf_f(STDERR, "df: taps=%i\n", context->taps);
 
 	context->buf = (int*)t_malloc(context->taps * sizeof(int));
 	memset(context->buf, 0x00, context->taps * sizeof(int));
@@ -311,7 +311,7 @@ task_rc_t nullsink_task (void* context) {
 void nullsink_celanup (void* context) {
 	nullsink_context_t *c = (nullsink_context_t*)context;
 	c->in_stream->readers--;
-	console_printf("fs:%i samples:%i, min:%i, max:%i", c->samplerate, c->samples, c->min, c->max);
+	printf_f(STDERR, "fs:%i samples:%i, min:%i, max:%i\n", c->samplerate, c->samples, c->min, c->max);
 	t_free(context);
 }
 
@@ -460,7 +460,7 @@ task_rc_t bpsk_rxmodem_task (void* context) {
         c->ds.taps = fir_ntaps(c->ds.dec, 2);
         c->ds.tap = fir_create_taps(c->ds.dec, 2);
         c->ds.norm = fir_normf(c->ds.tap, c->ds.taps);
-		console_printf("rx: fs:%i fc:%i len:%i dec:%i taps:%i", ((int)sample), c->fc, c->fft_len, c->ds.dec, c->ds.taps);
+        printf_f(STDERR, "rx: fs:%i fc:%i len:%i dec:%i taps:%i\n", ((int)sample), c->fc, c->fft_len, c->ds.dec, c->ds.taps);
 		c->ds.buf_i = (int*)t_malloc(c->ds.taps * sizeof(int));
 		c->ds.buf_q = (int*)t_malloc(c->ds.taps * sizeof(int));
 
@@ -474,7 +474,7 @@ task_rc_t bpsk_rxmodem_task (void* context) {
     if (c->pp == PACKET_TOTAL_LEN(c->packet.len)) { // We're done
         int len = depacketize(&(c->packet), NULL);
         if (len >= 0) {
-            console_printf("pkt:[%s]", c->packet.payload);
+        	printf_f(STDERR, "pkt:[%s]\n", c->packet.payload);
         }
         c->pp = -1;
         c->packet.len = PACKET_PAYLOAD_MAX;
@@ -746,7 +746,7 @@ int txmodem_setup (fifo_t* out_stream, int fs, int fc, char* msg) {
     context->wp = 0;
     context->ds.bp = context->fft_len;
 
-    console_printf("tx: fs:%i fc:%i len:%i", fs, context->fc, context->fft_len);
+    printf_f(STDERR, "tx: fs:%i fc:%i len:%i\n", fs, context->fc, context->fft_len);
 
     uint16_t u16samplerate = (uint16_t)fs;
     fifo_push(context->out_stream, &u16samplerate);

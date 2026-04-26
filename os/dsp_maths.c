@@ -1,5 +1,5 @@
 #include "dsp_maths.h"
-#include "hal_plat.h" //malloc
+#include "hal_plat.h" // t_malloc
 #include <string.h> // memset
 
 

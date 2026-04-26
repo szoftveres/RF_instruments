@@ -1,9 +1,9 @@
 #include "line_reader.h"
 #include <stddef.h> //NULL
-#include "hal_plat.h" // malloc free
+#include "hal_plat.h" // t_malloc
 
 
-line_reader_t* line_reader_create (int linelen, char* (*getline) (struct line_reader_s*), void *context) {
+line_reader_t* line_reader_create (int linelen, void *context) {
 
 	line_reader_t* instance = (line_reader_t*)t_malloc(sizeof(line_reader_t));
 	if (!instance) {
@@ -16,7 +16,6 @@ line_reader_t* line_reader_create (int linelen, char* (*getline) (struct line_re
 		return instance;
 	}
 	instance->linelen = linelen;
-	instance->getline = getline;
 	instance->context = context;
 
 	return instance;

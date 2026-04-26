@@ -2,6 +2,66 @@
 #define INC_FS_BROKER_H_
 
 
+typedef struct stdio_stack_s {
+	int fin;
+	int fout;
+	int ferr;
+	struct stdio_stack_s *next;
+} stdio_stack_t;
+
+void stdiostack_push (stdio_stack_t **head, int fin, int fout, int ferr);
+void stdiostack_pop (stdio_stack_t **head);
+
+/* ------------------------------- */
+
+
+typedef struct generic_file_s {
+	char name[8];
+	void* context;
+	int (*open) (struct generic_file_s*);
+	void (*close) (struct generic_file_s*);
+	int (*read) (struct generic_file_s*, int, char*);
+	int (*write) (struct generic_file_s*, int, char*);
+} generic_file_t;
+
+
+
+generic_file_t * generic_file_create (char* name,
+									  void *context,
+										int (*open) (struct generic_file_s*),
+										void (*close) (struct generic_file_s*),
+										int (*read) (struct generic_file_s*, int, char*),
+										int (*write) (struct generic_file_s*, int, char*) );
+
+typedef struct generic_fs_filp_s {
+	int	file;
+	int reserved;
+} generic_fs_filp_t;
+
+#define MAX_GENERIC_FS_FILES (4)
+#define MAX_GENERIC_FS_FILP (8)
+
+typedef struct generic_fs_s {
+	generic_file_t *file[MAX_GENERIC_FS_FILES];
+	generic_fs_filp_t fp[MAX_GENERIC_FS_FILP];
+	int dirp;
+} generic_fs_t;
+
+generic_fs_t * generic_fs_create (void);
+int generic_fs_register_file (generic_fs_t* instance, generic_file_t* file);
+
+int generic_fs_open (generic_fs_t* instance, char* name, int flags);
+void generic_fs_close (generic_fs_t* instance, int fd);
+void generic_fs_rewind (generic_fs_t* instance, int fd);
+int generic_fs_write (generic_fs_t* instance, int fd, void* buf, int count);
+int generic_fs_read (generic_fs_t* instance, int fd, void* buf, int count);
+int generic_fs_delete (generic_fs_t* instance, char* name);
+
+int generic_fs_opendir (generic_fs_t* instance);
+int generic_fs_walkdir (generic_fs_t* instance, char** name, int* size);
+int generic_fs_closedir (generic_fs_t* instance);
+
+/* ------------------------------- */
 
 #define FS_O_CREAT			(0x01)
 #define FS_O_APPEND			(0x02)
@@ -10,8 +70,7 @@
 
 
 #define MAX_FS_BROKER_FS (4)
-#define MAX_FS_BROKER_FILP (4)
-
+#define MAX_FS_BROKER_FILP (8)
 
 
 typedef struct fs_instance_s {
@@ -72,7 +131,9 @@ int open_f (fs_broker_t* broker, char* name, int flags);
 void close_f (fs_broker_t* broker, int fd);
 void rewind_f (fs_broker_t* broker, int fd);
 int read_f (fs_broker_t* broker, int fd, char* buf, int count);
+int read_f_all (fs_broker_t* broker, int fd, char* buf, int count);
 int write_f (fs_broker_t* broker, int fd, char* buf, int count);
+int write_f_all (fs_broker_t* broker, int fd, char* buf, int count);
 int delete_f (fs_broker_t* broker, char* name);
 
 

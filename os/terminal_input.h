@@ -7,12 +7,21 @@
 
 typedef struct terminal_input_s {
 	char (*getchar) (void);
+	void (*putchar) (char);
     int echo;
+    int pos;
+    int rp;
 } terminal_input_t;
 
 
-terminal_input_t* terminal_input_create (char (*getchar) (void), int echo);
+terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo);
 void terminal_input_destroy (terminal_input_t *instance);
-char* terminal_get_line (line_reader_t* reader);
+
+
+#include "fs_broker.h"
+int consolefile_read_canonical (struct generic_file_s* context, int b, char* buf);
+int consolefile_read_raw (struct generic_file_s* thisfile, int b, char* buf);
+int consolefile_write (struct generic_file_s* thisfile, int count, char* buf);
+
 
 #endif /* INC_TERMINAL_INPUT_H_ */

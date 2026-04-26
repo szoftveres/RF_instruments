@@ -1,9 +1,9 @@
 #include "terminal_input.h"
 #include <stddef.h> //NULL
-#include "hal_plat.h" // malloc free
+#include "hal_plat.h" // t_malloc
 
 
-terminal_input_t* terminal_input_create (char (*getchar) (void), int echo) {
+terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo) {
 	terminal_input_t* instance;
 
 	instance = (terminal_input_t*)t_malloc(sizeof(terminal_input_t));
@@ -12,7 +12,10 @@ terminal_input_t* terminal_input_create (char (*getchar) (void), int echo) {
 	}
 
 	instance->getchar = getchar;
+	instance->putchar = putchar;
 	instance->echo = echo;
+	instance->pos = 0;
+	instance->rp = -1;
 
 	return instance;
 }
@@ -26,53 +29,116 @@ void terminal_input_destroy (terminal_input_t *instance) {
 }
 
 
-char* terminal_get_line (line_reader_t* reader) {
-	int n = 0;
-	int run = 1;
+int consolefile_read_canonical (struct generic_file_s* thisfile, int b, char* buf) {
 
-	reader->line[n] = '\0';
+	line_reader_t *reader = (line_reader_t *)(thisfile->context);
+	terminal_input_t *this = (terminal_input_t *)(reader->context);
 
-	while (run) {
-		int printable = ((terminal_input_t *)(reader->context))->echo;
-		char c = ((terminal_input_t *)(reader->context))->getchar();
+	while (1) {
 
-		if (c == '\r') {
-			c = '\n';
-		}
-		switch (c) {
-		  case '\n':
-			run = 0;
-			break;
-
-		  case '\b': // backspace
-			if (n > 0) {
-				if (printable) {
-					console_printf_e("\b "); // delete
-				}
-				n -= 1;
-				reader->line[n] = '\0';
-			} else {
-				printable = 0;
+		if (this->rp >= 0) { // Line is ready to be read
+			int bytes = 0;
+			while (b && (this->rp < this->pos)) {
+				buf[bytes] = reader->line[this->rp] ;
+				bytes++;
+				b--;
+				this->rp++;
 			}
-			break;
+			if (this->rp == this->pos) {
+				this->pos = 0;
+				this->rp = -1;
+			}
+			return bytes;
+		}
 
-		  default:
-			if (c < 0x20 || c > 0x7E) {
+		// Constructing the line
+		int run = 1;
+
+		while (run) {
+			int printable = this->echo;
+			char c = this->getchar();
+
+			if (c == '\r') {
+				c = '\n';
+			}
+			switch (c) {
+
+			  case 0x04:	// Ctrl + D
+				run = 0;
 				printable = 0;
 				break;
+
+			  case '\b': // backspace
+				if (this->pos > 0) {
+					if (printable) {
+						this->putchar('\b'); // backspace
+						this->putchar(' ');
+					}
+					this->pos -= 1;
+					//reader->line[this->pos] = '\0';
+				} else {
+					printable = 0;
+				}
+				break;
+
+			  case '\n':
+				run = 0;
+			  default:
+				if (c < 0x20 || c > 0x7E) {
+					printable = (c == '\n');
+				}
+				reader->line[this->pos++] = c;
+				if ((this->pos + 1) >= (reader->linelen - 1)) {
+					this->pos -= 1;
+					printable = 0;
+				}
+				//reader->line[this->pos] = '\0';
+				break;
 			}
-			reader->line[n++] = c;
-			if ((n + 1) >= (reader->linelen - 1)) {
-				n -= 1;
-				printable = 0;
+			if (printable) {
+				this->putchar(c);  // echo
 			}
-			reader->line[n] = '\0';
+		}
+		this->rp = 0;
+	}
+	return 0; // never reached
+}
+
+
+int consolefile_read_raw (struct generic_file_s* thisfile, int b, char* buf) {
+
+	line_reader_t *reader = (line_reader_t *)(thisfile->context);
+	terminal_input_t *this = (terminal_input_t *)(reader->context);
+
+	int bytes = 0;
+	char c;
+	while (b) {
+		c = this->getchar();
+		if (c == 0x04) { // EOF for now
 			break;
 		}
-		if (printable) {
-			console_printf_e("%c", c);  // echo
-		}
+		buf[bytes] = c;
+		bytes++;
+		b--;
+        if (c == '\n') { // line end
+            break;
+        }
 	}
-    return reader->line;
+	return bytes;
+}
+
+
+int consolefile_write (struct generic_file_s* thisfile, int count, char* buf) {
+
+	line_reader_t *reader = (line_reader_t *)(thisfile->context);
+	terminal_input_t *this = (terminal_input_t *)(reader->context);
+
+	int b = 0;
+	while (count) {
+		this->putchar(buf[b]);
+		b++;
+		count--;
+	}
+	return b;
 }
 

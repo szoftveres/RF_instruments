@@ -1,6 +1,6 @@
 #include "keyword.h"
 #include <stddef.h>
-#include "hal_plat.h" //malloc
+#include "hal_plat.h" // t_malloc
 #include <string.h> //memcpy
 
 
@@ -116,11 +116,9 @@ cmd_param_t * cmd_param_consume (cmd_param_t **head) {
 
 	switch (current->type) {
 	case CMD_ARG_TYPE_STR:
-		//console_printf("str:%s", current->str);
 		t_free(current->str);
 		break;
 	case CMD_ARG_TYPE_NUM:
-		//console_printf("num:%i", current->n);
 		break;
 	default:
 		break;

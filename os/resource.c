@@ -1,5 +1,5 @@
 #include "resource.h"
-#include "hal_plat.h" //malloc free
+#include "hal_plat.h" // t_malloc
 #include <string.h> //strcmp
 
 

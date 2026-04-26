@@ -1,7 +1,7 @@
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
-#include "fatsmall_fs.h"
+#include "fs_broker.h"
 #include "config.h"
 #include "program.h"
 #include "levelcal.h"
@@ -9,7 +9,14 @@
 #include "line_reader.h"
 #include "taskscheduler.h"
 #include "fifo.h" // execute_program
+#include <stdarg.h>  // console_printf
 
+
+
+extern stdio_stack_t *iostack;
+#define STDIN (iostack->fin)
+#define STDOUT (iostack->fout)
+#define STDERR (iostack->ferr)
 
 extern config_t config;
 
@@ -37,6 +44,18 @@ void global_cfg_override (void);
 int execute_program (program_t *program, fifo_t* in, fifo_t* out);
 
 int cmd_fsinfo (void);
+
+int nullfile_read (struct generic_file_s*, int n, char* b);
+int nullfile_write (struct generic_file_s*, int n, char* b);
+int nullfile_open (struct generic_file_s*);
+void nullfile_close (struct generic_file_s*);
+
+int streamfile_read (struct generic_file_s* context, int b, char* buf);
+int streamfile_write (struct generic_file_s* context, int b, char* buf);
+
+void command_line_loop ();
+
+int printf_f (int fd, const char* fmt, ...);
 
 
 #endif

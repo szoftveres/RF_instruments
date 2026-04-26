@@ -7,6 +7,7 @@
 #include "os/globals.h"
 #include "os/resource.h"
 #include "os/parser.h"
+#include "os/fatsmall_fs.h"
 #include "instances.h"
 #include "unixfs_wrapper.h"
 #include "os/terminal_input.h"
@@ -39,10 +40,21 @@ ramdrive_write_page (blockdevice_t* blockdevice, int pageaddress) {
 }
 
 
-
 char get_online_char (void) {
-	char c = (char) getchar();
-	return c;
+    int rc = getc(stdin);
+    char c;
+    if (rc == EOF) {
+        c = 0x04; // Passing Ctrl + D down
+        clearerr(stdin); // Clearing EOF
+    } else {
+        c = (char)rc;
+    }
+    return c;
+}
+
+
+void put_online_char (char c) {
+	putchar(c);
 }
 
 
@@ -127,8 +139,6 @@ int main(void)
 						(int (*) (void*, char**, int*)) unixfswrapper_walkdir,
 						(int (*) (void*)) unixfswrapper_closedir);
 
-  setup_commands();
-  setup_persona_commands();
 
   program = program_create(20, 80); // 20 lines, 80 characters each -> 1.6k max program size
   if (!program) {
@@ -136,43 +146,76 @@ int main(void)
   	  cpu_halt();
   }
 
-  ledflash(2);
 
-  program_ip = 0;
-  program_run = 0;
-  subroutine_sp = 0;
-
-
-  online_reader = line_reader_create(program->header.fields.linelen - 2, terminal_get_line, terminal_input_create(get_online_char, 0));
+  online_reader = line_reader_create(program->header.fields.linelen - 2, terminal_input_create(get_online_char, put_online_char, 1));
   if (!online_reader) {
   	  console_printf("input init error");
   	  cpu_halt();
   }
 
+  generic_fs_t *devfs = generic_fs_create();
+  if (!ramfs) {
+	  console_printf("devfs init error");
+	  cpu_halt();
+  }
+
+  generic_file_t *nullfile = generic_file_create ("null", NULL,
+													  nullfile_open,
+													  nullfile_close,
+													  nullfile_read,
+													  nullfile_write);
+
+  if (generic_fs_register_file(devfs, nullfile) < 0) {
+	  console_printf("file reg error");
+	  cpu_halt();
+  }
+
+  generic_file_t *confile = generic_file_create ("con", online_reader,
+													  nullfile_open,
+													  nullfile_close,
+													  consolefile_read_raw,
+													  consolefile_write);
+
+  if (generic_fs_register_file(devfs, confile) < 0) {
+	  console_printf("file reg error");
+	  cpu_halt();
+  }
+
+  fs_broker_register_fs(fs,
+		  	  	  	    devfs,
+						'D',
+		  	  	  	    (int (*)(void*, char*, int)) generic_fs_open,
+						(void (*) (void*, int)) generic_fs_close,
+						(void (*) (void*, int)) generic_fs_rewind,
+						(int (*) (void*, int, char*, int)) generic_fs_read,
+						(int (*) (void*, int, char*, int)) generic_fs_write,
+						(int (*) (void*, char*)) generic_fs_delete,
+						(int (*) (void*)) generic_fs_opendir,
+						(int (*) (void*, char**, int*)) generic_fs_walkdir,
+						(int (*) (void*)) generic_fs_closedir);
+
+
+  setup_commands();
+  setup_persona_commands();
+
+
+  program_ip = 0;
+  program_run = 0;
+  subroutine_sp = 0;
+
+  int fcon = open_f(fs, "D:con", 0);
+  if (fcon < 0) {
+	  console_printf("conio file error");
+	  cpu_halt();
+  }
+
+  iostack = NULL;
+  stdiostack_push(&iostack, fcon, fcon, fcon);
 
   while (1)
   {
-	  int chunks = t_chunks();
-	  // Online command parser
-	  parser_t* online_parser = parser_create(program->header.fields.linelen); // align to the program line length
-	  if (!online_parser) {
-		  console_printf("parser init error");
-		  cpu_halt();
-	  }
-	  int prompt_pidx = 0;
-	  char prompt[8];
-	  sprintf(&(prompt[prompt_pidx]), "%c:> ", get_current_fs(fs));
-	  // Interpreting and executing commands, till the eternity
-	  console_printf_e(prompt);
-	  cmd_line_parser(online_parser, online_reader->getline(online_reader), NULL, NULL);
-	  parser_destroy(online_parser);
-
-	  chunks -= t_chunks();
-	  if (chunks) { // simple memory leak check, normally shouldn't ever happen
-		  console_printf("t_malloc-t_free imbalance :%i", chunks);
-	  }
-
-
+	  command_line_loop();
+	  printf_f(STDERR, "respawning..\n");
   }
 
 }

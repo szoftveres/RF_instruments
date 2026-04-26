@@ -1,5 +1,5 @@
 #include "program.h"
-#include "hal_plat.h" // malloc free
+#include "hal_plat.h" // t_malloc
 #include <string.h> // strcpy memset
 
 
@@ -110,11 +110,11 @@ char* program_line (program_t* instance, int line) {
 int program_save (program_t* instance, fs_broker_t *fs, int fd) {
 	int rc = 0;
 	validate_program(instance);
-	rc += write_f(fs, fd, (char*)&(instance->header), sizeof(instance->header));
+	rc += write_f_all(fs, fd, (char*)&(instance->header), sizeof(instance->header));
 	for (int i = 0; i != instance->header.fields.nlines; i++) {
 		int linelen = strlen(instance->line[i]) + 1; // + '\0'
-		rc += write_f(fs, fd, (char*)&linelen, sizeof(int));
-		rc += write_f(fs, fd, instance->line[i], linelen);
+		rc += write_f_all(fs, fd, (char*)&linelen, sizeof(int));
+		rc += write_f_all(fs, fd, instance->line[i], linelen);
 	}
 	return rc;
 }
@@ -124,7 +124,7 @@ int program_load (program_t* instance, fs_broker_t *fs, int fd) {
 	int rc = 0;
 
 	struct program_header_s lcl_header;
-	rc += read_f(fs, fd, (char*)&(lcl_header), sizeof(lcl_header));
+	rc += read_f_all(fs, fd, (char*)&(lcl_header), sizeof(lcl_header));
 
 	if (!verify_program(instance, &lcl_header)) {
 		return 0;
@@ -132,8 +132,8 @@ int program_load (program_t* instance, fs_broker_t *fs, int fd) {
 
 	for (int i = 0; i != instance->header.fields.nlines; i++) {
 		int linelen;
-		rc += read_f(fs, fd, (char*)&linelen, sizeof(int));
-		rc += read_f(fs, fd, instance->line[i], linelen);
+		rc += read_f_all(fs, fd, (char*)&linelen, sizeof(int));
+		rc += read_f_all(fs, fd, instance->line[i], linelen);
 	}
 
 	return rc;
