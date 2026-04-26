@@ -18,8 +18,9 @@ void terminal_input_destroy (terminal_input_t *instance);
 
 
 #include "fs_broker.h"
-int consolefile_read_canonical (struct generic_file_s* context, int b, char* buf);
-int consolefile_read_raw (struct generic_file_s* thisfile, int b, char* buf);
+int consolefile_readline_canonical (struct generic_file_s* context, int b, char* buf);
+int consolefile_readline_raw (struct generic_file_s* thisfile, int b, char* buf);
+int consolefile_read (struct generic_file_s* thisfile, int b, char* buf);
 int consolefile_write (struct generic_file_s* thisfile, int count, char* buf);
 
 

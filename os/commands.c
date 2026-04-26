@@ -525,6 +525,8 @@ cmd_hexdump (cmd_context_s* ctxt) {
 int cmd_copy (cmd_context_s* ctxt) {
 	int fdsrc;
 	int fdnew;
+	int copyunit = COPY_UNIT;
+	int bytestocopy = -1;
 	int totalbytes = 0;
 	void* buf;
 
@@ -565,13 +567,25 @@ int cmd_copy (cmd_context_s* ctxt) {
 		return 0;
 	}
 
+	if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_NUM) {
+		bytestocopy = ctxt->params->n;
+		cmd_param_consume(&(ctxt->params));
+	}
+
+
 	int b;
-	while ((b = read_f_all(fs, fdsrc, buf, COPY_UNIT)) > 0) {
+	if (bytestocopy >= 0) {
+		copyunit = bytestocopy;
+	}
+	while ((b = read_f_all(fs, fdsrc, buf, copyunit)) > 0) {
 		if (write_f_all(fs, fdnew, buf, b) != b) {
 			printf_f(STDERR, "disk full\n");
 			break;
 		}
 		totalbytes += b;
+		if ((bytestocopy >= 0) && (totalbytes >= bytestocopy)) {
+			break;
+		}
 	}
 
 	close_f(fs, fdnew);
@@ -991,7 +1005,7 @@ int setup_commands (void) {
 	keyword_add("del", "\"file\"", cmd_del);
 	keyword_add("hexdump", "\"file\"", cmd_hexdump);
 	keyword_add("dir", "- list files", cmd_dir);
-	keyword_add("copy", "\"src\" \"new\"", cmd_copy);
+	keyword_add("copy", "\"src\" \"new\" <opt:[bytes]>", cmd_copy);
 	keyword_add("cd", "\"letter\"", cmd_change_fs);
 
 

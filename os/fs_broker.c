@@ -22,7 +22,7 @@ void stdiostack_pop (stdio_stack_t **head) {
 
 generic_file_t * generic_file_create (char* name,
 										void *context,
-										int (*open) (struct generic_file_s*),
+										int (*open) (struct generic_file_s*, int),
 										void (*close) (struct generic_file_s*),
 										int (*read) (struct generic_file_s*, int, char*),
 										int (*write) (struct generic_file_s*, int, char*) ) {
@@ -101,7 +101,7 @@ int generic_fs_open (generic_fs_t* instance, char* name, int flags) {
 
 	if (file < MAX_GENERIC_FS_FILES) {
 		instance->fp[fd].file = file;
-		instance->file[file]->open(instance->file[file]);
+		instance->file[file]->open(instance->file[file], flags);
 	} else {
 		instance->fp[fd].reserved = 0;
 		fd = -1;
@@ -163,10 +163,10 @@ int generic_fs_opendir (generic_fs_t* instance) {
 int generic_fs_walkdir (generic_fs_t* instance, char** name, int* size) {
 
 	do {
+		instance->dirp++;
 		if (instance->dirp >= MAX_GENERIC_FS_FILES) {
 			return 0; // Done
 		}
-		instance->dirp++;
 	} while (!(instance->file[instance->dirp]));
 	*size = 0; // XXX for now
 	*name = instance->file[instance->dirp]->name;

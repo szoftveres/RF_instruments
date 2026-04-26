@@ -39,7 +39,7 @@ void terminal_input_destroy (terminal_input_t *instance) {
 }
 
 
-int consolefile_read_canonical (struct generic_file_s* thisfile, int b, char* buf) {
+int consolefile_readline_canonical (struct generic_file_s* thisfile, int b, char* buf) {
 
 	terminal_input_t *this = (terminal_input_t *)(thisfile->context);
 
@@ -114,7 +114,7 @@ int consolefile_read_canonical (struct generic_file_s* thisfile, int b, char* bu
 }
 
 
-int consolefile_read_raw (struct generic_file_s* thisfile, int b, char* buf) {
+int consolefile_readline_raw (struct generic_file_s* thisfile, int b, char* buf) {
 
 	terminal_input_t *this = (terminal_input_t *)(thisfile->context);
 
@@ -131,6 +131,22 @@ int consolefile_read_raw (struct generic_file_s* thisfile, int b, char* buf) {
         if (c == '\n') { // line end
             break;
         }
+	}
+	return bytes;
+}
+
+
+int consolefile_read (struct generic_file_s* thisfile, int b, char* buf) {
+
+	terminal_input_t *this = (terminal_input_t *)(thisfile->context);
+
+	int bytes = 0;
+	char c;
+	while (b) {
+		c = this->getchar();
+		buf[bytes] = c;
+		bytes++;
+		b--;
 	}
 	return bytes;
 }

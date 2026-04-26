@@ -375,7 +375,7 @@ int main(void)
   generic_file_t *confile = generic_file_create ("con", terminal,
 													  nullfile_open,
 													  nullfile_close,
-													  consolefile_read_canonical,
+													  consolefile_readline_canonical,
 													  consolefile_write);
 
   if (generic_fs_register_file(devfs, confile) < 0) {

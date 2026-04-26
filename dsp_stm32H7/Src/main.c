@@ -222,12 +222,15 @@ void put_online_char (char c) {
 	console_putchar(c);
 }
 
-char get_gps_char (void) {
+char get_aux_uart_char (void) {
 	char c;
 	fifo_pop_or_sleep(aux_usart_stream, &c);
 	return c;
 }
 
+void put_aux_uart_char (const char c) {
+	HAL_UART_Transmit(&huart7, (uint8_t*)&c, 1, 1);
+}
 
 /* USER CODE END 0 */
 
@@ -269,7 +272,7 @@ int main(void)
 	  cpu_halt();
   }
 
-  aux_usart_stream = fifo_create(256, sizeof(char));
+  aux_usart_stream = fifo_create(128, sizeof(char));
   if (!aux_usart_stream) {
   	  cpu_halt();
   }
@@ -452,11 +455,6 @@ int main(void)
   	  cpu_halt();
   }
 
-  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, program->header.fields.linelen - 2);
-  if (!terminal) {
-  	  console_printf("terminal init error");
-  	  cpu_halt();
-  }
 
   generic_fs_t *devfs = generic_fs_create();
   if (!ramfs) {
@@ -475,16 +473,51 @@ int main(void)
 	  cpu_halt();
   }
 
+  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, program->header.fields.linelen - 2);
+  if (!terminal) {
+  	  console_printf("terminal init error");
+  	  cpu_halt();
+  }
+
   generic_file_t *confile = generic_file_create ("con", terminal,
 													  nullfile_open,
 													  nullfile_close,
-													  consolefile_read_canonical,
+													  consolefile_readline_canonical,
 													  consolefile_write);
 
   if (generic_fs_register_file(devfs, confile) < 0) {
 	  console_printf("file reg error");
 	  cpu_halt();
   }
+
+  terminal_input_t* aux_uart = terminal_input_create(get_aux_uart_char, put_aux_uart_char, 0, 8); // Line is not used
+  if (!aux_uart) {
+  	  console_printf("terminal init error");
+  	  cpu_halt();
+  }
+
+  generic_file_t *uartinfile = generic_file_create ("uartin", aux_uart,
+													  nullfile_open,
+													  nullfile_close,
+													  consolefile_read,
+													  nullfile_write);
+
+  if (generic_fs_register_file(devfs, uartinfile) < 0) {
+	  console_printf("file reg error");
+	  cpu_halt();
+  }
+
+  generic_file_t *uartoutfile = generic_file_create ("uartout", aux_uart,
+													  nullfile_open,
+													  nullfile_close,
+													  nullfile_read,
+													  consolefile_write);
+
+  if (generic_fs_register_file(devfs, uartoutfile) < 0) {
+	  console_printf("file reg error");
+	  cpu_halt();
+  }
+
 
   fs_broker_register_fs(fs,
 		  	  	  	    devfs,
@@ -502,12 +535,6 @@ int main(void)
 
   setup_commands();
   setup_persona_commands();
-
-  gps = nmea0183_create(get_gps_char);
-  if (!gps) {
-	  console_printf("gps create error");
-	  cpu_halt();
-  }
 
   ledflash(2);
 

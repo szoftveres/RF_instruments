@@ -3,7 +3,7 @@
 
 
 
-typedef struct {
+typedef struct nmea0183_s{
 	int lat_i;
 	int lat_f;
 
@@ -13,12 +13,13 @@ typedef struct {
 	int hour;
 	int min;
 	int sec;
-	char (*getchar) (void);
+	char (*getchar) (struct nmea0183_s*);
+	void *ctxt;
 } nmea0183_t;
 
 
 
-nmea0183_t* nmea0183_create (char (*getchar) (void));
+nmea0183_t* nmea0183_create (char (*getchar) (nmea0183_t*), void* context);
 void nmea0183_destroy (nmea0183_t *instance);
 int nmea0183_update (nmea0183_t *instance);
 

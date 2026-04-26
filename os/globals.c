@@ -12,8 +12,6 @@ config_t config;
 
 program_t* program;
 
-
-
 taskscheduler_t *scheduler;
 
 fs_broker_t *fs;
@@ -157,7 +155,7 @@ int cmd_fsinfo (void) {
 
 int nullfile_read (struct generic_file_s*, int, char*) {return 0;}
 int nullfile_write (struct generic_file_s*, int count, char*) {return count;}
-int nullfile_open (struct generic_file_s*) {return 1;}
+int nullfile_open (struct generic_file_s*, int) {return 1;}
 void nullfile_close (struct generic_file_s*) {}
 
 int streamfile_read (struct generic_file_s* thisfile, int b, char* buf) {

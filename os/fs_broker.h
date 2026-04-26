@@ -16,9 +16,9 @@ void stdiostack_pop (stdio_stack_t **head);
 
 
 typedef struct generic_file_s {
-	char name[8];
+	char name[12];
 	void* context;
-	int (*open) (struct generic_file_s*);
+	int (*open) (struct generic_file_s*, int);
 	void (*close) (struct generic_file_s*);
 	int (*read) (struct generic_file_s*, int, char*);
 	int (*write) (struct generic_file_s*, int, char*);
@@ -28,7 +28,7 @@ typedef struct generic_file_s {
 
 generic_file_t * generic_file_create (char* name,
 									  void *context,
-										int (*open) (struct generic_file_s*),
+										int (*open) (struct generic_file_s*, int),
 										void (*close) (struct generic_file_s*),
 										int (*read) (struct generic_file_s*, int, char*),
 										int (*write) (struct generic_file_s*, int, char*) );
@@ -38,7 +38,7 @@ typedef struct generic_fs_filp_s {
 	int reserved;
 } generic_fs_filp_t;
 
-#define MAX_GENERIC_FS_FILES (4)
+#define MAX_GENERIC_FS_FILES (8)
 #define MAX_GENERIC_FS_FILP (8)
 
 typedef struct generic_fs_s {

@@ -147,7 +147,7 @@ int main(void)
   }
 
 
-  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, program->header.fields.linelen - 2);
+  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, 8); // line not used
   if (!terminal) {
         console_printf("terminal init error");
         cpu_halt();
@@ -173,7 +173,7 @@ int main(void)
   generic_file_t *confile = generic_file_create ("con", terminal,
 													  nullfile_open,
 													  nullfile_close,
-													  consolefile_read_raw,
+													  consolefile_readline_raw,
 													  consolefile_write);
 
   if (generic_fs_register_file(devfs, confile) < 0) {

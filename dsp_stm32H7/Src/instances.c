@@ -11,7 +11,7 @@
 #include "../os/modem.h"
 #include "stm32h7xx_hal.h"  // HAL get tick
 #include "rfport_rx.h"
-
+#include "../os/nmea0183.h"
 
 max2871_t* rf_pll;
 max2871_t* lo_pll;
@@ -19,9 +19,9 @@ bda4700_t *attenuator;
 
 fs_t *eepromfs; // FORMAT
 
-nmea0183_t* gps;
-
 static const char* invalid_val = "Invalid value \'%i\'\n";
+static const char* name_expected = "\"name\" expected\n";
+
 
 
 double set_rf_frequency (uint32_t khz) {
@@ -194,7 +194,6 @@ int asel_getter (void * context) {
 }
 
 
-
 /*-----------------------------------------*/
 
 #include <stdlib.h>
@@ -361,15 +360,62 @@ int cmd_bpsk_rx (cmd_context_s* ctxt) {
 }
 
 
+typedef struct gps_context_s {
+	int in_fd;
+} gps_context_t;
+
+char get_gps_char (nmea0183_t* this) {
+	char buf;
+	gps_context_t *ctxt = (gps_context_t*)this->ctxt;
+	read_f_all(fs, ctxt->in_fd, &buf, 1);
+	return buf;
+}
+
 int cmd_gps (cmd_context_s* ctxt) {
 	char msg[64];
-	ofdm_pkt_t p;
+	gps_context_t gps_ctxt;
+	int fdin;
+	int fdout;
+	int len;
+
+    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
+    	printf_f(STDERR, name_expected);
+		return 0;
+	}
+
+	fdin = open_f(fs, ctxt->params->str, FS_O_READONLY);
+	cmd_param_consume(&(ctxt->params));
+	if (fdin < 0) {
+		printf_f(STDERR, "open fail\n");
+		return 0;
+	}
+	gps_ctxt.in_fd = fdin;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
+		printf_f(STDERR, name_expected);
+		close_f(fs, fdin);
+		return 0;
+	}
+
+	fdout = open_f(fs, ctxt->params->str, FS_O_CREAT | FS_O_TRUNC);
+	cmd_param_consume(&(ctxt->params));
+
+	if (fdout < 0) {
+		printf_f(STDERR, "dst open fail\n");
+		close_f(fs, fdin);
+		return 0;
+	}
+
+	nmea0183_t *gps = nmea0183_create (get_gps_char, &gps_ctxt);
 
 	nmea0183_update(gps);
-	sprintf(msg, "%i.%i,%i.%i,%i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
-	printf_f(STDOUT, "%s\n", msg);
-	ofdm_packetize(&p, msg, strlen(msg)+1);
-	ofdm_txpkt(&p);
+	len = sprintf(msg, "%i.%i,%i.%i,%i:%02i:%02i\n", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
+	write_f_all(fs, fdout, msg, len);
+
+	nmea0183_destroy(gps);
+	close_f(fs, fdin);
+	close_f(fs, fdout);
+
 	return 1;
 }
 
@@ -464,7 +510,7 @@ int setup_persona_commands (void) {
 
 	keyword_add("instctltest", "- test", cmd_instctl_test);
 
-	keyword_add("gps", "- test", cmd_gps);
+	keyword_add("gps", "\"src\" \"dst\"", cmd_gps);
 
 	keyword_add("otx", "- test", cmd_ofdm_tx);
 	keyword_add("orx", "- test", cmd_ofdm_rx);

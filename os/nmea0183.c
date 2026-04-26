@@ -8,7 +8,7 @@
 // this is how the (portable) lex reads a new byte
 int nmea0183_lex_read (lex_instance_t *instance, int *b) {
 	nmea0183_t *nmea0183 = (nmea0183_t*)instance->context; // context of lex is the parser
-	*b = nmea0183->getchar();
+	*b = nmea0183->getchar(nmea0183);
 	return 1;
 }
 
@@ -19,7 +19,7 @@ void nmea0183_lex_error (lex_instance_t *instance, int c, const char *str) {
 
 
 // Constructor
-nmea0183_t* nmea0183_create (char (*getchar) (void)) {
+nmea0183_t* nmea0183_create (char (*getchar) (nmea0183_t*), void *context) {
 	nmea0183_t* instance;
 
 	instance = (nmea0183_t*)t_malloc(sizeof(nmea0183_t));
@@ -27,6 +27,7 @@ nmea0183_t* nmea0183_create (char (*getchar) (void)) {
 	    return (instance);
 	}
 	instance->getchar = getchar;
+	instance->ctxt = context;
 
 	return instance;
 }

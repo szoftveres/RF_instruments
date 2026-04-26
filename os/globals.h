@@ -44,7 +44,7 @@ int cmd_fsinfo (void);
 
 int nullfile_read (struct generic_file_s*, int n, char* b);
 int nullfile_write (struct generic_file_s*, int n, char* b);
-int nullfile_open (struct generic_file_s*);
+int nullfile_open (struct generic_file_s*, int);
 void nullfile_close (struct generic_file_s*);
 
 int streamfile_read (struct generic_file_s* context, int b, char* buf);
