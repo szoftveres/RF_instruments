@@ -82,7 +82,7 @@ This simple through error correction method assumes a perfect through standard, 
 
 The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet). A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload and also to give the LNA a good termination. RF power level was set to about -25 dBm.
 
-![gaas_meas](gaas_meas.jpg)
+![gaas_meas](gaas_meas.png)
 
 Measuring a small-signal device like this LNA requires a (commercially expensive) VNA that has RF level setting capability and sufficient dynamic range; this inexpensive DIY VNA has no problem with it.
 
