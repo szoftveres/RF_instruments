@@ -84,7 +84,7 @@ The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/mai
 
 ![gaas_meas](gaas_meas.png)
 
-Measuring a small-signal device like this LNA requires a (commercially expensive) VNA that has RF level setting capability and sufficient dynamic range; this inexpensive DIY VNA has no problem with it.
+Measuring a small-signal device like this LNA at such low power level requires a (commercially expensive) VNA that has RF level setting capability and sufficient dynamic range; this inexpensive DIY VNA has no problem with it.
 
 #### Bandpass stub filter for the 420 MHz - 450 MHz amateur band
 
@@ -100,7 +100,7 @@ Measured using a LiteVNA:
 
 ![stubmeas_litevna](stubmeas_litevna.jpg)
 
-The slight difference in the reflection at the higher band edge (~ 450 MHz) is due to the fact that the matching conditions for the two setups (different Port 2 impedances of the two VNAs, different measurement cables) are different, and the S11 correction of this VNA doesn't account for imperfect Port 2 impedance (it's assumed to be perfect 50 Ω).
+The slight difference in the reflection at the higher band edge (~ 450 MHz) is due to the fact that the matching conditions for the two setups (different Port 2 impedances of the two VNAs, different measurement cables) are different, and the S11 correction of this VNA doesn't account for imperfect Port 2 impedance (it's assumed to be perfect 50 Ω, as described above in the calibration section).
 
 #### 915 MHZ SAW filter
 
