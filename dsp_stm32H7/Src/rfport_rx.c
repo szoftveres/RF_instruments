@@ -65,6 +65,7 @@ void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
 
 	// The first sample is garbage (leftover), discard it
 	fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
+	fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
 
 	for (int c = 0; c != samples; c += 1) {
 		int i;

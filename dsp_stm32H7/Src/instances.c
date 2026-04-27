@@ -439,30 +439,11 @@ int cmd_instctl_test (cmd_context_s* ctxt) {
 }
 
 
-void cmd_rfport_meas (void) {
-	rfport_rx_t rfmeas;
-
-	rfport_rx_meas(10000, 800, &rfmeas);
-
-	/* Syncword */
-	console_send_u32(0xB43355AA);
-
-	/* Ref */
-	console_send_i32(rfmeas.ref_i);
-	console_send_i32(rfmeas.ref_q);
-
-	/* Ref ampl */
-	console_send_i32(rfmeas.ref_ampl);
-
-	/* Port 1 */
-	console_send_i32(rfmeas.meas_i);
-	console_send_i32(rfmeas.meas_q);
-}
-
-
 int cmd_vna (cmd_context_s* ctxt) {
 
 	int freq;
+	int lck = 0;
+	rfport_rx_t rfmeas;
 
 	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
 		printf_f(STDERR, "Freq needed\n");
@@ -474,12 +455,30 @@ int cmd_vna (cmd_context_s* ctxt) {
 	max2871_freq(rf_pll, (double)freq);
 	max2871_freq(lo_pll, (double)(freq + 10));
 
-	while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
-		HAL_Delay(500);
-		printf_f(STDERR, "waiting for lock\n");
-	}
+	/* Syncword */
+	console_send_u32(0xB43355AA); // gives some time for the PLLs to stabilize
 
-	cmd_rfport_meas();
+	while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
+		HAL_Delay(10);
+		lck += 1;
+		if (lck > 20) {
+			printf_f(STDERR, "PLL lock error\n");
+			return 0;
+		}
+	}
+	rfport_rx_meas(10000, 800, &rfmeas);
+
+	/* Reference */
+	console_send_i32(rfmeas.ref_i);
+	console_send_i32(rfmeas.ref_q);
+
+	/* Reference absolute amplitude */
+	console_send_i32(rfmeas.ref_ampl);
+
+	/* Receiver */
+	console_send_i32(rfmeas.meas_i);
+	console_send_i32(rfmeas.meas_q);
+
 	return 1;
 }
 

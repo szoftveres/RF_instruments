@@ -9,11 +9,11 @@ Specifications:
 
 ### Motivation
 
-Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any measurement on active small-signal devices, like LNAs, RFICs and mixers, which would go into their non-linear / compression region from the standard 0 dBm power level most basic VNAs produce. While technically it's possible to lower the power level externally by using an attenuator between the active device and the VNA (and calibrating it into the system), the attenuator also attenuates the reflected waves, resulting in a dramatic loss of (already limited) dynamic range in the S1,1 measurement, making the input matching / tuning characterization of small-signal active devices practically impossible.
+Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any measurement on active small-signal devices, like LNAs, RFICs and mixers; RF power level around 0 dBm (that most basic VNAs produce as a standard) drives these devices into their non-linear / compression region. While technically it's possible to lower the power level externally by using an attenuator between the active device and the VNA (and calibrating it into the system), the attenuator also attenuates the reflected waves, resulting in a dramatic loss of (already limited) dynamic range of the S1,1 measurement, making the input matching / tuning and characterization of small-signal active devices practically impossible.
 
 When RF power of the VNA is adjustable at the source, reflection measurements can be made with high dynamic range at low power level settings. Also, since the reference path is also affected by the attenuation, theoretically the VNA always stays calibrated even if the RF power level is changed on the fly (this is not entirely true in practice, due to the internal non-linearities of the VNA). Moreover, power sweeps can also be accomplished very easily, which is an essential measurement for characterizing active devices.
 
-Adjustable RF power source is a premium feature of VNAs, usually commercial > 6 GHz VNAs with RF level setting option are at premium prices (an economical 4.5 GHz Siglent SNA5002A costs somewhere near $10k), so DIY is a much more economical solution.
+Adjustable RF power source is a premium feature of VNAs (a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k), so DIY is a much more economical solution.
 
 ![photo1](photo1.jpg)
 
@@ -75,6 +75,16 @@ This simple through error correction method assumes a perfect through standard, 
 ![thru](thru.jpg)
 
 ### Measurements
+
+#### 440 MHz GaAs Low Noise Amplifier
+
+![gaas_pic](gaas_pic.jpg)
+
+The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet). A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload and also to give the LNA a good termination. RF power level was set to about -25 dBm.
+
+![gaas_meas](gaas_meas.jpg)
+
+Measuring a small-signal device like this LNA requires a (commercially expensive) VNA that has RF level setting capability and sufficient dynamic range; this inexpensive DIY VNA has no problem with it.
 
 #### Bandpass stub filter for the 420 MHz - 450 MHz amateur band
 
