@@ -349,66 +349,68 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
         q_a = fir_work(buf_q, tap, taps, dec) / norm / 2;
         switch (statemachine) {
         case 0: // Preamble detection
-            int lcl_acc_i;
-            int lcl_acc_q;
+            {
+                int lcl_acc_i;
+                int lcl_acc_q;
 
-            // delay line
-            int delayline_i = i_eq[wp];
-            int delayline_q = q_eq[wp];
-            i_eq[wp] = i_a;
-            q_eq[wp] = q_a;
+                // delay line
+                int delayline_i = i_eq[wp];
+                int delayline_q = q_eq[wp];
+                i_eq[wp] = i_a;
+                q_eq[wp] = q_a;
 
-            cplx_mul(&i_a, &q_a, delayline_i, -delayline_q, symbolampl);
+                cplx_mul(&i_a, &q_a, delayline_i, -delayline_q, symbolampl);
 
-            // Preamble autocorrelator moving average
-            acc_i -= correlator_i[wp];
-            correlator_i[wp] = i_a;
-            acc_i += correlator_i[wp];
+                // Preamble autocorrelator moving average
+                acc_i -= correlator_i[wp];
+                correlator_i[wp] = i_a;
+                acc_i += correlator_i[wp];
 
-            acc_q -= correlator_q[wp];
-            correlator_q[wp] = q_a;
-            acc_q += correlator_q[wp];
+                acc_q -= correlator_q[wp];
+                correlator_q[wp] = q_a;
+                acc_q += correlator_q[wp];
 
-            // Signal power meter moving average
-            sigpwr_acc -= sigpwr[wp];
-            sigpwr[wp] = (delayline_i * delayline_i / symbolampl) + (delayline_q * delayline_q / symbolampl);
-            sigpwr_acc += sigpwr[wp];
+                // Signal power meter moving average
+                sigpwr_acc -= sigpwr[wp];
+                sigpwr[wp] = (delayline_i * delayline_i / symbolampl) + (delayline_q * delayline_q / symbolampl);
+                sigpwr_acc += sigpwr[wp];
 
-            lcl_acc_i = acc_i / fft_len;
-            lcl_acc_q = acc_q / fft_len;
-            int sigpwr = sigpwr_acc / fft_len;
+                lcl_acc_i = acc_i / fft_len;
+                lcl_acc_q = acc_q / fft_len;
+                int sigpwr = sigpwr_acc / fft_len;
 
-            if (!sigpwr) { // This avoids division by zero
-                break;
-            }
+                if (!sigpwr) { // This avoids division by zero
+                    break;
+                }
 
-            // Forming the normalized absolute value
-            int magn = ((lcl_acc_i * lcl_acc_i / sigpwr) + (lcl_acc_q * lcl_acc_q / sigpwr));
-            magn = (magn * 1024) / sigpwr;  // Normalizing to 1024
+                // Forming the normalized absolute value
+                int magn = ((lcl_acc_i * lcl_acc_i / sigpwr) + (lcl_acc_q * lcl_acc_q / sigpwr));
+                magn = (magn * 1024) / sigpwr;  // Normalizing to 1024
 
-            // Correlator magnitude delay line
-            corravg_acc -= corravg[wp];
-            corravg[wp] = magn;
-            corravg_acc += corravg[wp];
-            int lcl_corravg = corravg_acc / fft_len;
+                // Correlator magnitude delay line
+                corravg_acc -= corravg[wp];
+                corravg[wp] = magn;
+                corravg_acc += corravg[wp];
+                int lcl_corravg = corravg_acc / fft_len;
 
-            // A drop in correlation inndicates the end of the preamble
-            if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 2 / 3))) {
-                //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
-            	if (level) {
-            		*level = sigpwr;
-            	}
-                statemachine += 1;
-                wp = 0;
-                pp = 0;
-                training_due = 0;
-                // The trigger occurs somewhere in the early section of the cyclic prefix,
-                // shooting for the middle
-                pfx = 0; //PFXLEN * 1 / 4;
-                p->h.len = MODEM_PKT_PAYLOAD_MAX;
-                p->h.antipreamble = OFDM_ANTIPREAMBLE;
-            } else {
-                wp = (wp + 1) % fft_len;
+                // A drop in correlation inndicates the end of the preamble
+                if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 2 / 3))) {
+                    //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
+                    if (level) {
+                        *level = sigpwr;
+                    }
+                    statemachine += 1;
+                    wp = 0;
+                    pp = 0;
+                    training_due = 0;
+                    // The trigger occurs somewhere in the early section of the cyclic prefix,
+                    // shooting for the middle
+                    pfx = 0; //PFXLEN * 1 / 4;
+                    p->h.len = MODEM_PKT_PAYLOAD_MAX;
+                    p->h.antipreamble = OFDM_ANTIPREAMBLE;
+                } else {
+                    wp = (wp + 1) % fft_len;
+                }
             }
             break;
         default: // Receiving the packet
@@ -421,7 +423,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
                 wp += 1;
             }
             if (wp != fft_len) {
-            	break;
+                break;
             }
 			pfx = PFXLEN;
 			wp = 0;

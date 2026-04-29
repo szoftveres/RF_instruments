@@ -153,10 +153,10 @@ int cmd_fsinfo (void) {
 }
 
 
-int nullfile_read (struct generic_file_s*, int, char*) {return 0;}
-int nullfile_write (struct generic_file_s*, int count, char*) {return count;}
-int nullfile_open (struct generic_file_s*, int) {return 1;}
-void nullfile_close (struct generic_file_s*) {}
+int nullfile_read (struct generic_file_s *file, int count, char *buf) {return 0;}
+int nullfile_write (struct generic_file_s *file, int count, char *buf) {return count;}
+int nullfile_open (struct generic_file_s *file, int flags) {return 1;}
+void nullfile_close (struct generic_file_s *file) {}
 
 int streamfile_read (struct generic_file_s* thisfile, int b, char* buf) {
 	fifo_t *fifo = (fifo_t *)(thisfile->context);
