@@ -20,7 +20,7 @@ keyword_t* keyword_it_next (keyword_t* kw) {
 }
 
 
-keyword_t* keyword_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt)) {
+keyword_t* function_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt), cmd_arg_type_t ret_type) {
 
 	keyword_t* instance = (keyword_t*)t_malloc(sizeof(keyword_t));
 	if (!instance) {
@@ -29,11 +29,17 @@ keyword_t* keyword_add (char* token, char* helpstr, int (*exec) (cmd_context_s *
 	instance->token = token;  // here we assume that this string is constantly present somewhere
 	instance->helpstr = helpstr;  // here we assume that this string is constantly present somewhere
 	instance->exec = exec;
+	instance->ret_type = ret_type;
 
 	instance->next = keyword_head;
 	keyword_head = instance;
 
 	return instance;
+}
+
+
+keyword_t* keyword_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt)) {
+    return function_add(token, helpstr, exec, CMD_ARG_TYPE_NONE);
 }
 
 
@@ -62,7 +68,6 @@ keyword_t* locate_keyword (char* token) {
 	}
 	return i;
 }
-
 
 // ==================================================
 

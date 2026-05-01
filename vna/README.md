@@ -41,7 +41,7 @@ The most critical part of the VNA is the 16 dB broadband coaxial directional cou
 
 -->> **[Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf)** <<--
 
-This is a general-purpose [board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) with a 480 MHz STM32 microcontroller with ADCs, buffered DAC, SD card slot, EEPROM, USB UART, several GPIO lines and an [OS](https://github.com/szoftveres/RF_instruments/tree/main/os).
+This is a general-purpose [board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) with a 480 MHz STM32 microcontroller with ADCs, buffered DAC, SD card slot, EEPROM, USB UART, several GPIO lines, running [this System Software](https://github.com/szoftveres/RF_instruments/tree/main/os).
 
 The microcontroller samples both (reference and measurement) IF signals simultaneously at 80 ksps with its two 16-bit ADCs. The IFs are down-converted in the digital domain by two complex mixers ([a lookup-table based DDS](https://github.com/szoftveres/RF_instruments/tree/main/os/dsp_maths.c#L23) generates the 10 kHz LO for the digital mixers) and 800 samples are accumulated. When a full acquisition cycle is completed, the result (complex reference- and measured baseband values) is sent to the host PC for further processing. The 20 MHz reference clock is shared between the RF PLLs and the microcontroller, therefore there's always a perfect phase coherence between the analog IF signal, the ADC clock and the DDS (this phase coherence and perfectly cyclic IF allows IF processing without windowing). The DSP / controller board is also responsile for controlling the PLLs, attenuator and the RF switch on the RF board via SPI bus and GPIO.
 

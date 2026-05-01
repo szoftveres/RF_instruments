@@ -10,15 +10,215 @@
 #include "pcmstream.h"
 
 
-
-
-
 static const char* invalid_val = "Invalid value \'%i\'\n";
 static const char* not_a_number = "Not a number\n";
 static const char* not_a_string = "Not a string\n";
 static const char* name_expected = "\"name\" expected\n";
 static const char* malloc_fail = "out of memory\n";
 
+
+/* Builtin Functions */
+
+int sine_func (cmd_context_s* ctxt) {
+	int n;
+	int samples;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		printf_f(STDERR, not_a_number);
+		return 0;
+	}
+	n = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		printf_f(STDERR, not_a_number);
+		return 0;
+	}
+	samples = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+
+	param_add_num(&(ctxt->ret), sin_func(n, samples));
+	return 1;
+}
+
+
+int cosine_func (cmd_context_s* ctxt) {
+    int n;
+    int samples;
+
+    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+        printf_f(STDERR, not_a_number);
+        return 0;
+    }
+    n = ctxt->params->n;
+    cmd_param_consume(&(ctxt->params));
+
+    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+        printf_f(STDERR, not_a_number);
+        return 0;
+    }
+    samples = ctxt->params->n;
+    cmd_param_consume(&(ctxt->params));
+
+    param_add_num(&(ctxt->ret), cos_func(n, samples));
+    return 1;
+}
+
+
+int spc_func (cmd_context_s* ctxt) {
+	int linelen = program->header.fields.linelen;
+	int n;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+		printf_f(STDERR, not_a_number);
+		return 0;
+	}
+	n = ctxt->params->n;
+	cmd_param_consume(&(ctxt->params));
+	if (n >= (linelen -1)) {
+		printf_f(STDERR, "Too long\n");
+		return 0;
+	}
+
+	char *s = (char*)t_malloc(linelen);
+	int i;
+	for (i = 0; i != n; i++) {
+		s[i] = ' ';
+	}
+	s[i] = '\0';
+
+	param_add_str(&(ctxt->ret), s);
+	t_free(s);
+	return 1;
+}
+
+
+static int
+fmt_putu (unsigned int num, int digits, char* output, int* op) {
+    int n = 1;
+    if (num / 10){
+        n += fmt_putu(num / 10, digits ? (digits - 1) : 0, output, op);
+    } else {
+        while (digits) {
+            output[(*op)++] = ' '; output[*op] = '\0';
+            --digits;
+            ++n;
+        }
+    }
+    output[(*op)++] = (num % 10) + '0'; output[*op] = '\0';
+    return n;
+}
+
+
+static int
+fmt_putx (unsigned int num, int digits, char* output, int* op) {
+    int n = 1;
+    if (num / 0x10) {
+        n += fmt_putx(num / 0x10, digits ? (digits - 1) : 0, output, op);
+    } else {
+        while (digits) {
+            output[(*op)++] = '0'; output[*op] = '\0';
+            --digits;
+            ++n;
+        }
+    }
+    output[(*op)++] = (num % 0x10) + (((num % 0x10) > 9) ? ('a' - 10) : ('0')); output[*op] = '\0';
+    return n;
+}
+
+
+int fmt_func (cmd_context_s* ctxt) {
+	int digits = 0;
+	int rc = 1;
+	char* fmtstring;
+
+	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
+		printf_f(STDERR, not_a_string);
+		return 0;
+	}
+
+    char* output = (char*)t_malloc(program->header.fields.linelen);
+    int op = 0;
+    output[op] = '\0';
+
+	fmtstring = t_strdup(ctxt->params->str);
+	cmd_param_consume(&(ctxt->params));
+
+    for (char *fmt = fmtstring ;*fmt && rc; fmt++) {
+        if (*fmt != '%') {
+            output[op++] = *fmt; output[op] = '\0';
+            continue;
+        }
+        fmt++;
+        while ((*fmt >= '0') && (*fmt <= '9')) {
+            digits *= 10;
+            digits += (*fmt - '0');
+            fmt++;
+        }
+        switch (*fmt) {
+          case 'c':
+            if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+                printf_f(STDERR, not_a_number);
+                rc = 0;
+                break;
+            }
+            output[op++] = ctxt->params->n; output[op] = '\0';
+            cmd_param_consume(&(ctxt->params));
+            break;
+          case 's': {
+            if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
+                printf_f(STDERR, not_a_string);
+                    rc = 0;
+                    break;
+                }
+                strcat(output, ctxt->params->str);
+                op += strlen(ctxt->params->str);
+                cmd_param_consume(&(ctxt->params));
+            }
+            break;
+          case 'x':
+          case 'X':
+            if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+                printf_f(STDERR, not_a_number);
+                rc = 0;
+                break;
+            }
+            fmt_putx(ctxt->params->n, digits ? (digits - 1) : 0, output, &op);
+            cmd_param_consume(&(ctxt->params));
+
+            digits = 0;
+            break;
+          case 'd':
+          case 'i':
+          case 'u':
+            if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+                printf_f(STDERR, not_a_number);
+                rc = 0;
+                break;
+            }
+            if ((*fmt == 'd') || (*fmt == 'i')) {
+                if (ctxt->params->n < 0) {
+                    output[op++] = '-'; output[op] = '\0';
+                    ctxt->params->n *= -1;
+                }
+            }
+            fmt_putu(ctxt->params->n, digits ? (digits - 1) : 0, output, &op);
+            cmd_param_consume(&(ctxt->params));
+            digits = 0;
+            break;
+        }
+    }
+
+    param_add_str(&(ctxt->ret), output);
+
+	t_free(fmtstring);
+	t_free(output);
+
+	return rc;
+}
+
+
+/* Commands */
 
 // Recursive "parser within parser"
 int parse_str_cmd (cmd_context_s* ctxt, char* cmdstr, fifo_t* in, fifo_t* out) {
@@ -93,126 +293,6 @@ int cmd_print (cmd_context_s* ctxt) {
 	}
 	return rc;
 }
-
-
-
-
-static int
-_putu (unsigned int num, int digits) {
-    int n = 1;
-    if (num / 10){
-        n += _putu(num / 10, digits ? (digits - 1) : 0);
-    } else {
-        while (digits) {
-        	printf_f(STDOUT, " ");
-            --digits;
-            ++n;
-        }
-    }
-    printf_f(STDOUT, "%c", (num % 10) + '0');
-    return n;
-}
-
-static int
-_putx (unsigned int num, int digits) {
-    int n = 1;
-    if (num / 0x10) {
-        n += _putx(num / 0x10, digits ? (digits - 1) : 0);
-    } else {
-        while (digits) {
-        	printf_f(STDOUT, "0");
-            --digits;
-            ++n;
-        }
-    }
-    printf_f(STDOUT, "%c", (num % 0x10) + (((num % 0x10) > 9) ? ('a' - 10) : ('0')));
-    return n;
-}
-
-
-int cmd_printf (cmd_context_s* ctxt) {
-	int c = 0;
-	int digits = 0;
-	int rc = 1;
-	char* fmtstring;
-	char* fmt;
-
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
-		printf_f(STDERR, not_a_string);
-		return 0;
-	}
-	fmtstring = t_strdup(ctxt->params->str);
-	cmd_param_consume(&(ctxt->params));
-	fmt = fmtstring;
-
-
-    for (;*fmt; fmt++) {
-        if (*fmt != '%') {
-        	printf_f(STDERR, "%c", *fmt);
-            c++;
-            continue;
-        }
-        fmt++;
-        while ((*fmt >= '0') && (*fmt <= '9')) {
-            digits *= 10;
-            digits += (*fmt - '0');
-            fmt++;
-        }
-        switch (*fmt) {
-          case 'c':
-        	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
-        		printf_f(STDERR, not_a_number);
-        	  	rc = 0;
-        	  	break;
-        	}
-        	printf_f(STDERR, "%c", ctxt->params->n);
-        	cmd_param_consume(&(ctxt->params));
-            c++;
-            break;
-          case 's': {
-        	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
-        		printf_f(STDERR, not_a_string);
-        			rc = 0;
-        		    break;
-        	    }
-        	    printf_f(STDOUT, "%s", ctxt->params->str);
-        	    cmd_param_consume(&(ctxt->params));
-            }
-            break;
-          case 'x':
-          case 'X':
-          	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
-          		printf_f(STDERR, not_a_number);
-          	  	rc = 0;
-          	  	break;
-          	}
-          	c += _putx(ctxt->params->n, digits ? (digits - 1) : 0);
-          	cmd_param_consume(&(ctxt->params));
-
-            digits = 0;
-            break;
-          case 'd':
-          case 'i':
-          case 'u':
-        	  if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
-        		  printf_f(STDERR, not_a_number);
-        		  rc = 0;
-        		  break;
-        	  }
-        	  c += _putu(ctxt->params->n, digits ? (digits - 1) : 0);
-        	  cmd_param_consume(&(ctxt->params));
-            digits = 0;
-            break;
-        }
-    }
-
-	t_free(fmtstring);
-
-	printf_f(STDOUT, "\n");
-
-	return rc;
-}
-
 
 
 int cmd_savecfg (cmd_context_s* ctxt) {
@@ -598,11 +678,16 @@ int cmd_copy (cmd_context_s* ctxt) {
 }
 
 
-
 int cmd_help (cmd_context_s* ctxt) {
 	keyword_t *kw = keyword_it_start();
 	while (kw) {
-		printf_f(STDOUT, "  %s %s\n", kw->token, kw->helpstr);
+		printf_f(STDOUT, "  %s %s", kw->token, kw->helpstr);
+        if (kw->ret_type == CMD_ARG_TYPE_NUM) {
+            printf_f(STDOUT, " ret:NUM");
+        } else if (kw->ret_type == CMD_ARG_TYPE_STR) {
+            printf_f(STDOUT, " ret:STR");
+        }
+		printf_f(STDOUT, "\n");
 		kw = keyword_it_next(kw);
 	}
 	return 1;
@@ -981,12 +1066,17 @@ int setup_commands (void) {
 
 
 
+	// BUILTIN FUNCTIONS =======================
+	function_add("sin", "(n cycles)", sine_func, CMD_ARG_TYPE_NUM);
+	function_add("cos", "(n cycles)", cosine_func, CMD_ARG_TYPE_NUM);
+	function_add("spc", "(n)", spc_func, CMD_ARG_TYPE_STR);
+	function_add("fmt", "(\"fmt\" ...)", fmt_func, CMD_ARG_TYPE_STR);
+
+
 	// CONFIG ==================================
 	keyword_add("cfg", "- print cfg", cmd_show_cfg);
 	keyword_add("savecfg", "- save config", cmd_savecfg);
 	keyword_add("loadcfg", "- load config", cmd_loadcfg);
-
-
 
 
 	// DSP chain ===============================
@@ -1022,10 +1112,9 @@ int setup_commands (void) {
 	keyword_add("new", "- clear program", cmd_program_new);
 
 
-	// BASIC FUNCTIONS ==================================
+	// BASIC COMMANDS ==================================
 	keyword_add("exit", "- exit shell", cmd_exit);
 	keyword_add("if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if);
-	keyword_add("printf", "\"fmt\" ...", cmd_printf);
 	keyword_add("print", "[expr] \"str\"", cmd_print);
 	keyword_add("mem", "- mem info", cmd_mem);
 	keyword_add("ver", "- FW build", cmd_ver);

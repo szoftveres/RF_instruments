@@ -5,6 +5,7 @@
 #include "fifo.h"
 
 
+
 typedef enum cmd_arg_type_e {
 	CMD_ARG_TYPE_NONE,
 
@@ -40,6 +41,7 @@ typedef struct keyword_s {
 	struct keyword_s *next;
 	char* token;
 	char* helpstr;
+    cmd_arg_type_t ret_type;
 	int (*exec) (cmd_context_s *ctxt);
 } keyword_t;
 
@@ -48,8 +50,10 @@ keyword_t* keyword_it_start (void);
 keyword_t* keyword_it_next (keyword_t* kw);
 
 
+keyword_t* function_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt), cmd_arg_type_t ret_type);
 keyword_t* keyword_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt));
 keyword_t* keyword_remove (char* token);
 keyword_t* locate_keyword (char* token);
+
 
 #endif /* INC_KEYWORD_H_ */

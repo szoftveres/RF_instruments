@@ -12,6 +12,7 @@ static const char* not_an_expression = "Not an expression";
 
 int parser_primary_expression (lex_instance_t *lex, int *n);
 int parser_expression (lex_instance_t *lex, int *n);
+int parser_string (lex_instance_t *lex, char** s);
 
 int parser_expect_expression (lex_instance_t *lex, int *n) {
 	if (!parser_expression(lex, n) ) {
@@ -21,45 +22,97 @@ int parser_expect_expression (lex_instance_t *lex, int *n) {
 	return 1;
 }
 
-int parser_string (lex_instance_t *lex, char** s) {
-	if (lex->token != T_STRING) {
-		return 0;
-	}
-	str_value(lex);
-	*s = t_strdup(lex->lexeme);
-	next_token(lex);
-    return 1;
+
+
+int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
+    int n;
+    int rc;
+
+    do {
+        char *s;
+        rc = 0;
+        if (parser_expression(parser->lex, &n)) {
+            param_add_num(head, n);
+            rc = 1;
+        } else if (parser_string(parser->lex, &s)) {
+            param_add_str(head, s);
+            t_free(s);
+            rc = 1;
+        }
+    } while (rc);
+
+    return rc;
 }
 
 
-int parser_interactive_input_expression (lex_instance_t *lex, int linelen, int *n) {
-	int rc;
-	char* s;
 
-	if (!lex_get(lex, T_QUESTIONMARK, NULL)) {
+int parser_function (lex_instance_t *lex, cmd_arg_type_t type, char** s, int *n) {
+	if (lex->token != T_IDENTIFIER) {
 		return 0;
 	}
+	parser_t *parser = (parser_t *)(lex->context);
 
-	if (!parser_string(lex, &s) ) {
-		printf_f(STDERR, "\"prompt\" expected\n");
-		return 0;
+    keyword_t *kw;
+	for (kw = keyword_it_start(); kw; kw = keyword_it_next(kw)) {
+		if (!strcmp(lex->lexeme, kw->token) && (kw->ret_type == type)) {
+			int rc;
+
+			next_token(lex);
+
+		    if (!lex_get(lex, T_LEFT_PARENTH, NULL)) {
+                printf_f(STDERR, "expected '('\n");
+		        return 0;
+		    }
+
+			cmd_context_s *cmd_ctxt = (cmd_context_s*)t_malloc(sizeof(cmd_context_s));
+			cmd_ctxt->params = NULL;
+			parser_build_param_list(parser, &(cmd_ctxt->params));
+
+		    if (!lex_get(lex, T_RIGHT_PARENTH, NULL)) {
+                printf_f(STDERR, "expected ')'\n");
+                t_free(cmd_ctxt);
+                return 0;
+		    }
+
+		    cmd_ctxt->ret = NULL;
+		    rc = kw->exec(cmd_ctxt);
+
+			while (cmd_param_consume(&(cmd_ctxt->params))) {
+				printf_f(STDERR, "%s: unused parameter\n", kw->token);
+			}
+            if (rc) {
+                cmd_arg_type_t ret_type = get_cmd_arg_type(cmd_ctxt->ret);
+                if (ret_type == type) {
+                    if (ret_type == CMD_ARG_TYPE_STR) {
+                        *s = t_strdup(cmd_ctxt->ret->str);
+                    } else if (ret_type == CMD_ARG_TYPE_NUM) {
+					    *n = cmd_ctxt->ret->n;
+				    }
+			    } else {
+				    printf_f(STDERR, "return type mismatch: expected:%i got:%i\n", type, ret_type);
+				    rc = 0;
+			    }
+            }
+
+			while (cmd_param_consume(&(cmd_ctxt->ret)));
+			t_free(cmd_ctxt);
+
+		    return rc;
+		}
 	}
-	printf_f(STDERR, "%s", s);
-	t_free(s);
+	return 0;
+}
 
-	printf_f(STDERR, " > ");
-	char* line = ""; //online_reader->getline(online_reader);
-	parser_t *lcl_parser = parser_create(linelen);
-	if (!lcl_parser) {
-		printf_f(STDERR, "malloc fail\n");
-		return 0;
-	}
 
-	rc = expression_line_parser(lcl_parser, line, n);
 
-	parser_destroy(lcl_parser);
-
-	return rc;
+int parser_string (lex_instance_t *lex, char** s) {
+	if (lex->token == T_STRING) {
+	    str_value(lex);
+	    *s = t_strdup(lex->lexeme);
+	    next_token(lex);
+        return 1;
+    }
+    return parser_function(lex, CMD_ARG_TYPE_STR, s, NULL);
 }
 
 
@@ -313,8 +366,8 @@ int parser_primary_expression (lex_instance_t *lex, int *n) {
         rc = 1;
     } else if (parser_resource_expression(lex, n)) {
         rc = 1;
-    } else if (parser_interactive_input_expression(lex, 40, n)) { // TODO linelen
-    	rc = 1;
+    } else if (parser_function(lex, CMD_ARG_TYPE_NUM, NULL, n)) {
+        rc = 1;
     }
 
     return rc;
@@ -396,29 +449,6 @@ void parser_destroy (parser_t *parser) {
 //==============================================================
 
 
-
-
-int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
-	int n;
-	int rc;
-
-	do {
-		char *s;
-		rc = 0;
-		if (parser_expression(parser->lex, &n)) {
-			param_add_num(head, n);
-			rc = 1;
-		} else if (parser_string(parser->lex, &s)) {
-			param_add_str(head, s);
-			t_free(s);
-			rc = 1;
-		}
-	} while (rc);
-
-	return rc;
-}
-
-
 keyword_t *parser_valid_keyword (parser_t *parser) {
 	keyword_t* keyword;
 
@@ -478,6 +508,9 @@ int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 		}
 		while (cmd_param_consume(&(cmd_ctxt->params))) {
 			printf_f(STDERR, "unused parameter\n");
+		}
+		while (cmd_param_consume(&(cmd_ctxt->ret))) {
+			printf_f(STDERR, "unused retval\n");
 		}
 		t_free(cmd_ctxt);
 	} while ((rc > 0) && cont);

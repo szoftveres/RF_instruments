@@ -1,28 +1,69 @@
-## Generic single-threaded OS library for small embedded systems
+# System software for small embedded systems
 
-This software was made to be used on small single-CPU embedded systems as the main human access- and programming library. It features a command interpreter (accessible via console), program storing- loading- and running capability, and various libraries (device drivers, DSP functions, file system implementations and abstraction layers, etc..) to support multiple tasks.
+This software was made to be used on small single-CPU embedded systems as the main human access- and programming interface. It uses a BASIC-like syntax and provides various features (device drivers, DSP functions, file systems and abstraction layers, etc..) for easy deployment of many applications.
 
-Features:
+## Features
  * Command line interpreter
    * BASIC-like scripting language, syntax- and expression evaluation (examples [here](https://github.com/szoftveres/RF_instruments/tree/main/siggen))
-   * Ability to store, save, load and run programs
-   * Ability to add platform- and application specific commands
+   * Ability to run programs, and to save save and load them (into- and from a file)
+   * Ability to add custom commands and functions
  * File system abstraction layer that integrates many different filesystems under a single, unified programming interface
    * [minimalist FAT-like filesystem](https://github.com/szoftveres/RF_instruments/blob/main/os/fatsmall_fs.c) for extremely small (e.g. several kB EEPROM) devices.
    * STM32 SD FATFS
-   * Unix FS
+   * Unix FS (host PC file access)
  * Block device abstraction layer
    * RAM block
    * I2C EEPROM, SD Card, CF Card, Physical disk, etc..
  * Chainable DSP functions
    * DFT, IFT, OFDM modem, Downsampling filter, MS WAV file read/write, etc..
 
-
-Projects using this library:
- * [6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) runs this OS as its main human access and programming interface and driver library. RF signal generator functionalities are added as application-specific commands.
- * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) also uses this OS as its main human interface and device driver library.
+## Projects using this library
+ * [6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) runs this system software as its main human access and programming interface and driver library. RF signal generator functionalities are added as application-specific commands.
+ * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) also uses this system software as its main human interface and device driver library.
    * [6 GHz Vector Network Analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna)
- * [Unix runtime / development environment](https://github.com/szoftveres/RF_instruments/tree/main/unix) makes this OS runnable on Linux (thanks to its hardware abstraction layer), thereby enabling its development on a regular PC without any specific hardware.
+ * [Unix runtime / development environment](https://github.com/szoftveres/RF_instruments/tree/main/unix) makes this system software runnable on Linux (thanks to its hardware abstraction layer), thereby enabling its development on a regular PC without any specific hardware.
+
+## Programming
+
+Some examples [here](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
+
+#### Sine function program example
+
+```
+M:> list
+ 0 "a = 0"
+ 1 "c = 24"
+ 2 "n =  (2048 + sin(a c)) / 128"
+ 3 "print spc(n) \"*\""
+ 4 "a += 1"
+ 5 "if a < c \"goto 2\""
+M:> run
+                *
+                   *
+                       *
+                           *
+                             *
+                               *
+                               *
+                               *
+                             *
+                           *
+                        *
+                    *
+                *
+            *
+        *
+    *
+  *
+*
+*
+*
+  *
+    *
+       *
+           *
+Done
+```
 
 
 ## DSP chain
