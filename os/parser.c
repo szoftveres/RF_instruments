@@ -81,7 +81,7 @@ int parser_function (lex_instance_t *lex, cmd_arg_type_t type, char** s, int *n)
 				printf_f(STDERR, "%s: unused parameter\n", kw->token);
 			}
             if (rc) {
-                cmd_arg_type_t ret_type = get_cmd_arg_type(cmd_ctxt->ret);
+                cmd_arg_type_t ret_type = get_data_obj_type(cmd_ctxt->ret);
                 if (ret_type == type) {
                     if (ret_type == OBJ_TYPE_STR) {
                         *s = t_strdup(cmd_ctxt->ret->str);

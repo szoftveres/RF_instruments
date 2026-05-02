@@ -69,7 +69,7 @@ int cmd_dacsink (cmd_context_s* ctxt) {
 
 int cmd_adcsrc (cmd_context_s* ctxt) {
     int fs;
-    if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
         printf_f(STDERR, "fs needed\n");
         return 0;
     }

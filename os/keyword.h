@@ -26,7 +26,7 @@ typedef struct data_obj_s {
 data_obj_t* obj_add_str (data_obj_t **head, char* str);
 data_obj_t* obj_add_num (data_obj_t **head, int n);
 data_obj_t * obj_consume (data_obj_t **head);
-cmd_arg_type_t get_cmd_arg_type (data_obj_t *head);
+cmd_arg_type_t get_data_obj_type (data_obj_t *head);
 
 
 typedef struct cmd_context_t {

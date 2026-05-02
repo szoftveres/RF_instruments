@@ -107,7 +107,7 @@ data_obj_t* obj_add_num (data_obj_t **head, int n) {
 }
 
 
-cmd_arg_type_t get_cmd_arg_type (data_obj_t *head) {
+cmd_arg_type_t get_data_obj_type (data_obj_t *head) {
 	if (!head) {
 		return CMD_ARG_TYPE_NONE;
 	}

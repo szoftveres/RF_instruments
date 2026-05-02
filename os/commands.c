@@ -23,14 +23,14 @@ int sine_func (cmd_context_s* ctxt) {
 	int n;
 	int samples;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, not_a_number);
 		return 0;
 	}
 	n = ctxt->params->n;
 	obj_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, not_a_number);
 		return 0;
 	}
@@ -46,14 +46,14 @@ int cosine_func (cmd_context_s* ctxt) {
     int n;
     int samples;
 
-    if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
         printf_f(STDERR, not_a_number);
         return 0;
     }
     n = ctxt->params->n;
     obj_consume(&(ctxt->params));
 
-    if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
         printf_f(STDERR, not_a_number);
         return 0;
     }
@@ -69,7 +69,7 @@ int spc_func (cmd_context_s* ctxt) {
 	int linelen = program->header.fields.linelen;
 	int n;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, not_a_number);
 		return 0;
 	}
@@ -132,7 +132,7 @@ int fmt_func (cmd_context_s* ctxt) {
 	int rc = 1;
 	char* fmtstring;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, not_a_string);
 		return 0;
 	}
@@ -157,7 +157,7 @@ int fmt_func (cmd_context_s* ctxt) {
         }
         switch (*fmt) {
           case 'c':
-            if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+            if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
                 printf_f(STDERR, not_a_number);
                 rc = 0;
                 break;
@@ -166,7 +166,7 @@ int fmt_func (cmd_context_s* ctxt) {
             obj_consume(&(ctxt->params));
             break;
           case 's': {
-            if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+            if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
                 printf_f(STDERR, not_a_string);
                     rc = 0;
                     break;
@@ -178,7 +178,7 @@ int fmt_func (cmd_context_s* ctxt) {
             break;
           case 'x':
           case 'X':
-            if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+            if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
                 printf_f(STDERR, not_a_number);
                 rc = 0;
                 break;
@@ -191,7 +191,7 @@ int fmt_func (cmd_context_s* ctxt) {
           case 'd':
           case 'i':
           case 'u':
-            if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+            if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
                 printf_f(STDERR, not_a_number);
                 rc = 0;
                 break;
@@ -239,13 +239,13 @@ int parse_str_cmd (cmd_context_s* ctxt, char* cmdstr, fifo_t* in, fifo_t* out) {
 int parser_if (cmd_context_s* ctxt) {
 	int n;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	n = ctxt->params->n;
 	obj_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, not_a_string);
 		return 0;
 	}
@@ -274,13 +274,13 @@ int cmd_print (cmd_context_s* ctxt) {
 	do {
 		res = 0;
 
-		if (get_cmd_arg_type(ctxt->params) == OBJ_TYPE_NUM) {
+		if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
 			printf_f(STDOUT, "%i", ctxt->params->n);
 			res = 1;
 			obj_consume(&(ctxt->params));
 		}
 
-		if (get_cmd_arg_type(ctxt->params) == OBJ_TYPE_STR) {
+		if (get_data_obj_type(ctxt->params) == OBJ_TYPE_STR) {
 			printf_f(STDOUT, "%s", ctxt->params->str);
 			res = 1;
 			obj_consume(&(ctxt->params));
@@ -321,7 +321,7 @@ int cmd_saveprg (cmd_context_s* ctxt) {
 	int fd;
 	int rc;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		return 0;
 	}
@@ -349,7 +349,7 @@ int cmd_loadprg (cmd_context_s* ctxt) {
 	int fd;
 	int rc;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		return 0;
 	}
@@ -420,7 +420,7 @@ int cmd_program_run (cmd_context_s* ctxt) {
 
 int cmd_program_goto (cmd_context_s* ctxt) {
 	int line;
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	line = ctxt->params->n;
@@ -436,7 +436,7 @@ int cmd_program_goto (cmd_context_s* ctxt) {
 
 int cmd_program_gosub (cmd_context_s* ctxt) {
 	int line;
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	line = ctxt->params->n;
@@ -487,7 +487,7 @@ int cmd_mem (cmd_context_s* ctxt) {
 int cmd_del (cmd_context_s* ctxt) {
 	int rc;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		return 0;
 	}
@@ -505,7 +505,7 @@ int
 cmd_change_fs (cmd_context_s* ctxt) {
 	int rc;
 
-    if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
     	printf_f(STDERR, name_expected);
 		return 0;
 	}
@@ -555,7 +555,7 @@ cmd_hexdump (cmd_context_s* ctxt) {
     int i;
     int addr = 0;
 
-    if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
     	printf_f(STDERR, name_expected);
 		return 0;
 	}
@@ -616,7 +616,7 @@ int cmd_copy (cmd_context_s* ctxt) {
 	    return 0;
 	}
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		t_free(buf);
 		return 0;
@@ -630,7 +630,7 @@ int cmd_copy (cmd_context_s* ctxt) {
 		return 0;
 	}
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		close_f(fs, fdsrc);
 		t_free(buf);
@@ -647,7 +647,7 @@ int cmd_copy (cmd_context_s* ctxt) {
 		return 0;
 	}
 
-	if (get_cmd_arg_type(ctxt->params) == OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
 		bytestocopy = ctxt->params->n;
 		obj_consume(&(ctxt->params));
 	}
@@ -697,14 +697,14 @@ int cmd_help (cmd_context_s* ctxt) {
 int cmd_alias (cmd_context_s* ctxt) {
 	char *aliasname;
 	char *aliascmd;
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, not_a_string);
 		return 0;
 	}
 	aliasname = t_strdup(ctxt->params->str);
 	obj_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, not_a_string);
 		t_free(aliasname);
 		return 0;
@@ -721,7 +721,7 @@ int cmd_unalias (cmd_context_s* ctxt) {
 	keyword_t *kw;
 	int rc = 0;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, not_a_string);
 		return 0;
 	}
@@ -742,7 +742,7 @@ int cmd_unalias (cmd_context_s* ctxt) {
 int cmd_wavfilesnk (cmd_context_s* ctxt) {
 	int fd;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		return 0;
 	}
@@ -766,7 +766,7 @@ int cmd_decfir (cmd_context_s* ctxt) {
 	int dec;
 	int bf = 1;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "dec needed\n");
 		return 0;
 	}
@@ -777,7 +777,7 @@ int cmd_decfir (cmd_context_s* ctxt) {
 		printf_f(STDERR, "dec out of range %i\n", dec);
 		return 0;
 	}
-	if (get_cmd_arg_type(ctxt->params) == OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
 		bf = ctxt->params->n;
 		obj_consume(&(ctxt->params));
 	}
@@ -796,20 +796,20 @@ int cmd_txmsg (cmd_context_s* ctxt) {
 	int fc;
     int rc;
     char* msg;
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "fs needed\n");
 		return 0;
 	}
 	fs = ctxt->params->n;
 	obj_consume(&(ctxt->params));
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "fc needed\n");
 		return 0;
 	}
 	fc = ctxt->params->n;
 	obj_consume(&(ctxt->params));
 
-    if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
     	printf_f(STDERR, "msg needed\n");
 		return 0;
     }
@@ -823,7 +823,7 @@ int cmd_txmsg (cmd_context_s* ctxt) {
 
 int cmd_rxmsg (cmd_context_s* ctxt) {
 	int fc;
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "fc needed\n");
 		return 0;
 	}
@@ -856,14 +856,14 @@ int cmd_noise (cmd_context_s* ctxt) {
 	int samples;
 	noise_pcm_src_t* c;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "fs needed\n");
 		return 0;
 	}
 	fs = ctxt->params->n;
 	obj_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "samples needed\n");
 		return 0;
 	}
@@ -912,21 +912,21 @@ int cmd_sine (cmd_context_s* ctxt) {
 	int samples;
 	sine_pcm_src_t* c;
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "fs needed\n");
 		return 0;
 	}
 	fs = ctxt->params->n;
 	obj_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "frequency needed\n");
 		return 0;
 	}
 	fc = ctxt->params->n;
 	obj_consume(&(ctxt->params));
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "samples needed\n");
 		return 0;
 	}
@@ -1012,7 +1012,7 @@ int cmd_wavfilesrc (cmd_context_s* ctxt) {
 		return 0;
 	}
 
-	if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		return 0;
 	}
