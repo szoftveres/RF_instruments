@@ -23,6 +23,7 @@ typedef struct data_obj_s {
 	struct data_obj_s *next;
 } data_obj_t;
 
+void obj_insert_end (data_obj_t **head, data_obj_t *current);
 data_obj_t* obj_add_str (data_obj_t **head, char* str);
 data_obj_t* obj_add_num (data_obj_t **head, int n);
 data_obj_t* obj_clone (data_obj_t *orig);

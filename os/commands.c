@@ -465,8 +465,23 @@ int cmd_program_return (cmd_context_s* ctxt) {
 
 int cmd_vars (cmd_context_s* ctxt) {
 	for (resource_t* r = resource_it_start(); r; r = resource_it_next(r)) {
-	//	printf_f(STDOUT, "%s : %i\n", r->name, r->get(r));
+        printf_f(STDOUT, "%s : ", r->name);
+        switch (r->obj->type) {
+          case OBJ_TYPE_NUM:
+            printf_f(STDOUT, "%i", r->obj->n);
+            break;
+          case OBJ_TYPE_STR:
+            printf_f(STDOUT, "\"%s\"", r->obj->str);
+            break;
+        }
+        printf_f(STDOUT, "\n");
 	}
+	return 1;
+}
+
+
+int cmd_clr (cmd_context_s* ctxt) {
+    resource_remove_all();
 	return 1;
 }
 
@@ -1032,7 +1047,7 @@ int cmd_wavfilesrc (cmd_context_s* ctxt) {
 	printf_f(STDERR, "fs:%i, ch:%i, bits:%i, samples:%i, length: %i:%02i\n",
 			samplerate, c->channels, 8 * (c->bytespersample / c->channels), c->samples, time / 60, time % 60);
 
-	if (c->bytespersample > sizeof(uint32_t)) {
+	if (c->bytespersample > (int)sizeof(uint32_t)) {
 		printf_f(STDERR, "unsupported bps:%i\n", c->bytespersample);
 		wav_pcm_producer_cleanup(c);
 		t_free(c);
@@ -1112,7 +1127,8 @@ int setup_commands (void) {
 	keyword_add("print", "[expr] \"str\"", cmd_print);
 	keyword_add("mem", "- mem info", cmd_mem);
 	keyword_add("ver", "- FW build", cmd_ver);
-	keyword_add("vars", "- print rsrc vars", cmd_vars);
+	keyword_add("clr", "- clr vars", cmd_clr);
+	keyword_add("vars", "- print vars", cmd_vars);
 	keyword_add("help", "- print this help", cmd_help);
 
 	return 0;

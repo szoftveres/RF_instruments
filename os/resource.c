@@ -4,6 +4,7 @@
 
 
 static resource_t *resource_head = NULL;
+static int resource_counter = 0;
 
 
 resource_t* resource_add (char* name, data_obj_t *obj) {
@@ -14,12 +15,30 @@ resource_t* resource_add (char* name, data_obj_t *obj) {
 	}
 	strncpy(instance->name, name, MAX_LEN_RESOURCE_NAME);
 
+    resource_counter += (obj ? 2 : 1); // simple t_malloc counter
+
     instance->obj = obj;
 
 	instance->next = resource_head;
 	resource_head = instance;
 
 	return instance;
+}
+
+
+void resource_remove_all (void) {
+    while (resource_head) {
+        resource_t* instance = resource_head;
+        resource_head = instance->next;
+        resource_counter -= (instance->obj ? 2 : 1); // simple t_malloc counter
+        obj_destroy(instance->obj);
+        t_free(instance);
+    }
+}
+
+
+int rsrc_count (void) {
+    return resource_counter;
 }
 
 

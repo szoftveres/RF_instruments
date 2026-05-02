@@ -82,13 +82,43 @@ data_obj_t* parser_function (lex_instance_t *lex) {
                 obj = cmd_ctxt->ret;
                 cmd_ctxt->ret = NULL;
             }
+
             while (obj_consume(&(cmd_ctxt->ret)));
+
 			t_free(cmd_ctxt);
 
 		    return obj;
 		}
 	}
 	return 0;
+}
+
+
+data_obj_t* op_str_str (int op_type, data_obj_t *left, data_obj_t *right) {
+    int n;
+    switch (op_type) {
+      case T_PLUS :
+      case T_RECURADD :
+        strcat(left->str, right->str);
+        break;
+      case T_EQ :
+        n = strcmp(left->str, right->str) ? 0 : 1;
+        obj_destroy(left);
+        left = obj_add_num(NULL, n);
+        break;
+      case T_NEQ :
+        n = strcmp(left->str, right->str) ? 1 : 0;
+        obj_destroy(left);
+        left = obj_add_num(NULL, n);
+        break;
+      default:
+        obj_destroy(left);
+        left = NULL;
+        printf_f(STDERR, illegal_operator);
+        break;
+    }
+    obj_destroy(right);
+    return left;
 }
 
 
@@ -190,6 +220,19 @@ int get_op_precedence (int op) {
       case T_DIV :              /* / */
       case T_MOD :              /* % */
         return 9;
+
+
+      case T_RECURADD :
+      case T_RECURSUB :
+        return 10;
+      case T_RECURMUL :
+      case T_RECURDIV :
+        return 11;
+      case T_RECURBWAND :
+      case T_RECURBWOR :
+      case T_RECURBWXOR :
+        return 12;
+
       default:
         return -1;              /* Not a binary operator */
     }
@@ -224,6 +267,8 @@ data_obj_t* parser_binary_operation (lex_instance_t *lex, int min_prec, data_obj
 
     if ((left->type == OBJ_TYPE_NUM) && (right->type == OBJ_TYPE_NUM)) {
         left = op_num_num(op, left, right);
+    } else if ((left->type == OBJ_TYPE_STR) && (right->type == OBJ_TYPE_STR)) {
+        left = op_str_str(op, left, right);
     } else {
         printf_f(STDERR, illegal_operator);
         obj_destroy(right);
@@ -252,36 +297,28 @@ int recursive_assignment (lex_instance_t *lex) {
       case T_RECURBWAND :
       case T_RECURBWOR :
       case T_RECURBWXOR :
-        next_token(lex);
+        //next_token(lex);
         return 1;
     }
-    return 1;
+    return 0;
 }
 
 
-
 data_obj_t* parser_assignment (lex_instance_t *lex, data_obj_t* left) {
-	int n;
     data_obj_t* right = NULL;
 
     if (lex_get(lex, T_ASSIGN, NULL)) {
         right = parser_expect_expression(lex);
-
-    /*
-    } else if (recursive_assignment(lex)) {
-        if (!(right = parser_expect_expression(lex))) {
-            return;
+        if (left) {
+            obj_destroy(left);
         }
-        if (right->type != OBJ_TYPE_NUM) {
-            printf_f(STDERR, not_an_expression);
-            obj_destroy(right);
-            return;
+    } else if (left && recursive_assignment(lex)) {
+        data_obj_t *saved_original = obj_clone(left);
+        if (!(right = parser_binary_operation(lex, 0, left))) {
+            right = saved_original;
+        } else {
+            obj_destroy(saved_original);
         }
-
-        data_obj_t* left = obj_add_num(NULL, resource->get(resource->context));
-        resource->set(resource->context, right->n);;
-        obj_destroy(right);
-    */
     }
     return right;
 }
@@ -296,16 +333,15 @@ data_obj_t* parser_resource_expression (lex_instance_t *lex) {
 	next_token(lex);
 
 	resource_t* resource = locate_resource(name);
-	if (!resource) {
+	if (!resource) { // Rsrc doens't exist, create it by assignment
         data_obj_t* obj;
         if (!(obj = parser_assignment(lex, NULL))) {
             t_free(name);
 		    return NULL;
         }
         resource = resource_add(name, obj);
-	} else {
+	} else { // Rsrc exists
         if ((obj = parser_assignment(lex, resource->obj))) {
-		    obj_destroy(resource->obj);
             resource->obj = obj;
         }
     }
@@ -593,7 +629,6 @@ int parser_programline_statement (parser_t *parser) {
 
 int parser_statement (parser_t *parser, fifo_t* in, fifo_t* out) {
 	int rc = 0;
-	int n;
     data_obj_t* obj;
 
 	 if (parser->lex->token == T_SEMICOLON) {  // Empty statement
@@ -605,7 +640,9 @@ int parser_statement (parser_t *parser, fifo_t* in, fifo_t* out) {
     } else if ((obj = parser_resource_expression(parser->lex))) {
         obj_destroy(obj);
 		rc = 1;
-	}
+	} else {
+        printf_f(STDERR, "unrecognized command\n");
+    }
 
 	return rc;
 }

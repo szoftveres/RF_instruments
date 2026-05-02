@@ -15,6 +15,7 @@ typedef struct resource_s {
 
 
 resource_t* resource_add (char* name, data_obj_t *obj);
+void resource_remove_all (void);
 
 resource_t* locate_resource (char* name);
 

@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include "hal_plat.h" // t_malloc
 #include <string.h> //memcpy
-
+#include <stdlib.h> // malloc free
 
 keyword_t *keyword_head = NULL;
 
@@ -79,7 +79,7 @@ data_obj_t* obj_add_str (data_obj_t **head, char* str) {
 		return obj;
 	}
 	obj->type = OBJ_TYPE_STR;
-	obj->str = t_strdup(str);
+	obj->str = strdup(str); // XXX t_strdup
     if (head) {
 	    obj_insert_end(head, obj);
     }
@@ -110,7 +110,7 @@ data_obj_t* obj_clone (data_obj_t *orig) {
     obj->next = NULL;
     switch (orig->type) {
       case OBJ_TYPE_STR:
-        obj->str = t_strdup(orig->str);
+        obj->str = strdup(orig->str);  // XXX t_free
         break;
     }
     return obj;
@@ -128,7 +128,7 @@ obj_type_t get_data_obj_type (data_obj_t *head) {
 void obj_destroy (data_obj_t *obj) {
     switch (obj->type) {
       case OBJ_TYPE_STR:
-        t_free(obj->str);
+        free(obj->str);  // XXX t_free
         break;
     }
     t_free(obj);

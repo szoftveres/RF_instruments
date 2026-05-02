@@ -5,6 +5,7 @@
 #include "resource.h"
 #include "parser.h" // execute program
 #include "fs_broker.h"
+#include "resource.h" // rsrc_count
 
 stdio_stack_t *iostack;
 
@@ -239,6 +240,7 @@ void command_line_loop () {
 		}
 
 		int chunks = t_chunks();
+		int res = rsrc_count();
 
 		// Online command parser
 		parser_t* online_parser = parser_create(linelen); // align to the program line length
@@ -251,8 +253,10 @@ void command_line_loop () {
 		parser_destroy(online_parser);
 
 		chunks -= t_chunks();
+        res -= rsrc_count();
+        chunks -= res;
 		if (chunks) { // simple memory leak check, normally shouldn't ever happen
-			printf_f(STDERR, "t_malloc-t_free imbalance :%i\n", chunks);
+			printf_f(STDERR, "t_malloc-t_free imbalance :%i %i\n", chunks, res);
 		}
 		run = (rc >= 0);
 
