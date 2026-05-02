@@ -13,7 +13,7 @@ typedef struct resource_s {
 	char name[MAX_LEN_RESOURCE_NAME];
 } resource_t;
 
-
+int rsrc_count (void);
 resource_t* resource_add (char* name, data_obj_t *obj);
 void resource_remove_all (void);
 

@@ -27,19 +27,6 @@ void adc1_sample_stream_callback (void* ctxt) {
 	HAL_ADC_Start(&hadc1);
 }
 
-
-int adc1_getter (void * context) {
-	HAL_ADC_Start(&hadc1);
-	delay_ms(2);
-	return (int)HAL_ADC_GetValue(&hadc1);
-}
-
-int adc2_getter (void * context) {
-	HAL_ADC_Start(&hadc2);
-	delay_ms(2);
-	return (int)HAL_ADC_GetValue(&hadc2);
-}
-
 void dac_sample_stream_callback (void* ctxt) {
 	uint16_t aval;
 	if (fifo_pop((fifo_t*)ctxt, &aval)) {

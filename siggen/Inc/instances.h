@@ -27,17 +27,6 @@ void apply_cfg (void);
 void print_cfg (void);
 
 
-int frequency_setter (void * context, int khz);
-int frequency_getter (void * context);
-int rflevel_setter (void * context, int dBm);
-int rflevel_getter (void * context);
-int fs_setter (void * context, int fs);
-int fs_getter (void * context);
-int fc_setter (void * context, int fc);
-int fc_getter (void * context);
-
-int dac1_setter (void * context, int aval);
-
 int baud_to_samples (int baud);
 
 int transmit_data (uint8_t* data, int len);

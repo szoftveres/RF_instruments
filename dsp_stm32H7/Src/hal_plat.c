@@ -9,32 +9,10 @@
 
 #include "stm32h7xx_hal.h"
 
-
 extern UART_HandleTypeDef huart5;
-
-
-
 
 extern TIM_HandleTypeDef htim2;
 
-
-int ticks_getter (void * context) {
-	return HAL_GetTick();
-}
-
-
-int rnd_setter (void * context, int rand_set) {
-	srand(rand_set);
-	return 1;
-}
-
-int rnd_getter (void * context) {
-	return rand();
-}
-
-int pushbutton_getter (void * context) {
-	return pushbuttonstate();
-}
 
 void ledon (void) {
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);

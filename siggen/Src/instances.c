@@ -82,74 +82,39 @@ void print_cfg (void) {
 }
 
 
-int frequency_setter (void * context, int khz) {
-	double actual = set_rf_frequency(khz);
-	int khzpart = (int)actual;
-	int hzpart = (actual - (double)khzpart) * 1000.0;
-	int error = (khz - actual) * 1000.0;
-	if (actual < 0) {
-		printf_f(STDERR, invalid_val, khz);
-		return 0;
-	}
-	printf_f(STDERR, "actual: %i.%03i kHz, error: %i Hz\n", khzpart, hzpart, error);
-	print_cfg();
-	return 1;
-}
-
-int frequency_getter (void * context) {
-	return config.fields.khz;
-}
-
-int rflevel_setter (void * context, int dBm) {
-	if (!set_rf_level(dBm)) {
-		printf_f(STDERR, invalid_val, dBm);
-		return 0;
-	}
-	print_cfg();
-	return 1;
-}
-
-int rflevel_getter (void * context) {
-	return config.fields.level;
-}
-
-
-/*
-int fs_setter (void * context, int fs) {
-	if (!set_fs(fs)) {
-		printf_f(STDERR, invalid_val, fs);
-		return 0;
-	}
-	printf_f(STDERR, "fs: %i Hz\n", fs);
-	return 1;
-}
-
-int fc_setter (void * context, int fc) {
-	if (!set_fc(fc)) {
-		printf_f(STDERR, invalid_val, fc);
-		return 0;
-	}
-	printf_f(STDERR, "fc: %i Hz\n", fc);
-	return 1;
-}
-
-int dac1_setter (void * context, int aval) {
-	resource_t* resource = (resource_t*)context;
-	if (aval < 0 || aval >= dac_max()) {
-		printf_f(STDERR, invalid_val, aval);
-		return 0;
-	}
-	resource->value = aval;
-	dac1_outv((uint32_t)aval);
-	return 1;
-}
-*/
-
-
-
 /*-----------------------------------------*/
 
 #include <stdlib.h>
+
+
+int freq_func (cmd_context_s* ctxt) {
+	int rc = 1;
+
+	if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
+		rc = set_rf_frequency(ctxt->params->n) ? 1 : 0;
+		obj_consume(&(ctxt->params));
+		print_cfg();
+	} else {
+		obj_add_num(&(ctxt->ret), config.fields.khz);
+	}
+	return rc;
+}
+
+
+
+int rflevel_func (cmd_context_s* ctxt) {
+	int rc = 1;
+
+	if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
+		rc = set_rf_level(ctxt->params->n);
+		obj_consume(&(ctxt->params));
+		print_cfg();
+	} else {
+		obj_add_num(&(ctxt->ret), config.fields.level);
+	}
+	return rc;
+}
+
 
 int cmd_malloctest (cmd_context_s* ctxt) {
 	int i = 0;
@@ -182,11 +147,11 @@ int cmd_format (cmd_context_s* ctxt) {
 int cmd_sleep (cmd_context_s* ctxt) {
 	int ms;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	ms = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		printf_f(STDERR, invalid_val, ms);
@@ -208,11 +173,11 @@ int cmd_sleep (cmd_context_s* ctxt) {
 int cmd_amtone (cmd_context_s* ctxt) {
 	int ms;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	ms = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		printf_f(STDERR, invalid_val, ms);
@@ -221,7 +186,7 @@ int cmd_amtone (cmd_context_s* ctxt) {
 
 	uint32_t tickstart = HAL_GetTick();
 	uint32_t thistick;
-	int level = rflevel_getter(NULL);
+	int level = config.fields.level;
 	int state = 0;
 
 	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
@@ -244,22 +209,22 @@ int cmd_fmtone (cmd_context_s* ctxt) {
 	int ms;
 	int dev;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	dev = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	if (dev < 1 || dev > 1000) { // 10 kHz - 1 MHz
 		printf_f(STDERR, invalid_val, dev);
 		return 0;
 	}
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	ms = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		printf_f(STDERR, invalid_val, ms);
@@ -268,7 +233,7 @@ int cmd_fmtone (cmd_context_s* ctxt) {
 
 	uint32_t tickstart = HAL_GetTick();
 	uint32_t thistick;
-	int freq = frequency_getter(NULL);
+	int freq = config.fields.khz;
 	int state = 0;
 
 	while (((thistick = HAL_GetTick()) - tickstart) < ms) {
@@ -304,11 +269,11 @@ int cmd_rfoff (cmd_context_s* ctxt) {
 int cmd_instctl_test (cmd_context_s* ctxt) {
 	int n;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	n = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	console_send_u32(0xB43355AA);
 
@@ -329,6 +294,8 @@ int setup_persona_commands (void) {
 	keyword_add("rfon", "- RF on", cmd_rfon);
 	keyword_add("fmtone", " [dev] [ms] - FM tone", cmd_fmtone);
 	keyword_add("amtone", " [ms] - AM tone", cmd_amtone);
+	keyword_add("level", "(dBm)", rflevel_func);
+	keyword_add("freq", "(kHz)", freq_func);
 
 	return 0;
 }

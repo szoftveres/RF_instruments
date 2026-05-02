@@ -241,18 +241,6 @@ int main(void)
 	  cpu_halt();
   }
 
-  // Variables, resources
-  for (int i = 'z'; i >= 'a'; i--) {
-	  char name[2];
-	  name [0] = i; name[1] = '\0';
-	  resource_add(name, NULL, variable_setter, variable_getter);
-  }
-  resource_add("freq", NULL, frequency_setter, frequency_getter);
-  resource_add("level", NULL, rflevel_setter, rflevel_getter);
-  resource_add("rnd", NULL, rnd_setter, rnd_getter);
-  resource_add("ticks", NULL, void_setter, ticks_getter);
-
-
   // Main PLL instance
   rf_pll = max2871_create(rf_pll_register_write, rf_pll_idle_wait);
   if (!rf_pll) {

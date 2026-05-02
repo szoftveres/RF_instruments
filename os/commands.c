@@ -473,6 +473,8 @@ int cmd_vars (cmd_context_s* ctxt) {
           case OBJ_TYPE_STR:
             printf_f(STDOUT, "\"%s\"", r->obj->str);
             break;
+          default:
+        	break;
         }
         printf_f(STDOUT, "\n");
 	}
@@ -855,7 +857,7 @@ task_rc_t noise_sample_producer (void* c, uint16_t* sample_out) {
 		return TASK_RC_END;
 	}
 	lc->samples -= 1;
-	*sample_out = (uint16_t)(rnd_getter(NULL) % 65536);
+	*sample_out = (uint16_t)(rand() % 65536);
 	return TASK_RC_AGAIN;
 }
 

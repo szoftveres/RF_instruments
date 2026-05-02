@@ -99,7 +99,12 @@ data_obj_t* op_str_str (int op_type, data_obj_t *left, data_obj_t *right) {
     switch (op_type) {
       case T_PLUS :
       case T_RECURADD :
-        strcat(left->str, right->str);
+    	char* buf = (char*)t_malloc(strlen(left->str) + strlen(right->str) + 1);
+    	strcpy(buf, left->str);
+    	obj_destroy(left);
+        strcat(buf, right->str);
+        left = obj_add_str(NULL, buf);
+        t_free(buf);
         break;
       case T_EQ :
         n = strcmp(left->str, right->str) ? 0 : 1;

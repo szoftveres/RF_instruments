@@ -24,35 +24,26 @@ Frequency- and power sweep (raw output without level calibration), 30 MHz - 6 GH
 
 The instrument has a USB UART communication interface, and a 32 kB EEPROM to store programs, level calibration data and configuration.
 
-Frequency can be set and retrieved by using the `freq` *resource variable* <sup>[1]</sup>; the unit is kHz, e.g. `freq = 915000` sets the frequency to 915 MHz, `freq += 1000` increases the current frequency by 1000 kHz. The `print <expr>` command prints the value of an *expression*, e.g. `print freq / 1000` prints the current frequency, in MHz.
+Frequency can be set (and retrieved) by using the `freq` command (and `freq()` function), the unit is kHz, e.g. `freq 915000` sets the frequency to 915 MHz. The `print <expr>` command prints the value of an *expression*, e.g. `print freq()` prints the current frequency, in kHz.
 
-<sup>[1]: Setting or retrieving the value of a *resource variable* invokes special functions. E.g. updating value of `freq` resource variable simultaneously programs the output frequency of the MAX2871 PLL. Otherwise, *resource variables* are accessible from within the program namespace an can be used in any expression, just like normal, general purpose variables.</sup>
+RF output level can be set (and retrieved) by using the `level` command and/or function, the unit is in dBm, the accepted range is between -30 and 0.
 
-RF output level can be set (and retrieved) by using the `level` *resource variable*, the unit is in dBm, the accepted range is between -30 and 0.
+RF output can be turned on or off with the `rfon` and `rfoff` commands.
 
-Besides printing out values of resource variables, the current configuration can also be printed out with the `cfg` command.
+The current configuration can be printed out with the `cfg` command.
 ```
 > cfg
 RF: 915000 kHz, -20 dBm, output on
 ```
-
-Besides the `freq` and `level` resource variables, there are 26 *general purpose variables* (`a` - `z`), each holding a 32-bit signed integer. Available variables (along with their values) can be listed by the `vars` command.
-
-Parentheses `(` `)` can be used in expressions to emphaseize and/or to override built-in operator-precedence, e.g. `a = (150 + b) * freq`. The parser has a complete, full-blown C-style compound expression evaluator with almost every imaginable arithmetic and logic operations and with pre-defined operator precedence.
-
-RF output can be turned on or off with the `rfon` and `rfoff` commands.
-
-A single command line can hold multiple commands, separated by the `;` character; e.g. `rfon; sleep 200; rfoff` commands in a single line will result in the RF output briefly turned on for 200 ms.
-
-The device can also store a short program, which can be saved to the EEPROM and recalled later. The program consists of numbered program lines and can be listed by using the `list` command:
+These commands can be part of a program, thereby enabling the signal generator to accomplish complex functions.
 
 ```
-> list
+E:> list
  0 "rfoff"
- 1 "freq = 900000"
+ 1 "freq 900000"
  2 "rfon; sleep 200; rfoff"
- 3 "freq += 1000"
- 4 "if freq <= 930000 \"goto 2\""
+ 3 "freq (freq () + 1000)"
+ 4 "if freq() <= 930000 \"goto 2\""
  5 "end"
 ```
 After issuing the `run` command, the above program runs a linear frequency sweep from 900 MHz to 930 MHz in 1 MHz increments, stopping at each frequency point for 200 ms.
@@ -62,13 +53,25 @@ If a program line contains nested string literals, the `\` character must be use
 
 The available keywords and commands can be listed with the `help` command:
 ```
-> help
-  help - print this help
-  vars - print rsrc vars
-  ver - FW build
-  print [expr] "str"
+E:> help
+  freq (kHz)
+  level (dBm)
+  amtone  [ms] - AM tone
+  fmtone  [dev] [ms] - FM tone
+  rfon - RF on
+  rfoff - RF off
+  format - format EEPROM
   sleep [millisecs] - sleep
+  malloctest
+  instctltest - test
+  help - print this help
+  vars - print vars
+  clr - clr vars
+  ver - FW build
+  mem - mem info
+  print [expr] "str"
   if [expr] "cmdline" - execute cmdline if expr is true
+  exit - exit shell
   new - clear program
   [0-n] "cmdline" - enter command line
   list - list program
@@ -77,30 +80,38 @@ The available keywords and commands can be listed with the `help` command:
   goto [line] - jump
   gosub [line] - call
   return - return
-  loadprg "name" - load program
-  saveprg "name" - save program
-  copy "src" "new"
+  loadprg "name"
+  saveprg "name"
+  cd "letter"
+  copy "src" "new" <opt:[bytes]>
   dir - list files
   hexdump "file"
-  del "file" - del file
-  format - format EEPROM
+  del "file"
+  wavfilesrc "file" WAV->
+  wavfilesnk "file" ->WAV
+  df ->decimating filter [n] <[bf]>->
+  nullsnk ->NULL
+  sine [fs] [freq] [samples]->
+  noise [fs] [samples]->
+  txmsg [fs] [fc]->
+  rxmsg ->rxmsg [fc]
   loadcfg - load config
   savecfg - save config
   cfg - print cfg
-  amtone  [ms] - AM tone
-  fmtone  [dev] [ms] - FM tone
-  rfon - RF on
-  rfoff - RF off
+  fmt ("fmt" ...)
+  spc (n)
+  cos (n cycles)
+  sin (n cycles)
 ```
 
 ### 32 kB EEPROM storage
 
 Programs can be loaded or stored as files with the `loadprg` and `saveprg` commands, the contents of the file system can be listed with the `dir` command, files can be deleted using `del` and copied using the `copy` commands, and the contents can be viewed with the `hexdump` commands.
 
-A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM, giving efficient usage of space and familiar programming interface (`open`, `close`, `read`, `write`) for any kind of data storage.
+A minimalist, FAT-like filesystem is implemented on top of the 32 kB EEPROM (device "E"), giving permanent storage with efficient usage of space and familiar programming interface (`open`, `close`, `read`, `write`) for any kind of data storage. An identical 32 kB partition is available to store temporary data in RAM (device "M").
 
 ```
-> dir
+E:> dir
 cfg                 24                  n:01,attr:0x0001,start:0x0014
 expsweep            220                 n:02,attr:0x0001,start:0x0015
 flsweep             250                 n:03,attr:0x0001,start:0x0019
@@ -119,33 +130,33 @@ guess               314                 n:09,attr:0x0001,start:0x0032
 Exponential frequency sweep between 50 MHz - 5 GHz, in 1.032x (33/32) increments:
 ```
  0 "rfoff"
- 1 "freq = 50000"
+ 1 "freq 50000"
  2 "rfon; sleep 200; rfoff"
- 3 "freq = freq * 33 / 32"
- 4 "if freq <= 5000000 \"goto 2\""
+ 3 "freq freq() * 33 / 32"
+ 4 "if freq() <= 5000000 \"goto 2\""
  5 "end"
 ```
 
 Linear frequency *and* power sweep; 900 MHz - 930 MHz in 1 MHz steps, -30 dBm - -1 dBm in 1dB steps:
 ```
  0 "rfoff"
- 1 "level = -30"
- 2 "freq = 900000" 
+ 1 "level -30"
+ 2 "freq 900000" 
  3 "rfon; sleep 200; rfoff"
- 4 "freq += 1000"
- 5 "if freq <= 930000 \"goto 3\""
- 6 "level += 1"
- 7 "if level < 0 \"goto 2\""
+ 4 "freq freq() + 1000"
+ 5 "if freq() <= 930000 \"goto 3\""
+ 6 "level level() + 1"
+ 7 "if level() < 0 \"goto 2\""
  8 "end"
 ```
 
 RF CW beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 seconds:
 ```
  0 "rfoff"
- 1 "level = -3"
- 2 "freq = 902000" 
+ 1 "level -3"
+ 2 "freq 902000" 
  3 "rfon; sleep 1000; rfoff"
- 4 "freq = 928000" 
+ 4 "freq 928000" 
  5 "rfon; sleep 1000; rfoff"
  6 "sleep 13000"
  7 "goto 2"
@@ -154,7 +165,7 @@ RF CW beacon transmitting at 902 MHz and 928 MHz for 1 second each, every 15 sec
 
 Periodic, 1 kHz AM modulated 25 MHz Shortwave beacon (1 sec on, 1 sec off):
 ```
- 0 "freq = 25000; level = -10"
+ 0 "freq 25000; level -10"
  1 "rfon"
  2 "amtone 1000"
  3 "rfoff; sleep 1000"
@@ -163,7 +174,7 @@ Periodic, 1 kHz AM modulated 25 MHz Shortwave beacon (1 sec on, 1 sec off):
 
 AM-modulated 25 MHz Morse beacon, sending CQ calls (showing the use of subroutines)
 ```
- 0 "freq=25000; level=0; rfon; sleep 100"
+ 0 "freq 25000; level 0; rfon; sleep 100"
  1 "c = 200; gosub 12"
  2 "c = 50; gosub 12"
  3 "c = 200; gosub 12"
@@ -181,30 +192,10 @@ AM-modulated 25 MHz Morse beacon, sending CQ calls (showing the use of subroutin
 
 FM beacon for 88.1 MHz - the first parameter of the `fmtone` command is the +/- deviation (in kHz):
 ```
- 0 "freq = 88100; rfon"
+ 0 "freq 88100; rfon"
  1 "fmtone 30 1000"
  2 "rfoff; sleep 1000"
  3 "goto 0"
-```
-
-Self-modifying program. After completion, line #5 will be overwritten.
-```
- 0 "rfoff"
- 1 "freq = 900000"
- 2 "rfon; sleep 200; rfoff"
- 3 "freq += 1000"
- 4 "if freq >= 930000 \"5 \\"end\\"\""
- 5 "goto 2"
-```
-
-Loading and running another program from within a program. After executing line #4, the original program will be overwritten in RAM by the new program and cannot be returned into, however the subsequent program can load it (as long as it's similarly stored on the filesystem) and run it again.
-```
- 0 "rfoff"
- 1 "freq = 900000"
- 2 "rfon; sleep 200; rfoff"
- 3 "freq += 1000"
- 4 "if freq >= 930000 \"loadprg \\"prgfile\\"; run\""
- 5 "goto 2"
 ```
 
 Calculating and printing prime numbers between 3 and 1000, without any RF functionality whatsoever (language Turing-completeness demonstrator):
@@ -224,8 +215,8 @@ Calculating and printing prime numbers between 3 and 1000, without any RF functi
 Number guessing game, demonstrating online input prompt within a program: line `g = ?"Guess [0-99]?"` prints the given message and waits for an online input expression and stores the result in variable 'g'. The expression is pre-evaluated prior to storage, therefore it can range from a single integer number to any compound expression, including all the variables.
 
 ```
- 0 "rnd = ticks"
- 1 "n = rnd % 100"
+ 0 "rnd ticks()"
+ 1 "n = rnd() % 100"
  2 "i = 1"
  3 "g = ?\"Guess [0-99]?\""
  4 "if g > n \"goto 7\""

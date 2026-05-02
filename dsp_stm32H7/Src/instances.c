@@ -105,98 +105,42 @@ void print_cfg (void) {
 }
 
 
-int frequency_setter (void * context, int khz) {
-	double actual = set_rf_frequency(khz);
-	int khzpart = (int)actual;
-	int hzpart = (actual - (double)khzpart) * 1000.0;
-	int error = (khz - actual) * 1000.0;
-	if (actual < 0) {
-		printf_f(STDERR, invalid_val, khz);
-		return 0;
-	}
-	printf_f(STDERR, "actual: %i.%03i kHz, error: %i Hz\n", khzpart, hzpart, error);
-	print_cfg();
-	return 1;
-}
-
-int frequency_getter (void * context) {
-	return config.fields.khz;
-}
-
-int rflevel_setter (void * context, int dBm) {
-	if (!set_rf_level(dBm)) {
-		printf_f(STDERR, invalid_val, dBm);
-		return 0;
-	}
-	print_cfg();
-	return 1;
-}
-
-int rflevel_getter (void * context) {
-	return config.fields.level;
-}
-
-
-
-int fs_setter (void * context, int fs) {
-	if (!set_fs(fs)) {
-		printf_f(STDERR, invalid_val, fs);
-		return 0;
-	}
-	printf_f(STDERR, "fs: %i Hz\n", fs);
-	return 1;
-}
-
-int fs_getter (void * context) {
-	return config.fields.fs;
-}
-
-int fc_setter (void * context, int fc) {
-	if (!set_fc(fc)) {
-		printf_f(STDERR, invalid_val, fc);
-		return 0;
-	}
-	printf_f(STDERR, "fc: %i Hz\n", fc);
-	return 1;
-}
-
-int fc_getter (void * context) {
-	return config.fields.fc;
-}
-
-int dac1_setter (void * context, int aval) {
-	resource_t* resource = (resource_t*)context;
-	if (aval < 0 || aval >= dac_max()) {
-		printf_f(STDERR, invalid_val, aval);
-		return 0;
-	}
-	resource->value = aval;
-	dac1_outv((uint32_t)aval);
-	return 1;
-}
-
 int baud_to_samples (int baud) {
 	return config.fields.fs / baud;
-}
-
-
-int asel_setter (void * context, int value) {
-	resource_t* resource = (resource_t*)context;
-	resource->value = value;
-	HAL_GPIO_WritePin(CHANNEL_SELECT_GPIO_Port, CHANNEL_SELECT_Pin, value ? GPIO_PIN_SET : GPIO_PIN_RESET); // 1: reflected, 0: through
-	return 1;
-}
-
-
-int asel_getter (void * context) {
-	resource_t* resource = (resource_t*)context;
-	return resource->value;
 }
 
 
 /*-----------------------------------------*/
 
 #include <stdlib.h>
+
+int cmd_asel (cmd_context_s* ctxt) {
+	int n;
+
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+		return 0;
+	}
+	n = ctxt->params->n;
+	obj_consume(&(ctxt->params));
+	HAL_GPIO_WritePin(CHANNEL_SELECT_GPIO_Port, CHANNEL_SELECT_Pin, n ? GPIO_PIN_SET : GPIO_PIN_RESET); // 1: reflected, 0: through
+
+	return 1;
+}
+
+
+int rflevel_func (cmd_context_s* ctxt) {
+	int rc = 1;
+
+	if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
+		rc = set_rf_level(ctxt->params->n);
+		obj_consume(&(ctxt->params));
+	} else {
+		obj_add_num(&(ctxt->ret), config.fields.level);
+	}
+	return rc;
+}
+
+
 
 int cmd_malloctest (cmd_context_s* ctxt) {
 	int i = 0;
@@ -229,11 +173,11 @@ int cmd_format (cmd_context_s* ctxt) {
 int cmd_sleep (cmd_context_s* ctxt) {
 	int ms;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	ms = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	if (ms < 0 || ms > 3600000) { // max 1 hour
 		printf_f(STDERR, invalid_val, ms);
@@ -260,11 +204,11 @@ int cmd_dacsink (cmd_context_s* ctxt) {
 int cmd_adcsrc (cmd_context_s* ctxt) {
 	int fs;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	fs = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	return adcsrc_setup(ctxt->out, fs);
 }
@@ -273,9 +217,9 @@ int cmd_adcsrc (cmd_context_s* ctxt) {
 int cmd_ofdm_tx (cmd_context_s* ctxt) {
     ofdm_pkt_t p;
 
-	if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) == OBJ_TYPE_STR) {
 		ofdm_packetize(&p, ctxt->params->str, strlen(ctxt->params->str)+1);
-		cmd_param_consume(&(ctxt->params));
+		obj_consume(&(ctxt->params));
 		ofdm_txpkt(&p);
 		return 1;
 	}
@@ -318,9 +262,9 @@ int cmd_ofdm_rx (cmd_context_s* ctxt) {
 int cmd_bpsk_tx (cmd_context_s* ctxt) {
     bpsk_pkt_t p;
 
-	if (get_cmd_arg_type(ctxt->params) == CMD_ARG_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) == OBJ_TYPE_STR) {
 		bpsk_packetize(&p, ctxt->params->str, strlen(ctxt->params->str)+1);
-		cmd_param_consume(&(ctxt->params));
+		obj_consume(&(ctxt->params));
 		bpsk_txpkt(&p);
 		return 1;
 	}
@@ -378,27 +322,27 @@ int cmd_gps (cmd_context_s* ctxt) {
 	int fdout;
 	int len;
 
-    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
     	printf_f(STDERR, name_expected);
 		return 0;
 	}
 
 	fdin = open_f(fs, ctxt->params->str, FS_O_READONLY);
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 	if (fdin < 0) {
 		printf_f(STDERR, "open fail\n");
 		return 0;
 	}
 	gps_ctxt.in_fd = fdin;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_STR) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
 		printf_f(STDERR, name_expected);
 		close_f(fs, fdin);
 		return 0;
 	}
 
 	fdout = open_f(fs, ctxt->params->str, FS_O_CREAT | FS_O_TRUNC);
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	if (fdout < 0) {
 		printf_f(STDERR, "dst open fail\n");
@@ -423,11 +367,11 @@ int cmd_gps (cmd_context_s* ctxt) {
 int cmd_instctl_test (cmd_context_s* ctxt) {
 	int n;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
 	}
 	n = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	// Sync word
 	console_send_u32(0xB43355AA);
@@ -445,12 +389,12 @@ int cmd_vna (cmd_context_s* ctxt) {
 	int lck = 0;
 	rfport_rx_t rfmeas;
 
-	if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		printf_f(STDERR, "Freq needed\n");
 		return 0;
 	}
 	freq = ctxt->params->n;
-	cmd_param_consume(&(ctxt->params));
+	obj_consume(&(ctxt->params));
 
 	max2871_freq(rf_pll, (double)freq);
 	max2871_freq(lo_pll, (double)(freq + 10));
@@ -499,8 +443,8 @@ int cmd_rfoff (cmd_context_s* ctxt) {
 
 int setup_persona_commands (void) {
 
-	resource_add("asel", NULL, asel_setter, asel_getter);
-	resource_add("level", NULL, rflevel_setter, rflevel_getter);
+	keyword_add("asel", "0/1", cmd_asel);
+	keyword_add("level", "(dBm)", rflevel_func);
 
 	keyword_add("rfoff", "- RF off", cmd_rfoff);
 	keyword_add("rfon", "- RF on", cmd_rfon);
