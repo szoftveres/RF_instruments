@@ -72,38 +72,42 @@ keyword_t* locate_keyword (char* token) {
 // ==================================================
 
 
-void cmd_param_insert_end (cmd_param_t **head, cmd_param_t *current) {
-	while (*head) {head = &((*head)->next);}
-	current->next = *head;
-	*head = current;
+void obj_insert_end (data_obj_t **head, data_obj_t *current) {
+    while (*head) {head = &((*head)->next);}
+    current->next = *head;
+    *head = current;
 }
 
 
-void param_add_str (cmd_param_t **head, char* str) {
-	cmd_param_t *param = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
-	if (!param) {
+data_obj_t* obj_add_str (data_obj_t **head, char* str) {
+	data_obj_t *obj = (data_obj_t*)t_malloc(sizeof(data_obj_t));
+	if (!obj) {
 		return;
 	}
-	param->type = CMD_ARG_TYPE_STR;
-	param->str = t_strdup(str);
-	cmd_param_insert_end(head, param);
-	return;
+	obj->type = OBJ_TYPE_STR;
+	obj->str = t_strdup(str);
+    if (head) {
+	    obj_insert_end(head, obj);
+    }
+	return obj;
 }
 
 
-void param_add_num (cmd_param_t **head, int n) {
-	cmd_param_t *param = (cmd_param_t*)t_malloc(sizeof(cmd_param_t));
-	if (!param) {
+data_obj_t* obj_add_num (data_obj_t **head, int n) {
+	data_obj_t *obj = (data_obj_t*)t_malloc(sizeof(data_obj_t));
+	if (!obj) {
 		return;
 	}
-	param->type = CMD_ARG_TYPE_NUM;
-	param->n = n;
-	cmd_param_insert_end(head, param);
-	return;
+	obj->type = OBJ_TYPE_NUM;
+	obj->n = n;
+    if (head) {
+	    obj_insert_end(head, obj);
+    }
+	return obj;
 }
 
 
-cmd_arg_type_t get_cmd_arg_type (cmd_param_t *head) {
+cmd_arg_type_t get_cmd_arg_type (data_obj_t *head) {
 	if (!head) {
 		return CMD_ARG_TYPE_NONE;
 	}
@@ -111,8 +115,8 @@ cmd_arg_type_t get_cmd_arg_type (cmd_param_t *head) {
 }
 
 
-cmd_param_t * cmd_param_consume (cmd_param_t **head) {
-	cmd_param_t *current;
+data_obj_t * obj_consume (data_obj_t **head) {
+	data_obj_t *current;
 	if (!(*head)) {
 		return *head;
 	}
@@ -120,10 +124,10 @@ cmd_param_t * cmd_param_consume (cmd_param_t **head) {
 	*head = current->next;
 
 	switch (current->type) {
-	case CMD_ARG_TYPE_STR:
+	case OBJ_TYPE_STR:
 		t_free(current->str);
 		break;
-	case CMD_ARG_TYPE_NUM:
+	case OBJ_TYPE_NUM:
 		break;
 	default:
 		break;

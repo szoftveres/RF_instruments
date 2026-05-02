@@ -9,29 +9,29 @@
 typedef enum cmd_arg_type_e {
 	CMD_ARG_TYPE_NONE,
 
-	CMD_ARG_TYPE_NUM,
-	CMD_ARG_TYPE_STR,
+	OBJ_TYPE_NUM,
+	OBJ_TYPE_STR,
 } cmd_arg_type_t;
 
 
-typedef struct cmd_param_s {
+typedef struct data_obj_s {
 	cmd_arg_type_t type;
 	union {
 		int 		n;
 		char* 		str;
 	};
-	struct cmd_param_s *next;
-} cmd_param_t;
+	struct data_obj_s *next;
+} data_obj_t;
 
-void param_add_str (cmd_param_t **head, char* str);
-void param_add_num (cmd_param_t **head, int n);
-cmd_param_t * cmd_param_consume (cmd_param_t **head);
-cmd_arg_type_t get_cmd_arg_type (cmd_param_t *head);
+data_obj_t* obj_add_str (data_obj_t **head, char* str);
+data_obj_t* obj_add_num (data_obj_t **head, int n);
+data_obj_t * obj_consume (data_obj_t **head);
+cmd_arg_type_t get_cmd_arg_type (data_obj_t *head);
 
 
 typedef struct cmd_context_t {
-	cmd_param_t *params;
-	cmd_param_t *ret;
+	data_obj_t *params;
+	data_obj_t *ret;
 	fifo_t* in;
 	fifo_t* out;
 } cmd_context_s;

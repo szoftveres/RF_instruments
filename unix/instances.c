@@ -69,12 +69,12 @@ int cmd_dacsink (cmd_context_s* ctxt) {
 
 int cmd_adcsrc (cmd_context_s* ctxt) {
     int fs;
-    if (get_cmd_arg_type(ctxt->params) != CMD_ARG_TYPE_NUM) {
+    if (get_cmd_arg_type(ctxt->params) != OBJ_TYPE_NUM) {
         printf_f(STDERR, "fs needed\n");
         return 0;
     }
     fs = ctxt->params->n;
-    cmd_param_consume(&(ctxt->params));
+    obj_consume(&(ctxt->params));
 
     return adcsrc_setup(ctxt->out, fs);
 }

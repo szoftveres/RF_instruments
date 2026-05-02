@@ -24,7 +24,7 @@ int parser_expect_expression (lex_instance_t *lex, int *n) {
 
 
 
-int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
+int parser_build_param_list (parser_t *parser, data_obj_t **head) {
     int n;
     int rc;
 
@@ -32,10 +32,10 @@ int parser_build_param_list (parser_t *parser, cmd_param_t **head) {
         char *s;
         rc = 0;
         if (parser_expression(parser->lex, &n)) {
-            param_add_num(head, n);
+            obj_add_num(head, n);
             rc = 1;
         } else if (parser_string(parser->lex, &s)) {
-            param_add_str(head, s);
+            obj_add_str(head, s);
             t_free(s);
             rc = 1;
         }
@@ -77,15 +77,15 @@ int parser_function (lex_instance_t *lex, cmd_arg_type_t type, char** s, int *n)
 		    cmd_ctxt->ret = NULL;
 		    rc = kw->exec(cmd_ctxt);
 
-			while (cmd_param_consume(&(cmd_ctxt->params))) {
+			while (obj_consume(&(cmd_ctxt->params))) {
 				printf_f(STDERR, "%s: unused parameter\n", kw->token);
 			}
             if (rc) {
                 cmd_arg_type_t ret_type = get_cmd_arg_type(cmd_ctxt->ret);
                 if (ret_type == type) {
-                    if (ret_type == CMD_ARG_TYPE_STR) {
+                    if (ret_type == OBJ_TYPE_STR) {
                         *s = t_strdup(cmd_ctxt->ret->str);
-                    } else if (ret_type == CMD_ARG_TYPE_NUM) {
+                    } else if (ret_type == OBJ_TYPE_NUM) {
 					    *n = cmd_ctxt->ret->n;
 				    }
 			    } else {
@@ -94,7 +94,7 @@ int parser_function (lex_instance_t *lex, cmd_arg_type_t type, char** s, int *n)
 			    }
             }
 
-			while (cmd_param_consume(&(cmd_ctxt->ret)));
+			while (obj_consume(&(cmd_ctxt->ret)));
 			t_free(cmd_ctxt);
 
 		    return rc;
@@ -112,7 +112,7 @@ int parser_string (lex_instance_t *lex, char** s) {
 	    next_token(lex);
         return 1;
     }
-    return parser_function(lex, CMD_ARG_TYPE_STR, s, NULL);
+    return parser_function(lex, OBJ_TYPE_STR, s, NULL);
 }
 
 
@@ -366,7 +366,7 @@ int parser_primary_expression (lex_instance_t *lex, int *n) {
         rc = 1;
     } else if (parser_resource_expression(lex, n)) {
         rc = 1;
-    } else if (parser_function(lex, CMD_ARG_TYPE_NUM, NULL, n)) {
+    } else if (parser_function(lex, OBJ_TYPE_NUM, NULL, n)) {
         rc = 1;
     }
 
@@ -506,10 +506,10 @@ int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 		if (!rc) {
 			printf_f(STDERR, "%s %s\n", kw->token, kw->helpstr);
 		}
-		while (cmd_param_consume(&(cmd_ctxt->params))) {
+		while (obj_consume(&(cmd_ctxt->params))) {
 			printf_f(STDERR, "unused parameter\n");
 		}
-		while (cmd_param_consume(&(cmd_ctxt->ret))) {
+		while (obj_consume(&(cmd_ctxt->ret))) {
 			printf_f(STDERR, "unused retval\n");
 		}
 		t_free(cmd_ctxt);
