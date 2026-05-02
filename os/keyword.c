@@ -20,7 +20,7 @@ keyword_t* keyword_it_next (keyword_t* kw) {
 }
 
 
-keyword_t* function_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt), cmd_arg_type_t ret_type) {
+keyword_t* keyword_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt)) {
 
 	keyword_t* instance = (keyword_t*)t_malloc(sizeof(keyword_t));
 	if (!instance) {
@@ -29,17 +29,11 @@ keyword_t* function_add (char* token, char* helpstr, int (*exec) (cmd_context_s 
 	instance->token = token;  // here we assume that this string is constantly present somewhere
 	instance->helpstr = helpstr;  // here we assume that this string is constantly present somewhere
 	instance->exec = exec;
-	instance->ret_type = ret_type;
 
 	instance->next = keyword_head;
 	keyword_head = instance;
 
 	return instance;
-}
-
-
-keyword_t* keyword_add (char* token, char* helpstr, int (*exec) (cmd_context_s *ctxt)) {
-    return function_add(token, helpstr, exec, CMD_ARG_TYPE_NONE);
 }
 
 
@@ -82,7 +76,7 @@ void obj_insert_end (data_obj_t **head, data_obj_t *current) {
 data_obj_t* obj_add_str (data_obj_t **head, char* str) {
 	data_obj_t *obj = (data_obj_t*)t_malloc(sizeof(data_obj_t));
 	if (!obj) {
-		return;
+		return obj;
 	}
 	obj->type = OBJ_TYPE_STR;
 	obj->str = t_strdup(str);
@@ -96,7 +90,7 @@ data_obj_t* obj_add_str (data_obj_t **head, char* str) {
 data_obj_t* obj_add_num (data_obj_t **head, int n) {
 	data_obj_t *obj = (data_obj_t*)t_malloc(sizeof(data_obj_t));
 	if (!obj) {
-		return;
+		return obj;
 	}
 	obj->type = OBJ_TYPE_NUM;
 	obj->n = n;
@@ -107,13 +101,38 @@ data_obj_t* obj_add_num (data_obj_t **head, int n) {
 }
 
 
-cmd_arg_type_t get_data_obj_type (data_obj_t *head) {
+data_obj_t* obj_clone (data_obj_t *orig) {
+    data_obj_t *obj = (data_obj_t*)t_malloc(sizeof(data_obj_t));
+    if (!obj) {
+        return obj;
+    }
+    memcpy(obj, orig, sizeof(data_obj_t));
+    obj->next = NULL;
+    switch (orig->type) {
+      case OBJ_TYPE_STR:
+        obj->str = t_strdup(orig->str);
+        break;
+    }
+    return obj;
+}
+
+
+obj_type_t get_data_obj_type (data_obj_t *head) {
 	if (!head) {
-		return CMD_ARG_TYPE_NONE;
+		return OBJ_TYPE_NONE;
 	}
 	return head->type;
 }
 
+
+void obj_destroy (data_obj_t *obj) {
+    switch (obj->type) {
+      case OBJ_TYPE_STR:
+        t_free(obj->str);
+        break;
+    }
+    t_free(obj);
+}
 
 data_obj_t * obj_consume (data_obj_t **head) {
 	data_obj_t *current;
@@ -123,15 +142,6 @@ data_obj_t * obj_consume (data_obj_t **head) {
 	current = *head;
 	*head = current->next;
 
-	switch (current->type) {
-	case OBJ_TYPE_STR:
-		t_free(current->str);
-		break;
-	case OBJ_TYPE_NUM:
-		break;
-	default:
-		break;
-	}
-	t_free(current);
+    obj_destroy(current);
 	return current;
 }

@@ -465,7 +465,7 @@ int cmd_program_return (cmd_context_s* ctxt) {
 
 int cmd_vars (cmd_context_s* ctxt) {
 	for (resource_t* r = resource_it_start(); r; r = resource_it_next(r)) {
-		printf_f(STDOUT, "%s : %i\n", r->name, r->get(r));
+	//	printf_f(STDOUT, "%s : %i\n", r->name, r->get(r));
 	}
 	return 1;
 }
@@ -681,13 +681,7 @@ int cmd_copy (cmd_context_s* ctxt) {
 int cmd_help (cmd_context_s* ctxt) {
 	keyword_t *kw = keyword_it_start();
 	while (kw) {
-		printf_f(STDOUT, "  %s %s", kw->token, kw->helpstr);
-        if (kw->ret_type == OBJ_TYPE_NUM) {
-            printf_f(STDOUT, " ret:NUM");
-        } else if (kw->ret_type == OBJ_TYPE_STR) {
-            printf_f(STDOUT, " ret:STR");
-        }
-		printf_f(STDOUT, "\n");
+		printf_f(STDOUT, "  %s %s\n", kw->token, kw->helpstr);
 		kw = keyword_it_next(kw);
 	}
 	return 1;
@@ -1067,10 +1061,10 @@ int setup_commands (void) {
 
 
 	// BUILTIN FUNCTIONS =======================
-	function_add("sin", "(n cycles)", sine_func, OBJ_TYPE_NUM);
-	function_add("cos", "(n cycles)", cosine_func, OBJ_TYPE_NUM);
-	function_add("spc", "(n)", spc_func, OBJ_TYPE_STR);
-	function_add("fmt", "(\"fmt\" ...)", fmt_func, OBJ_TYPE_STR);
+	keyword_add("sin", "(n cycles)", sine_func);
+	keyword_add("cos", "(n cycles)", cosine_func);
+	keyword_add("spc", "(n)", spc_func);
+	keyword_add("fmt", "(\"fmt\" ...)", fmt_func);
 
 
 	// CONFIG ==================================

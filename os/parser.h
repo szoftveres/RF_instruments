@@ -20,7 +20,7 @@ parser_t* parser_create (int line_length);
 void parser_destroy (parser_t *parser);
 
 int cmd_line_parser (parser_t *parser, char* line, fifo_t* in, fifo_t* out);
-int expression_line_parser (parser_t *parser, char* line, int* n);
+//int expression_line_parser (parser_t *parser, char* line, int* n);
 
 
 

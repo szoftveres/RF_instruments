@@ -75,15 +75,6 @@ int main(void)
 	  cpu_halt();
   }
 
-  // Variables, resources
-  for (int i = 'z'; i >= 'a'; i--) {
-	  char name[2];
-	  name [0] = i; name[1] = '\0';
-	  resource_add(name, NULL, variable_setter, variable_getter);
-  }
-  resource_add("rnd", NULL, rnd_setter, rnd_getter);
-
-
 
   void* ramdrvmem = t_malloc(RAMDRIVE_SIZE);
   if (!ramdrvmem) {
