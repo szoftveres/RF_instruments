@@ -232,12 +232,13 @@ int cplx_inv (int *i, int *q, int norm) {
 /* ================================ */
 
 
-dds_t* dds_create (int fs, int fc) {
+dds_t* dds_create (int fs, int fc, const int *wavetable) {
 	dds_t *instance = (dds_t*) t_malloc(sizeof(dds_t));
 	if (!instance) {
 		return NULL;
 	}
 	instance->phaseshift = (uint32_t)((268435456.0f / ((float)(fs / 16))) * (float)fc);
+	instance->wavetable = wavetable;
 	dds_reset(instance);
 	return instance;
 }
@@ -253,8 +254,8 @@ void dds_reset (dds_t* instance) {
 }
 
 void dds_next_sample (dds_t* instance, int *i, int *q) {
-	*q = sinewave[(instance->phaseaccumulator) >> 24];
-	*i = sinewave[(instance->phaseaccumulator + 0x40000000) >> 24];
+	*q = instance->wavetable[(instance->phaseaccumulator) >> 24];
+	*i = instance->wavetable[(instance->phaseaccumulator + 0x40000000) >> 24];
 	instance->phaseaccumulator += instance->phaseshift;
 }
 

@@ -4,6 +4,7 @@
 #include "parser.h"  // lcl parsers
 #include "resource.h"
 #include "keyword.h"
+#include "dsp_maths.h" // sin, cos, isqrt
 #include <stddef.h> //NULL
 #include <string.h> //strcpy
 
@@ -18,6 +19,31 @@ static const char* malloc_fail = "out of memory\n";
 
 
 /* Builtin Functions */
+
+
+int rnd_func (cmd_context_s* ctxt) {
+    if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
+        rnd_setter(ctxt->params->n);
+        obj_consume(&(ctxt->params));
+    } else {
+        obj_add_num(&(ctxt->ret), rnd_getter());
+    }
+    return 1;
+}
+
+
+int sqrt_func (cmd_context_s* ctxt) {
+    int n;
+
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+        printf_f(STDERR, not_a_number);
+        return 0;
+    }
+    n = ctxt->params->n;
+    obj_consume(&(ctxt->params));
+	obj_add_num(&(ctxt->ret), isqrt(n));
+}
+
 
 int sine_func (cmd_context_s* ctxt) {
 	int n;
@@ -857,7 +883,7 @@ task_rc_t noise_sample_producer (void* c, uint16_t* sample_out) {
 		return TASK_RC_END;
 	}
 	lc->samples -= 1;
-	*sample_out = (uint16_t)(rand() % 65536);
+	*sample_out = (uint16_t)(rnd_getter() % 65536);
 	return TASK_RC_AGAIN;
 }
 
@@ -949,7 +975,7 @@ int cmd_sine (cmd_context_s* ctxt) {
 		return 0;
 	}
 	c->samples = samples;
-	c->dds = dds_create(fs,fc); // Check is done in the worker
+	c->dds = dds_create(fs,fc, sinewave); // Check is done in the worker
 	return pcmsrc_setup(ctxt->out, fs, sine_sample_producer, sine_producer_cleanup, c);
 }
 
@@ -1078,6 +1104,8 @@ int setup_commands (void) {
 
 
 	// BUILTIN FUNCTIONS =======================
+	keyword_add("rnd", "(<seed>)", rnd_func);
+	keyword_add("sqrt", "(n)", cosine_func);
 	keyword_add("sin", "(n cycles)", sine_func);
 	keyword_add("cos", "(n cycles)", cosine_func);
 	keyword_add("spc", "(n)", spc_func);

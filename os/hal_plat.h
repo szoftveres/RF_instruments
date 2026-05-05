@@ -5,10 +5,10 @@
 #include <stdint.h> // uint..
 #include <stddef.h> // size_t
 
-int ticks_getter (void * context);
+int ticks_getter (void);
 
-int rnd_setter (void * context, int rand_set);
-int rnd_getter (void * context);
+int rnd_setter (int rand_set);
+int rnd_getter (void);
 
 int pushbutton_getter (void * context);
 
@@ -35,8 +35,6 @@ void t_free (void *ptr);
 int t_chunks (void);
 
 char level_to_color (int n, int range);
-
-
 
 void cpu_sleep (void);
 void periodic_IT_off (void);

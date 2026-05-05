@@ -1,6 +1,6 @@
 #include "pcmstream.h"
 #include "globals.h"
-#include "hal_plat.h" // t_malloc, DAC, sampler
+#include "hal_plat.h" // t_malloc, t_free
 
 #include <string.h>
 
@@ -453,7 +453,7 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 	}
 	if (!c->ds.dec) { // fs received
 
-		c->mixer = dds_create(((int)sample), c->fc);
+		c->mixer = dds_create(((int)sample), c->fc, sinewave);
 
 		c->ds.dec = ((int)sample) / c->ds.target_fs; //  dec =   fs / target fs
 
@@ -727,7 +727,7 @@ int txmodem_setup (fifo_t* out_stream, int fs, int fc, char* msg) {
     context->out_stream = out_stream;
     context->out_stream->writers++;
     context->fc = fc; // main carrier
-    context->mixer = dds_create(fs, context->fc);
+    context->mixer = dds_create(fs, context->fc, sinewave);
     context->fft_len = 1; // carrier pairs * Nyquist * Oversample rate
     context->i = (int*)t_malloc(context->fft_len * sizeof(int));
     memset(context->i, 0x00, context->fft_len * sizeof(int));

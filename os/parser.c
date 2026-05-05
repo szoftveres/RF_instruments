@@ -313,9 +313,12 @@ data_obj_t* parser_assignment (lex_instance_t *lex, data_obj_t* left) {
     data_obj_t* right = NULL;
 
     if (lex_get(lex, T_ASSIGN, NULL)) {
-        right = parser_expect_expression(lex);
-        if (left) {
-            obj_destroy(left);
+        if (!(right = parser_expect_expression(lex))) {
+            right = left;
+        } else {
+            if (left) {
+                obj_destroy(left);
+            }
         }
     } else if (left && recursive_assignment(lex)) {
         data_obj_t *saved_original = obj_clone(left);

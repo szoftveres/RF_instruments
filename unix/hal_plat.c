@@ -8,18 +8,19 @@
 #include <pulse/simple.h>
 
 static int switchstate = 0;
+static int ticks = 0;
 
-int ticks_getter (void * context) {
-	return 0;
+int ticks_getter (void) {
+	return ticks++;
 }
 
 
-int rnd_setter (void * context, int rand_set) {
+int rnd_setter (int rand_set) {
 	srand(rand_set);
 	return 1;
 }
 
-int rnd_getter (void * context) {
+int rnd_getter (void) {
 	return rand();
 }
 

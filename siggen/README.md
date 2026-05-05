@@ -174,20 +174,22 @@ Periodic, 1 kHz AM modulated 25 MHz Shortwave beacon (1 sec on, 1 sec off):
 
 AM-modulated 25 MHz Morse beacon, sending CQ calls (showing the use of subroutines)
 ```
- 0 "freq 25000; level 0; rfon; sleep 100"
- 1 "c = 200; gosub 12"
- 2 "c = 50; gosub 12"
- 3 "c = 200; gosub 12"
- 4 "c = 50; gosub 12"
- 5 "sleep 400"
- 6 "c = 200; gosub 12"
- 7 "c = 200; gosub 12"
- 8 "c = 50; gosub 12"
- 9 "c = 200; gosub 12"
-10 "sleep 100; rfoff; sleep 1000; rfon; goto 1"
-11 " "
-12 "amtone c"
-13 "sleep 100; return"
+ 0 "freq 25000"
+ 1 "level 0;rfon; sleep 100"
+ 2 "c = 200; gosub 14"
+ 3 "c = 50; gosub 14"
+ 4 "c = 200; gosub 14"
+ 5 "c = 50; gosub 14"
+ 6 "sleep 400"
+ 7 "c = 200; gosub 14"
+ 8 "c = 200; gosub 14"
+ 9 "c = 50; gosub 14"
+10 "c = 200; gosub 14"
+11 "sleep 100; rfoff; sleep 1000; rfon; goto 2"
+12 " "
+13 " "
+14 "amtone c"
+15 "sleep 100; return"
 ```
 
 FM beacon for 88.1 MHz - the first parameter of the `fmtone` command is the +/- deviation (in kHz):

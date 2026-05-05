@@ -22,6 +22,7 @@ int magnitude_const (void);
 typedef struct dds_s {
 	uint32_t phaseshift;
 	uint32_t phaseaccumulator;
+	const int 	 *wavetable;
 } dds_t;
 
 
@@ -29,7 +30,9 @@ void cplx_mul (int *i, int *q, int i_b, int q_b, int norm);
 void cplx_div (int *i, int *q, int i_b, int q_b, int norm);
 int cplx_inv (int *i, int *q, int norm);
 
-dds_t* dds_create (int fs, int fc);
+extern const int sinewave[];
+
+dds_t* dds_create (int fs, int fc, const int *wavetable);
 void dds_destroy (dds_t* instance);
 void dds_reset (dds_t* instance);
 void dds_next_sample (dds_t* instance, int *i, int *q);

@@ -166,7 +166,7 @@ void ofdm_tx_noise (dds_t *mixer, int dec, int len, int symbolampl) {
 	for (int f = 0; f != len; f += 1) {
 		for (int d = 0; d != dec; d += 1) {
 			dds_next_sample(mixer, &i_a, &q_a);
-			int wave = (rand()%symbolampl) - (symbolampl/2);
+			int wave = (rnd_getter()%symbolampl) - (symbolampl/2);
 			int16_t sample_out = (int16_t)wave;
 			play_int16_sample(&sample_out);
 		}
@@ -197,7 +197,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
     start_audio_out(fs);
     tx_on();
 
-    dds_t *mixer = dds_create(fs, OFDM_FC);
+    dds_t *mixer = dds_create(fs, OFDM_FC, sinewave);
 
     int *i_symbol = (int*)t_malloc(fft_len * sizeof(int));
     int *q_symbol = (int*)t_malloc(fft_len * sizeof(int));
@@ -279,7 +279,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     rx_on();
     start_audio_in(fs);
 
-    dds_t *mixer = dds_create(fs, OFDM_FC);
+    dds_t *mixer = dds_create(fs, OFDM_FC, sinewave);
 
     int min = 1024 * 1024;
     int max = -min;
@@ -612,7 +612,7 @@ int bpsk_rxpkt (bpsk_pkt_t *p, int* level) {
     c.ds.dec = 0;
     p->h.len = MODEM_PKT_PAYLOAD_MAX;
 
-    c.mixer = dds_create(fs, BPSK_FC);
+    c.mixer = dds_create(fs, BPSK_FC, sinewave);
 
     c.ds.dec = fs / c.ds.target_fs; //  dec =   fs / target fs
 
@@ -758,7 +758,7 @@ int bpsk_txpkt (bpsk_pkt_t *p) {
     tx_on();
     play_silence_ms(50);
 
-    c.mixer = dds_create(fs, BPSK_FC);
+    c.mixer = dds_create(fs, BPSK_FC, sinewave);
     c.fft_len = 1; // carrier pairs * Nyquist * Oversample rate
     c.i = (int*)t_malloc(c.fft_len * sizeof(int));
     memset(c.i, 0x00, c.fft_len * sizeof(int));
