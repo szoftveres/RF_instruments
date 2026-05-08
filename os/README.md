@@ -25,9 +25,9 @@ This software was made to be used on small single-CPU embedded systems as the ma
 
 ## Programming
 
-Some examples [here](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
+More examples [here](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
 
-#### Sine function program example
+#### Printing the sin(x) function
 
 ```
 M:> list
@@ -64,6 +64,36 @@ M:> run
            *
 Done
 ```
+
+#### Number guessing game
+
+```
+ 0 "rnd ticks()"
+ 1 "n = rnd() % 100"
+ 2 "i = 1"
+ 3 "g = prompt(\"Guess [0-99]?\")"
+ 4 "if g > n \"goto 7\""
+ 5 "if g < n \"goto 8\""
+ 6 "print \"Found out from \" i \" guesses\"; end"
+ 7 "print \"Too high\"; i += 1; goto 3"
+ 8 "print \"Too low\"; i += 1; goto 3"
+```
+
+#### Calculating and printing prime numbers between 3 and 1000
+
+```
+ 0 "n = 3; f = 1000"
+ 1 "d = 1"
+ 2 "d += 1"
+ 3 "if d >= n \"goto 7\""
+ 4 "r = n * (f*10) / d % (f*10)"
+ 5 "if r==0 \"goto 8\""
+ 6 "goto 2"
+ 7 "print n"
+ 8 "n += 1"
+ 9 "if n < f \"goto 1\""
+```
+
 
 
 ## DSP chain

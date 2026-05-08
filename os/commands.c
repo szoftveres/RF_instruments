@@ -21,6 +21,12 @@ static const char* malloc_fail = "out of memory\n";
 /* Builtin Functions */
 
 
+int ticks_func (cmd_context_s* ctxt) {
+    obj_add_num(&(ctxt->ret), ticks_getter());
+    return 1;
+}
+
+
 int rnd_func (cmd_context_s* ctxt) {
     if (get_data_obj_type(ctxt->params) == OBJ_TYPE_NUM) {
         rnd_setter(ctxt->params->n);
@@ -42,6 +48,7 @@ int sqrt_func (cmd_context_s* ctxt) {
     n = ctxt->params->n;
     obj_consume(&(ctxt->params));
 	obj_add_num(&(ctxt->ret), isqrt(n));
+    return 1;
 }
 
 
@@ -246,6 +253,49 @@ int fmt_func (cmd_context_s* ctxt) {
 
 /* Commands */
 
+int cmd_prompt_expr (cmd_context_s* ctxt) {
+    data_obj_t* obj = NULL;
+    int linelen = program->header.fields.linelen;
+    int bytes;
+    char* prompt;
+
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
+        printf_f(STDERR, not_a_string);
+        return 0;
+    }
+    prompt = t_strdup(ctxt->params->str);
+    obj_consume(&(ctxt->params));
+    parser_t* online_parser = parser_create(linelen); // align to the program line length
+
+    while (1) {
+        printf_f(STDERR, "%s > ", prompt);
+        char *buf = online_parser->cmdbuf;
+
+        bytes = read_f_line(fs, STDIN, buf, linelen-1);
+
+        if (bytes < 1) {
+            break;
+        }
+        if (buf[bytes-1] != '\n') {
+            printf_f(STDERR, "line too long\n");
+            break;
+        }
+        buf[bytes-1] = '\0';
+
+        obj = expr_line_parser(online_parser);
+
+        if (obj) {
+            obj_insert_end(&(ctxt->ret), obj);
+            break;
+        }
+    }
+    parser_destroy(online_parser);
+    t_free(prompt);
+    return 1;
+}
+
+
+
 // Recursive "parser within parser"
 int parse_str_cmd (cmd_context_s* ctxt, char* cmdstr, fifo_t* in, fifo_t* out) {
 	int rc = 1;
@@ -254,16 +304,28 @@ int parse_str_cmd (cmd_context_s* ctxt, char* cmdstr, fifo_t* in, fifo_t* out) {
 		printf_f(STDERR, malloc_fail);
 		return 0;
 	}
-
-	rc = cmd_line_parser(lcl_parser, cmdstr, in, out);
+    strcpy(lcl_parser->cmdbuf, cmdstr);
+	rc = cmd_line_parser(lcl_parser, in, out);
 
 	parser_destroy(lcl_parser);
 	return rc;
 }
 
 
+int cmd_try (cmd_context_s* ctxt) {
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
+        printf_f(STDERR, not_a_string);
+        return 0;
+    }
+    parse_str_cmd(ctxt, ctxt->params->str, ctxt->in, ctxt->out);
+    obj_consume(&(ctxt->params));
+    return 1;
+}
+
+
 int parser_if (cmd_context_s* ctxt) {
 	int n;
+    int rc = 1;
 
 	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
 		return 0;
@@ -275,15 +337,13 @@ int parser_if (cmd_context_s* ctxt) {
 		printf_f(STDERR, not_a_string);
 		return 0;
 	}
-	if (!n) {
-		obj_consume(&(ctxt->params));
-		return 1; // condition is false
-	}
-	if (!parse_str_cmd(ctxt, ctxt->params->str, ctxt->in, ctxt->out)) {
-		return 0;
+	if (n) {
+	    if (!parse_str_cmd(ctxt, ctxt->params->str, ctxt->in, ctxt->out)) {
+		    rc = 0;
+        }
 	}
 	obj_consume(&(ctxt->params));
-	return 1;
+	return rc;
 }
 
 
@@ -1104,8 +1164,9 @@ int setup_commands (void) {
 
 
 	// BUILTIN FUNCTIONS =======================
+	keyword_add("ticks", "", ticks_func);
 	keyword_add("rnd", "(<seed>)", rnd_func);
-	keyword_add("sqrt", "(n)", cosine_func);
+	keyword_add("sqrt", "(n)", sqrt_func);
 	keyword_add("sin", "(n cycles)", sine_func);
 	keyword_add("cos", "(n cycles)", cosine_func);
 	keyword_add("spc", "(n)", spc_func);
@@ -1153,6 +1214,8 @@ int setup_commands (void) {
 
 	// BASIC COMMANDS ==================================
 	keyword_add("exit", "- exit shell", cmd_exit);
+	keyword_add("prompt", "(\"text\")", cmd_prompt_expr);
+	keyword_add("try", "\"cmdline\" - catch error", cmd_try);
 	keyword_add("if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if);
 	keyword_add("print", "[expr] \"str\"", cmd_print);
 	keyword_add("mem", "- mem info", cmd_mem);

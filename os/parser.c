@@ -8,7 +8,7 @@
 
 
 static const char* syntax_error = "Syntax error \'%s\'\n";
-static const char* not_an_expression = "Numeric expression expected\n";
+static const char* not_an_expression = "Numeric expression expected";
 static const char* illegal_operator = "Illegal operator\n";
 
 
@@ -73,6 +73,9 @@ data_obj_t* parser_function (lex_instance_t *lex) {
 
 		    cmd_ctxt->ret = NULL;
 		    rc = kw->exec(cmd_ctxt);
+            if (!rc) {
+                printf_f(STDERR, "%s %s\n", kw->token, kw->helpstr);
+            }
 
 			while (obj_consume(&(cmd_ctxt->params))) {
 				printf_f(STDERR, "%s: unused parameter\n", kw->token);
@@ -391,6 +394,9 @@ data_obj_t* parser_parentheses (lex_instance_t *lex) {
         return obj;
     }
     obj = parser_expect_expression(lex);
+    if (!obj) {
+        return obj;
+    }
     if (!lex_get(lex, T_RIGHT_PARENTH, NULL)) {
         printf_f(STDERR, "expected ')'\n");
         obj_destroy(obj);
@@ -407,11 +413,11 @@ data_obj_t* parser_expression_prefix (lex_instance_t *lex) {
 		next_token(lex);
 		obj = parser_primary_expression(lex);
         if (!obj) {
-            printf_f(STDERR, not_an_expression);
+            printf_f(STDERR, syntax_error, not_an_expression);
             return obj;
         }
         if (obj->type != OBJ_TYPE_NUM) {
-            printf_f(STDERR, not_an_expression);
+            printf_f(STDERR, syntax_error, not_an_expression);
             obj_destroy(obj);
             return NULL;
         }
@@ -420,11 +426,11 @@ data_obj_t* parser_expression_prefix (lex_instance_t *lex) {
 		next_token(lex);
 		obj = parser_primary_expression(lex);
         if (!obj) {
-            printf_f(STDERR, not_an_expression);
+            printf_f(STDERR, syntax_error, not_an_expression);
             return obj;
         }
         if (obj->type != OBJ_TYPE_NUM) {
-            printf_f(STDERR, not_an_expression);
+            printf_f(STDERR, syntax_error, not_an_expression);
             obj_destroy(obj);
             return NULL;
         }
@@ -649,20 +655,15 @@ int parser_statement (parser_t *parser, fifo_t* in, fifo_t* out) {
         obj_destroy(obj);
 		rc = 1;
 	} else {
-        printf_f(STDERR, "unrecognized command\n");
+        printf_f(STDERR, "Bad command or statment\n");
     }
 
 	return rc;
 }
 
 
-int cmd_line_parser (parser_t *parser, char* line, fifo_t* in, fifo_t* out) {
+int cmd_line_parser (parser_t *parser, fifo_t* in, fifo_t* out) {
 	int rc = 1;
-
-	if (!line) {
-		return 0;
-	}
-	strcpy(parser->cmdbuf, line);
 
 	parser->cmd_op = 0;
 	lex_reset(parser->lex);
@@ -675,5 +676,19 @@ int cmd_line_parser (parser_t *parser, char* line, fifo_t* in, fifo_t* out) {
 	} while ((rc > 0) && lex_get(parser->lex, T_SEMICOLON, NULL));
 
 	return rc;
+}
+
+
+data_obj_t* expr_line_parser (parser_t *parser) {
+    data_obj_t* obj = NULL;
+
+    parser->cmd_op = 0;
+    lex_reset(parser->lex);
+
+    if (!lex_get(parser->lex, T_EOF, NULL)) { // Empty line is valid
+        obj = parser_expect_expression(parser->lex);
+    }
+
+    return obj;
 }
 

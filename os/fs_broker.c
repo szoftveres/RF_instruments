@@ -364,6 +364,27 @@ int read_f_all (fs_broker_t* broker, int fd, char* buf, int count) {
 }
 
 
+// Read till the newline ('\n' included in the return) or until 'count' is reached
+int read_f_line (fs_broker_t* broker, int fd, char* buf, int count) {
+    int b = 0;
+    while (count) {
+        int rc = read_f(broker, fd, buf, 1);
+
+        if (rc < 1) {
+            break;
+        }
+        b += rc;
+        count -= rc;
+        if (*buf == '\n') {
+            break;
+        }
+        buf += rc;
+    }
+    return b;
+}
+
+
+
 int write_f (fs_broker_t* broker, int fd, char* buf, int count) {
 	int fs = broker->fp[fd].fs_instance_idx;
 	return broker->fs_instance[fs].write(broker->fs_instance[fs].instance, broker->fp[fd].fs_instance_filp, buf, count);

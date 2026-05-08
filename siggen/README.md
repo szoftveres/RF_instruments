@@ -200,31 +200,3 @@ FM beacon for 88.1 MHz - the first parameter of the `fmtone` command is the +/- 
  3 "goto 0"
 ```
 
-Calculating and printing prime numbers between 3 and 1000, without any RF functionality whatsoever (language Turing-completeness demonstrator):
-```
- 0 "n = 3; f = 1000"
- 1 "d = 1"
- 2 "d += 1"
- 3 "if d >= n \"goto 7\""
- 4 "r = n * (f*10) / d % (f*10)"
- 5 "if r==0 \"goto 8\""
- 6 "goto 2"
- 7 "print n"
- 8 "n += 1"
- 9 "if n < f \"goto 1\""
-```
-
-Number guessing game, demonstrating online input prompt within a program: line `g = ?"Guess [0-99]?"` prints the given message and waits for an online input expression and stores the result in variable 'g'. The expression is pre-evaluated prior to storage, therefore it can range from a single integer number to any compound expression, including all the variables.
-
-```
- 0 "rnd ticks()"
- 1 "n = rnd() % 100"
- 2 "i = 1"
- 3 "g = ?\"Guess [0-99]?\""
- 4 "if g > n \"goto 7\""
- 5 "if g < n \"goto 8\""
- 6 "print \"Found out from \" i \" guesses\"; end"
- 7 "print \"Too high\"; i += 1; goto 3"
- 8 "print \"Too low\"; i += 1; goto 3"
-```
-

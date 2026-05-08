@@ -132,6 +132,7 @@ void close_f (fs_broker_t* broker, int fd);
 void rewind_f (fs_broker_t* broker, int fd);
 int read_f (fs_broker_t* broker, int fd, char* buf, int count);
 int read_f_all (fs_broker_t* broker, int fd, char* buf, int count);
+int read_f_line (fs_broker_t* broker, int fd, char* buf, int count);
 int write_f (fs_broker_t* broker, int fd, char* buf, int count);
 int write_f_all (fs_broker_t* broker, int fd, char* buf, int count);
 int delete_f (fs_broker_t* broker, char* name);

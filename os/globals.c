@@ -113,7 +113,8 @@ int execute_program (program_t *program, fifo_t* in, fifo_t* out) {
 			rc = 0;
 			break;
 		}
-		rc = cmd_line_parser(lcl_parser, line, in, out);
+        strcpy(lcl_parser->cmdbuf, line);
+		rc = cmd_line_parser(lcl_parser, in, out);
 		if (!rc) {
 			program_run = 0;
 		}
@@ -191,14 +192,9 @@ void command_line_loop () {
 	int run = 1;
 
 	int linelen = program->header.fields.linelen;
-	char *buf = (char*)t_malloc(linelen);
 
 	while (run) {
 		int rc;
-		int ip = 0;
-
-		int read = 1;
-		int lnend;
 		int bytes;
 
 		int prompt_pidx = 0;
@@ -207,38 +203,6 @@ void command_line_loop () {
 		// Interpreting and executing commands, till the eternity
 		printf_f(STDERR, prompt);
 
-
-		while (read) {
-
-			if (ip >= linelen) {
-				printf_f(STDERR, "line too long\n");
-				read = 0;
-				run = 0;
-				break;
-			}
-
-			bytes = read_f(fs, STDIN, &(buf[ip]), (linelen - ip));
-
-			if (bytes < 1) {
-				read = 0;
-				run = 0;
-				break;
-			}
-			for (lnend = ip; lnend != (ip + bytes); lnend++) {
-				if (buf[lnend] == '\n') {
-					buf[lnend] = '\0';
-					read = 0;
-					lnend += 1;
-					break;
-				}
-			}
-			ip += bytes;
-		}
-
-		if (bytes < 1) {
-			continue;
-		}
-
 		int chunks = t_chunks();
 		int res = rsrc_count();
 
@@ -246,10 +210,24 @@ void command_line_loop () {
 		parser_t* online_parser = parser_create(linelen); // align to the program line length
 		if (!online_parser) {
 			printf_f(STDERR, "parser init error");
-		  cpu_halt();
+		    cpu_halt();
 		}
+	    char *buf = online_parser->cmdbuf;
 
-		rc = cmd_line_parser(online_parser, buf, NULL, NULL);
+	    bytes = read_f_line(fs, STDIN, buf, linelen-1);
+
+        if (bytes < 1) {
+			run = 0;
+			break;
+		}
+        if (buf[bytes-1] != '\n') {
+            printf_f(STDERR, "line too long\n");
+            run = 0;
+            break;
+        }
+        buf[bytes-1] = '\0';
+
+		rc = cmd_line_parser(online_parser, NULL, NULL);
 		parser_destroy(online_parser);
 
 		chunks -= t_chunks();
@@ -259,12 +237,7 @@ void command_line_loop () {
 			printf_f(STDERR, "t_malloc-t_free imbalance :%i %i\n", chunks, res);
 		}
 		run = (rc >= 0);
-
-		bytes = ip - lnend;
-		memmove(buf, &(buf[lnend]), bytes);
-		ip -= bytes;
 	}
-	t_free(buf);
 }
 
 
