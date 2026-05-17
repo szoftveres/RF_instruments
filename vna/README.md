@@ -165,4 +165,9 @@ The driver preamp is capable of producing more than +10 dBm on its output before
 
 Since the reference changes together with the measured path, theoretically the VNA would stay in calibration even if it was calibrated only at a single power setting. This is not realistic however; the mixer as well as the amplifiers don't stay fully linear across their dynamic range, hence calibration for the full measurement range must be carried out for power sweeps as well.
 
+## User Interface
+
+GNU Octave has some built-in functions and widgets that can be used to create a simple GUI; the benefit is that (just like with Python) the resulting software can run on most major OS platforms (Linux, Windows, Mac); plus the same widget and UI toolkit is also available in Matlab. The [UI software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna.m) implements the most essential functions and configurations to be made:
+
+![gui](GUI.png)
 

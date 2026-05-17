@@ -17,7 +17,7 @@ This software was made to be used on small single-CPU embedded systems as the ma
  * Chainable DSP functions
    * DFT, IFT, OFDM modem, Downsampling filter, MS WAV file read/write, etc..
 
-## Projects using this library
+## Projects using this software
  * [6 GHz RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) runs this system software as its main human access and programming interface and driver library. RF signal generator functionalities are added as application-specific commands.
  * [STM32H7 analog / DSP / controller board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) also uses this system software as its main human interface and device driver library.
    * [6 GHz Vector Network Analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna)
