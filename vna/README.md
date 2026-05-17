@@ -167,7 +167,7 @@ Since the reference changes together with the measured path, theoretically the V
 
 ## User Interface
 
-GNU Octave has some built-in functions and widgets that can be used to create a simple GUI; the benefit is that (just like with Python) the resulting software can run on most major OS platforms (Linux, Windows, Mac); plus the same widget and UI toolkit is also available in Matlab. The [UI software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna.m) implements the most essential functions and configurations to be made:
+GNU Octave has some built-in functions and widgets that can be used to create a simple GUI; the benefit is that (just like with Python) the resulting software can run on most major OS platforms (Linux, Windows, Mac); plus the same widget and UI toolkit is also available in Matlab. The [UI software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna_gui.m) implements the most essential functions and configurations to be made:
 
 ![gui](GUI.png)
 
