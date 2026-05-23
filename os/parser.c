@@ -25,7 +25,7 @@ data_obj_t* parser_expect_expression (lex_instance_t *lex) {
 }
 
 
-void parser_build_param_list (parser_t *parser, data_obj_t **head) {
+void parser_build_param_list (parser_t *parser, data_obj_t **head, int csv) {
     int rc;
     data_obj_t *obj = NULL;
 
@@ -33,7 +33,7 @@ void parser_build_param_list (parser_t *parser, data_obj_t **head) {
         rc = 0;
         if ((obj = parser_expression(parser->lex))) {
             obj_insert_end(head, obj);
-            rc = 1;
+            rc = csv ? lex_get(parser->lex, T_COMMA, NULL) : 1;
         }
     } while (rc);
 
@@ -57,16 +57,17 @@ data_obj_t* parser_function (lex_instance_t *lex) {
 			next_token(lex);
 
 		    if (!lex_get(lex, T_LEFT_PARENTH, NULL)) {
-                printf_f(STDERR, "expected '('\n");
+                printf_f(STDERR, syntax_error, "expected '('");
 		        return obj;
 		    }
 
 			cmd_context_s *cmd_ctxt = (cmd_context_s*)t_malloc(sizeof(cmd_context_s));
 			cmd_ctxt->params = NULL;
-			parser_build_param_list(parser, &(cmd_ctxt->params));
+			parser_build_param_list(parser, &(cmd_ctxt->params), 1);
 
 		    if (!lex_get(lex, T_RIGHT_PARENTH, NULL)) {
-                printf_f(STDERR, "expected ')'\n");
+                printf_f(STDERR, syntax_error, "expected ')'");
+                while (obj_consume(&(cmd_ctxt->params)));
                 t_free(cmd_ctxt);
                 return obj;
 		    }
@@ -261,7 +262,7 @@ data_obj_t* parser_binary_operation (lex_instance_t *lex, int min_prec, data_obj
     next_token(lex);
 
     if (!(right = parser_primary_expression(lex))) {
-        printf_f(STDERR, "expected expression after operator\n");
+        printf_f(STDERR, syntax_error, "expected expression after operator");
         obj_destroy(left);
         return NULL;
     }
@@ -398,7 +399,7 @@ data_obj_t* parser_parentheses (lex_instance_t *lex) {
         return obj;
     }
     if (!lex_get(lex, T_RIGHT_PARENTH, NULL)) {
-        printf_f(STDERR, "expected ')'\n");
+        printf_f(STDERR, syntax_error, "expected ')'");
         obj_destroy(obj);
         return NULL;
     }
@@ -567,7 +568,7 @@ int parser_keyword_train (parser_t *parser, fifo_t* in, fifo_t* out) {
 
 		cmd_context_s *cmd_ctxt = (cmd_context_s*)t_malloc(sizeof(cmd_context_s));
 		cmd_ctxt->params = NULL;
-		parser_build_param_list(parser, &(cmd_ctxt->params));
+		parser_build_param_list(parser, &(cmd_ctxt->params), 0);
 
 		if (lex_get(parser->lex, T_ARROW, NULL)) {
 			out_new = fifo_create(512, sizeof(uint16_t));
@@ -623,19 +624,19 @@ int parser_programline_statement (parser_t *parser) {
 	next_token(parser->lex);
 	char* line = program_line(program, nline);
 
-    if (parser->lex->token != T_STRING) {
+    data_obj_t *obj = parser_expression(parser->lex);
+    if (!obj) {
+        printf_f(STDERR, "\"cmd\" expected\n");
+        return 0;
+    }
+    if (get_data_obj_type(obj) != OBJ_TYPE_STR) {
 		printf_f(STDERR, "\"cmd\" expected\n");
-		return 0;
-	}
-    str_value(parser->lex);
+        obj_destroy(obj);
+        return 0;
+    }
 
-	if ((strlen(parser->lex->lexeme) + 1) < program->header.fields.linelen) {
-		strcpy(line, parser->lex->lexeme);
-	} else {
-		printf_f(STDERR, "too long\n");
-	}
-    next_token(parser->lex);
-	//cmd_program_list(parser);
+	strcpy(line, obj->str);
+    obj_destroy(obj);
 
 	return 1;
 }

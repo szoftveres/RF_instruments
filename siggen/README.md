@@ -98,7 +98,7 @@ E:> help
   loadcfg - load config
   savecfg - save config
   cfg - print cfg
-  fmt ("fmt" ...)
+  fmt ("fmt", ...)
   spc (n)
   cos (n cycles)
   sin (n cycles)

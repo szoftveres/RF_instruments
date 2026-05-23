@@ -531,7 +531,7 @@ int cmd_program_gosub (cmd_context_s* ctxt) {
 		printf_f(STDERR, invalid_val, line);
 		return 0;
 	}
-	subroutine_stack[subroutine_sp] = program_ip; // At this point the executing function has already increased the line number
+	subroutine_stack[subroutine_sp] = program_ip; // Already the next line
 	subroutine_sp += 1; // TODO error handling
 	program_ip = line;
 	return 1;
@@ -1167,10 +1167,10 @@ int setup_commands (void) {
 	keyword_add("ticks", "", ticks_func);
 	keyword_add("rnd", "(<seed>)", rnd_func);
 	keyword_add("sqrt", "(n)", sqrt_func);
-	keyword_add("sin", "(n cycles)", sine_func);
-	keyword_add("cos", "(n cycles)", cosine_func);
+	keyword_add("sin", "(n, cycles)", sine_func);
+	keyword_add("cos", "(n, cycles)", cosine_func);
 	keyword_add("spc", "(n)", spc_func);
-	keyword_add("fmt", "(\"fmt\" ...)", fmt_func);
+	keyword_add("fmt", "(\"fmt\", ...)", fmt_func);
 
 
 	// CONFIG ==================================
