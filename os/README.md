@@ -4,9 +4,9 @@ This software was made to be used on small single-CPU embedded systems as the ma
 
 ## Features
  * Command line interpreter
-   * BASIC-like scripting language
-   * Save and load programs (into- and from a file)
-   * Ability to add custom commands and functions
+ * BASIC-like programming language
+ * Save and load programs (into- and from files)
+ * Ability to add custom commands and functions
  * File system abstraction layer that integrates many different filesystems under a single, unified programming interface
    * [minimalist FAT-like filesystem](https://github.com/szoftveres/RF_instruments/blob/main/os/fatsmall_fs.c) for extremely small (e.g. several kB EEPROM) devices.
    * SD Card FATFS for STM32
@@ -70,30 +70,29 @@ Done
 #### Number guessing game
 
 ```
- 0 "rnd ticks()"
- 1 "n = rnd() % 100"
- 2 "i = 1"
- 3 "g = prompt(\"Guess [0-99]?\")"
- 4 "if g > n \"goto 7\""
- 5 "if g < n \"goto 8\""
- 6 "print fmt (\"Found out from %i guesses\", i); end"
- 7 "print \"Too high\"; i += 1; goto 3"
- 8 "print \"Too low\"; i += 1; goto 3"
+0 "rnd ticks()"
+1 "num = rnd() % 100"
+2 "ntry = 1"
+3 "gs = prompt(\"Guess [0-99]?\")"
+4 "if gs > num \"str = \\"high\\"; goto 7\""
+5 "if gs < num \"str = \\"low\\"; goto 7\""
+6 "print fmt (\"Found out from %i guesses\", ntry); end"
+7 "print fmt(\"Too %s\", str); ntry += 1; goto 3"
 ```
 
 #### Calculating and printing prime numbers between 3 and 1000
 
 ```
- 0 "n = 3; f = 1000"
- 1 "d = 1"
- 2 "d += 1"
- 3 "if d >= n \"goto 7\""
- 4 "r = n * (f*10) / d % (f*10)"
- 5 "if r==0 \"goto 8\""
- 6 "goto 2"
- 7 "print n"
- 8 "n += 1"
- 9 "if n < f \"goto 1\""
+0 "n = 3; f = 1000"
+1 "d = 1"
+2 "d += 1"
+3 "if d >= n \"goto 7\""
+4 "r = n * (f*10) / d % (f*10)"
+5 "if r==0 \"goto 8\""
+6 "goto 2"
+7 "print n"
+8 "n += 1"
+9 "if n < f \"goto 1\""
 ```
 
 

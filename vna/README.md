@@ -1,4 +1,4 @@
-# 6 GHz Vector Network Analyzer with Adjustable Power Level
+# 6 GHz Vector Network Analyzer
 
 Specifications:
  * Frequency range: 23.5 MHz - 6 GHz, resolution: 10 kHz
@@ -9,9 +9,9 @@ Specifications:
 
 ## Motivation
 
-Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any measurement on active small-signal devices, like LNAs, RFICs and mixers; RF power level around 0 dBm (that most basic VNAs produce as a standard) drives these devices into their non-linear / compression region. While technically it's possible to lower the power level externally by using an attenuator between the active device and the VNA (and calibrating it into the system), the attenuator also attenuates the reflected waves, resulting in a dramatic loss of (already limited) dynamic range of the S1,1 measurement, making the input matching / tuning and characterization of small-signal active devices practically impossible.
+Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any measurement on active small-signal devices, like LNAs, RFICs and mixers. Most basic VNAs operate at around 0 dBm RF level, which drives these devices into their non-linear / compression region. While technically it's possible to decrease the power level externally by using an attenuator between the active device and the VNA (and calibrating it into the system), the attenuator also attenuates the reflected waves, resulting in a dramatic loss of (already limited) dynamic range of the S1,1 measurement, making the input matching / tuning and characterization of small-signal active devices practically impossible.
 
-When RF power of the VNA is adjustable at the source, reflection measurements can be made with high dynamic range at low power level settings. Also, since the reference path is also affected by the attenuation, theoretically the VNA always stays calibrated even if the RF power level is changed on the fly (this is not entirely true in practice, due to the internal non-linearities of the VNA). Moreover, power sweeps can also be accomplished very easily, which is an essential measurement for characterizing active devices.
+When RF level of the VNA is adjustable at the source, reflection measurements can be made with high dynamic range even at reduced level settings. Also, since the reference path is also affected, theoretically the VNA always stays calibrated even if the RF power level is changed on the fly (this is not entirely true in practice, due to the internal non-linearities of the VNA). Moreover, power sweeps can also be accomplished very easily, which is an essential measurement for characterizing active devices.
 
 Adjustable RF level is a premium VNA feature; a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k, so DIY is a much more economical solution.
 
@@ -53,11 +53,11 @@ The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrct
 
 ## Calibration and Performance
 
-Several great methods (like the 12-term error model) have been developed for 2-port VNA calibration which (among other things) account for leakage and port impedance mismatch. These models assume that the non-perfect terminating impedance of Port 2 of the VNA is constant during reflected- and through measurements, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer. The difference between these two matching conditions can be decreased to some degree by using an attenuator (pad) on Port 2 (the PCB includes a 3 dB pad between Port 2 and the QPC6324 switch), however this comes at the expense of reduced S2,1 dynamic range. Therefore, the error correction process on this VNA is separated into through- and reflected cases.
+Several great methods (like the 12-term error model) have been developed for 2-port VNA error correcion which (among other things) compensate for leakage and port impedance mismatch. These methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer. The difference between these two matching conditions can be decreased to some degree by using an attenuator (pad) on Port 2 (the PCB includes a 3 dB pad between Port 2 and the QPC6324 switch), however this comes at the expense of reduced S2,1 dynamic range. Therefore, the error correction process on this VNA is separated into through- and reflected cases.
 
-The reflected (S1,1) error correction is based on the well-known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)). I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal; gaining access to a high-quality cal kit and its models would allow for characterizing this DIY cal kit and building proper models (the 3-term error correction metod is capable of precise error correction if the cal kit parameters are known and accurate models can be built for them).
+The reflected (S1,1) error correction is based on the well known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)). I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal; gaining access to a high-quality cal kit and its models would allow for characterizing this DIY cal kit and building proper models (the 3-term error correction metod is capable of precise error correction if the cal kit parameters are known and accurate models can be built for them).
 
-Since the 3-term model is unaware of Port 2 and expects perfect termintaion of a multi-port multilateral network on every port, a precise S1,1 measurement requires the other port of such network (e.g. a bidirectional passive filter) to be momentariy disconnected from Port 2 and terminated by a good quality load (e.g. the load cal standard). This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
+Since the 3-term error correction expects perfect termintaion of a multi-port multilateral network on every port, a precise S1,1 measurement requires the other port of such network (e.g. a passive, bidirectional filter) to be momentariy disconnected from Port 2 (whose termination is not perfect) and terminated by a good quality load (e.g. the load cal standard). This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
 
 ![calkit](calkit.jpg)
 
@@ -65,23 +65,23 @@ On this VNA, S1,1 dynamic range is more than 40 dB across the full frequency spa
 
 ![cal_refl](cal_refl.png)
 
-The through (S2,1) calibration is based on through standard and isolation measurements. Technically only a through calibration measurement would be sufficient as long as the isolation between the two ports was acceptable (isolation would ensure the dynamic range). The corrected S2,1 in this case is the quotient of the measured S2,1 and the S2,1 of the through standard:
+The through (S2,1) error correction is based on through and isolation measurements. Technically only a through measurement would be sufficient as long as the isolation between the two ports was acceptable (isolation would ensure the dynamic range). The corrected S2,1 in this case is the quotient of the S2,1 of the DUT and the S2,1 of the through standard:
 
 ![eq1](eq1.png)
 
-On this VNA, through-only correction results is a somewhat limited dynamic range, because of lack of proper isolation (being built on a single PCB, with parts close to each other and not being shielded):
+On this VNA, through-only correction results is a somewhat limited dynamic range, because of lack of proper isolation (leakage of the QPC6324 RF switch, as well as being built on a single PCB, with parts close to each other and not being shielded):
 
 ![cal_iso_uncorrected](cal_iso_uncorrected.png)
 
-The dynamic range can be increased by including the signal leakage (isolation) into the equation. The assumption is that the leakage adds to the S2,1 measurment of the through standard as well as to the S2,1 measurements of the DUT, therefore once it is known ("isolation" calibration measurement), it can be subtracted. The equation changes like this:
+The dynamic range can be increased by measuring the signal leakage and including it into the equation. The assumption is that the leakage adds to the S2,1 of the through standard as well as to the S2,1 of the DUT, therefore once it is known ("isolation" calibration), it can be subtracted. The equation changes like this:
 
 ![eq2](eq2.png)
 
-The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any further improvement can only be realistically expected by using proper isolation and shielding.
+The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any further improvement can only be realistically expected by using proper shielding and ensuring adequate isolation.
 
 ![cal_iso_corrected](cal_iso_corrected.png)
 
-This simple through error correction method assumes a perfect through standard, i.e. doesn't take delay and loss into account, but this isn't really a problem or a practical limitation. A short, high quality SMA through has virtually zero loss, and knowing its absolute delay (or phase shift) at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace can be perfectly used as a through cal standard, resulting in the ability to make accurate *absolute* phase and gain/loss measurements at the device level. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift of a DUT due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
+This simple through error correction method assumes that the through standard is perfect, i.e. doesn't take delay and loss into account, but this isn't really a problem or a practical limitation. A short, high quality SMA through has virtually zero loss (at least as long as laboratory-grade accuracy is not a requirement), and knowing its absolute delay or phase shift at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace functions as a through standard, thereby bringing the calibration plane right to the device pins, resulting in the ability to make accurate *absolute* phase and gain/loss measurements of the device. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift of a DUT due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
 
 ![thru](thru.jpg)
 
@@ -164,6 +164,23 @@ Linearity of the measurement system:
 The driver preamp is capable of producing more than +10 dBm on its output before saturation, therefore it is able to operate in its linear region up to the maximum required +5 dBm level (it has 10 dB gain and the VNA can produce -5 dBm at most). The combined insertion loss of the DUT (LNA with 18 dB gain) and the 20 dB attenuator is -2 dB, which could theretically bring the VNA Port 2 receiver into compression by exposing it to +3 dBm power level (which is more than what it's designed for). However the DUT starts compressing approximately 10 dB below that point, therefore the power level at the VNA receiver never reaches more than approximately -5 dBm, which is within its linear region. The output of the LNA is tuned, meaning that higher order harmonic products that could also reach high levels (inherent result of overdriving the DUT) are naturally attenuated.
 
 Since the reference changes together with the measured path, theoretically the VNA would stay in calibration even if it was calibrated only at a single power setting. This is not realistic however; the mixer as well as the amplifiers don't stay fully linear across their dynamic range, hence calibration for the full measurement range must be carried out for power sweeps as well.
+
+#### Time-Domain Reflectometry
+
+Frequency-domain linear sweep of port reflection can be converted into time-domain reflection profile, by inverse Fourier-transform, as described [here](https://github.com/szoftveres/RF_Microwave/tree/main/tdr). The time-resolution is a function of the bandwidth (fmax - fmin) of the measurement, while the unambiguous range is determined by the number of measurement points. The result can be further turned into an impedance profile, by integrating the impedance changes along the X (time) axis. The resultig time-domain impedance profile is very useful for visualizing discontinuities along a transmission line. 
+
+Measurement of a straight 2.5 mm copper tape mircostrip line, on a 1.2 mm thick FR4 substrate, terminated by two parallel 100 Ω SMD resistors:
+
+![tdr_1_photo](tdr_1_photo.png)
+
+![tdr_1_meas](tdr_1_meas.png)
+
+
+The same microstrip line, with its middle covered with a 6 mm copper tape section:
+
+![tdr_1_photo](tdr_2_photo.png)
+
+![tdr_1_meas](tdr_2_meas.png)
 
 ## User Interface
 

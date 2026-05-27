@@ -3,20 +3,20 @@
 #include <string.h> // memset
 
 
+// Searching for the square root by successive approximation
+
 int isqrt (int y) {
-    int left = 0;
-    int right = y + 1;
+    int sar = 0x00008000;
+    int res = 0;
 
-    while (left < (right - 1)) {
-        long long int mid = (left + right) / 2;
-
-        if ((mid * mid) <= y) {
-            left = mid;
-        } else {
-            right = mid;
+    while (sar) {
+        res |= sar;
+        if ((res * res) > y) {
+            res &= (~sar);
         }
+        sar >>= 1;
     }
-    return left;
+    return res;
 }
 
 
