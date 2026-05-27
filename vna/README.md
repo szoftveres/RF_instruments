@@ -167,18 +167,18 @@ Since the reference changes together with the measured path, theoretically the V
 
 #### Time-Domain Reflectometry
 
-Frequency-domain linear sweep of port reflection can be converted into time-domain reflection profile, by inverse Fourier-transform, as described [here](https://github.com/szoftveres/RF_Microwave/tree/main/tdr). The time-resolution is a function of the bandwidth (fmax - fmin) of the measurement, while the unambiguous range is determined by the number of measurement points. The result can be further turned into an impedance profile, by integrating the impedance changes along the X (time) axis. The resultig time-domain impedance profile is very useful for visualizing discontinuities along a transmission line. 
+Frequency-domain linear sweep of reflection can be converted into time-domain reflection profile, by inverse Fourier-transform, as described [here](https://github.com/szoftveres/RF_Microwave/tree/main/tdr). The time-resolution is a function of the bandwidth (fmax - fmin) of the measurement, while the unambiguous range is determined by the number of measurement points. The result can be further turned into an impedance profile, by integrating the impedance changes along the X (time) axis. The resultig time-domain impedance profile is very useful for visualizing discontinuities along a transmission line. 
 
 Measurement of a straight 2.5 mm copper tape mircostrip line, on a 1.2 mm thick FR4 substrate, terminated by two parallel 100 Ω SMD resistors:
 
-![tdr_1_photo](tdr_1_photo.png)
+![tdr_1_photo](tdr_1_photo.jpg)
 
 ![tdr_1_meas](tdr_1_meas.png)
 
 
 The same microstrip line, with its middle covered with a 6 mm copper tape section:
 
-![tdr_1_photo](tdr_2_photo.png)
+![tdr_1_photo](tdr_2_photo.jpg)
 
 ![tdr_1_meas](tdr_2_meas.png)
 
