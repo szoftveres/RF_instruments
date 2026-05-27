@@ -176,7 +176,7 @@ Measurement of a straight 2.5 mm copper tape mircostrip line, on a 1.2 mm thick 
 ![tdr_1_meas](tdr_1_meas.png)
 
 
-The same microstrip line, with its middle covered with a 6 mm copper tape section:
+The same microstrip line, with its middle section widened to 6 mm:
 
 ![tdr_1_photo](tdr_2_photo.jpg)
 
