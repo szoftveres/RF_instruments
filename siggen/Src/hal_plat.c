@@ -11,6 +11,18 @@
 
 extern UART_HandleTypeDef huart1;
 
+int ticks_getter (void) {
+	return HAL_GetTick();
+}
+
+int rnd_setter (int rand_set) {
+	srand(rand_set);
+	return 1;
+}
+
+int rnd_getter (void) {
+	return rand();
+}
 
 int dac_max (void) {
 	return 4096;

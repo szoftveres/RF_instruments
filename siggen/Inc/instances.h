@@ -3,16 +3,21 @@
 
 #include "../os/bda4700.h"
 #include "../os/max2871.h"
-#include "../os/config.h"
+#include "config.h"
 #include "../os/levelcal.h"
 #include "../os/fatsmall_fs.h"
 
+extern config_t config;
 
 extern max2871_t *rf_pll;
 
 extern bda4700_t *attenuator;
 
 extern fs_t *eepromfs;  // FORMAT
+
+
+int load_devicecfg (void);
+int save_devicecfg (void);
 
 
 double set_rf_frequency (uint32_t khz);

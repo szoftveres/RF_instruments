@@ -1,6 +1,5 @@
 #include "main.h" // PIN names
 #include "instances.h"
-#include "config_def.h"
 #include "../os/globals.h"  // config instance
 #include <string.h> // memcpy
 #include <stdio.h> // EOF
@@ -9,6 +8,7 @@
 
 #include "stm32f4xx_hal.h" // HAL_GetTick
 
+config_t config;
 
 max2871_t* rf_pll;
 
@@ -17,6 +17,51 @@ bda4700_t *attenuator;
 fs_t *eepromfs; // FORMAT
 
 static const char* invalid_val = "Invalid value \'%i\'\n";
+
+
+int load_devicecfg (void) {
+	config_t lcl_config;
+	int rc;
+	int fd;
+
+	fd = open_f(fs, "cfg", FS_O_READONLY);
+	if (fd < 0) {
+		return 0;
+	}
+
+	rc = config_load(&lcl_config, fs, fd);
+	close_f(fs, fd);
+
+	if (rc < 1) {
+		rc = 0;
+	}
+	if (rc) {
+		memcpy(&config, &lcl_config, (sizeof(config_t)));
+		global_cfg_override();
+	}
+	return rc;
+}
+
+
+int save_devicecfg (void) {
+	int fd;
+	int rc;
+
+	fd = open_f(fs, "cfg", FS_O_CREAT | FS_O_TRUNC);
+	if (fd < 0) {
+		printf_f(STDERR, "conf save:open fail");
+		return 0;
+	}
+
+	rc = config_save(&config, fs, fd);
+
+	close_f(fs, fd);
+
+	if (rc < 1) {
+		rc = 0;
+	}
+	return rc;
+}
 
 
 double set_rf_frequency (uint32_t khz) {
@@ -283,11 +328,43 @@ int cmd_instctl_test (cmd_context_s* ctxt) {
 }
 
 
+int cmd_savecfg (cmd_context_s* ctxt) {
+    int rc = save_devicecfg();
+    if (rc) {
+        printf_f(STDERR, "%i bytes\n", rc);
+    }
+    printf_f(STDERR, "cfg save %s\n", rc ? "success" : "error");
+
+    return rc;
+}
+
+
+int cmd_loadcfg (cmd_context_s* ctxt) {
+    int rc = load_devicecfg();
+    if (rc) {
+        printf_f(STDERR, "%i bytes\n", rc);
+    }
+    printf_f(STDERR, "cfg load %s\n", rc ? "success" : "error");
+
+    return rc;
+}
+
+int cmd_show_cfg (cmd_context_s* ctxt) {
+    print_cfg();
+    return 1;
+}
+
+
+
 int setup_persona_commands (void) {
 	keyword_add("instctltest", "- test", cmd_instctl_test);
 	keyword_add("malloctest", "", cmd_malloctest);
 	keyword_add("sleep", "[millisecs] - sleep", cmd_sleep);
 	keyword_add("format", "- format EEPROM", cmd_format);
+
+	keyword_add("loadcfg", "- load cfg", cmd_loadcfg);
+	keyword_add("savecfg", "- save cfg", cmd_savecfg);
+	keyword_add("cfg", "- show cfg", cmd_show_cfg);
 
 	// RF GENERATOR ==================================
 	keyword_add("rfoff", "- RF off", cmd_rfoff);
