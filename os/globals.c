@@ -9,8 +9,6 @@
 
 stdio_stack_t *iostack;
 
-config_t config;
-
 program_t* program;
 
 taskscheduler_t *scheduler;
@@ -39,49 +37,6 @@ int load_autorun_program (void) {
 	}
 	return rc;
 }
-
-
-int load_devicecfg (void) {
-	config_t lcl_config;
-	int rc;
-	int fd;
-	fd = open_f(fs, "cfg", FS_O_READONLY);
-	if (fd < 0) {
-		return 0;
-	}
-
-	rc = config_load(&lcl_config, fs, fd);
-	close_f(fs, fd);
-
-	if (rc < 1) {
-		rc = 0;
-	}
-
-	if (rc) {
-		memcpy(&config, &lcl_config, (sizeof(config_t)));
-		global_cfg_override();
-	}
-	return rc;
-}
-
-int save_devicecfg (void) {
-	int fd;
-	int rc;
-
-	fd = open_f(fs, "cfg", FS_O_CREAT | FS_O_TRUNC);
-	if (fd < 0) {
-		printf_f(STDERR, "conf save:open fail");
-		return 0;
-	}
-
-	rc = config_save(&config, fs, fd);
-	close_f(fs, fd);
-	if (rc < 1) {
-		rc = 0;
-	}
-	return rc;
-}
-
 
 
 int execute_program (program_t *program, fifo_t* in, fifo_t* out) {

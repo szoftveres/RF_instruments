@@ -2,7 +2,6 @@
 #define __GLOBALS_H__
 
 #include "fs_broker.h"
-#include "config.h"
 #include "program.h"
 #include "levelcal.h"
 #include "dsp_maths.h"
@@ -16,8 +15,6 @@ extern stdio_stack_t *iostack;
 #define STDIN (iostack->fin)
 #define STDOUT (iostack->fout)
 #define STDERR (iostack->ferr)
-
-extern config_t config;
 
 extern program_t* program;
 
@@ -33,8 +30,6 @@ extern int  subroutine_sp;
 
 
 int load_autorun_program (void);
-int load_devicecfg (void);
-int save_devicecfg (void);
 
 void global_cfg_override (void);
 

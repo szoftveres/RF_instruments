@@ -3,7 +3,6 @@
 
 #include "os/bda4700.h"
 #include "os/max2871.h"
-#include "os/config.h"
 #include "os/levelcal.h"
 
 

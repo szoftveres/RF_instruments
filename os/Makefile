@@ -1,20 +1,16 @@
 OBJDIR = .
 SRCDIR = .
-INCLUDES = -I $(shell pwd) $(UPPER_INCLUDES)
+INCLUDES = -I $(shell pwd)
 OUTDIR = .
 
 ## General Flags
-PROGRAM = instr_os
-CC = gcc
-LD = gcc
-CFLAGS = -Wall -Wextra -O0 $(INCLUDES)
+PROGRAM = os
 
 ## Objects that must be built in order to link
 OBJECTS =                                               \
                         $(OBJDIR)/bda4700.o             \
                         $(OBJDIR)/blockdevice.o         \
                         $(OBJDIR)/commands.o            \
-                        $(OBJDIR)/config.o              \
                         $(OBJDIR)/dsp_maths.o           \
                         $(OBJDIR)/fatsmall_fs.o         \
                         $(OBJDIR)/fifo.o                \
@@ -36,7 +32,11 @@ SUBDIRS = lex
 .PHONY : $(SUBDIRS)
 
 ## Build both compiler and program
-all: $(SUBDIRS) $(OBJECTS)
+all: $(PROGRAM).a
+
+$(PROGRAM).a: $(SUBDIRS) $(OBJECTS)
+	$(PLATFORM_AR) -x lex/lex.a ## TODO: cleanup the object after this
+	$(PLATFORM_AR) rcs $(PROGRAM).a *.o
 
 $(SUBDIRS):
 	if test ! -f lex/Makefile; then rm -rf lex ; git clone https://github.com/szoftveres/lex.git ../lex; ln -s ../lex lex ; fi
@@ -44,9 +44,10 @@ $(SUBDIRS):
 
 ## Compile source files
 $(OBJDIR)/%.o : $(SRCDIR)/%.c
-	$(CC) $(CFLAGS) -c -o $(OBJDIR)/$*.o $< 
+	$(PLATFORM_CC) $(PLATFORM_CFLAGS) -c -o $(OBJDIR)/$*.o $< 
 
 clean:
-	-rm -rf $(OBJECTS)
+	rm -rf $(OBJECTS)
+	rm -rf $(PROGRAM).a
 	for dir in $(SUBDIRS); do $(MAKE) clean -C $$dir; done
 

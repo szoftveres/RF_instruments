@@ -1,5 +1,5 @@
 #include "globals.h"
-#include "instances.h"  // print cofg def
+//#include "instances.h"  // print cofg def
 #include "hal_plat.h"  // t_malloc
 #include "parser.h"  // lcl parsers
 #include "resource.h"
@@ -347,12 +347,6 @@ int parser_if (cmd_context_s* ctxt) {
 }
 
 
-int cmd_show_cfg (cmd_context_s* ctxt) {
-	print_cfg();
-	return 1;
-}
-
-
 int cmd_print (cmd_context_s* ctxt) {
 	int res;
 	int rc = 0;
@@ -377,28 +371,6 @@ int cmd_print (cmd_context_s* ctxt) {
 	if (rc) {
 		printf_f(STDOUT, "\n");
 	}
-	return rc;
-}
-
-
-int cmd_savecfg (cmd_context_s* ctxt) {
-	int rc = save_devicecfg();
-	if (rc) {
-		printf_f(STDERR, "%i bytes\n", rc);
-	}
-	printf_f(STDERR, "cfg save %s\n", rc ? "success" : "error");
-
-	return rc;
-}
-
-
-int cmd_loadcfg (cmd_context_s* ctxt) {
-	int rc = load_devicecfg();
-	if (rc) {
-		printf_f(STDERR, "%i bytes\n", rc);
-	}
-	printf_f(STDERR, "cfg load %s\n", rc ? "success" : "error");
-
 	return rc;
 }
 
@@ -1171,12 +1143,6 @@ int setup_commands (void) {
 	keyword_add("cos", "(n, cycles)", cosine_func);
 	keyword_add("spc", "(n)", spc_func);
 	keyword_add("fmt", "(\"fmt\", ...)", fmt_func);
-
-
-	// CONFIG ==================================
-	keyword_add("cfg", "- print cfg", cmd_show_cfg);
-	keyword_add("savecfg", "- save config", cmd_savecfg);
-	keyword_add("loadcfg", "- load config", cmd_loadcfg);
 
 
 	// DSP chain ===============================

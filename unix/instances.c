@@ -1,7 +1,6 @@
 #include "adcdac.h"
 #include "instances.h"
 #include "os/modem.h"
-#include "config_def.h"
 #include "os/globals.h"  // config instance
 #include "os/keyword.h"  // cmd_params_t
 #include <string.h> // memcpy
@@ -11,24 +10,6 @@
 static const char* invalid_val = "Invalid value \'%i\'\n";
 
 
-
-
-void global_cfg_override (void) {
-}
-
-void apply_cfg (void) {
-}
-
-
-void cfg_override (void) {
-	config.fields.rfon = 1; // always load with RF on
-}
-
-
-
-void print_cfg (void) {
-	printf_f(STDERR, "RF: %i kHz, %i dBm, output %s\n", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
-}
 
 
 /*
