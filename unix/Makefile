@@ -6,6 +6,16 @@ OUTDIR = .
 ## General Flags
 PROGRAM = instr_os_unix
 
+
+# This is pretty much the config
+SUBDIRS = pcmstream os
+.PHONY : $(SUBDIRS) clean
+
+INCLUDES += $(foreach sd,$(SUBDIRS),-I ../$(sd))
+BUILD_LIBS += $(foreach sd,$(SUBDIRS), $(sd)/$(sd).a)
+
+$(info $(INCLUDES))
+
 export PLATFORM_CC = gcc
 export PLATFORM_LD = gcc
 export PLATFORM_AR = ar
@@ -20,18 +30,16 @@ OBJECTS =                                               \
                         $(OBJDIR)/unixfs_wrapper.o      \
                         $(OBJDIR)/hal_plat.o            \
 
-SUBDIRS = os
-.PHONY : $(SUBDIRS)
 
 ## Build both compiler and program
 all: $(PROGRAM).bin
 
 $(SUBDIRS):
-	if test ! -f os/Makefile; then rm -rf os ; ln -s ../os os ; fi
+	if test ! -f $@/Makefile; then rm -rf $@ ; ln -s ../$@ $@ ; fi
 	$(MAKE) -C $@
 
 $(PROGRAM).bin: $(SUBDIRS) $(OBJECTS)
-	$(PLATFORM_LD) $(OBJECTS) os/os.a $(PLATFORM_LDFLAGS) -o $(OBJDIR)/$(PROGRAM).bin
+	$(PLATFORM_LD) $(OBJECTS) $(BUILD_LIBS) $(PLATFORM_LDFLAGS) -o $(OBJDIR)/$(PROGRAM).bin
 
 
 ## Compile source files
@@ -42,4 +50,5 @@ clean:
 	rm -rf $(OBJECTS)
 	rm -rf $(PROGRAM).bin
 	for dir in $(SUBDIRS); do $(MAKE) clean -C $$dir; done
+	rm -rf $(SUBDIRS)
 

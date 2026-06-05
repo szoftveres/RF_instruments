@@ -28,7 +28,6 @@ OBJECTS =                                               \
                         $(OBJDIR)/keyword.o             \
                         $(OBJDIR)/modem.o               \
                         $(OBJDIR)/parser.o              \
-                        $(OBJDIR)/pcmstream.o           \
                         $(OBJDIR)/program.o             \
                         $(OBJDIR)/resource.o            \
                         $(OBJDIR)/taskscheduler.o       \
@@ -56,4 +55,5 @@ clean:
 	rm -rf $(OBJECTS)
 	rm -rf $(PROGRAM).a
 	for dir in $(SUBDIRS); do $(MAKE) clean -C $$dir; done
+	rm -rf $(SUBDIRS)
 

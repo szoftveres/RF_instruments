@@ -11,6 +11,7 @@
 #include "instances.h"
 #include "unixfs_wrapper.h"
 #include "os/terminal_input.h"
+#include "pcmstream/pcmstream.h"
 
 
 
@@ -187,6 +188,7 @@ int main(void)
 
 
   setup_commands();
+  pcmstream_cmds_setup();
   setup_persona_commands();
 
 

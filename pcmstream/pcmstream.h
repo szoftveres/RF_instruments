@@ -54,4 +54,6 @@ int rxmodem_setup (fifo_t* in_stream, int fc);
 struct pcmsrc_context_s;
 int pcmsrc_setup (fifo_t* out_stream, int fs, task_rc_t (*fn) (void*, uint16_t*), void (*cleanup) (void*), void* function_context);
 
+void pcmstream_cmds_setup (void);
+
 #endif /* INC_PCMSTREAM_H_ */
