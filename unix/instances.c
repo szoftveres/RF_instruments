@@ -10,40 +10,6 @@
 static const char* invalid_val = "Invalid value \'%i\'\n";
 
 
-
-
-/*
-int fs_setter (void * context, int fs) {
-	if (!set_fs(fs)) {
-		printf_f(STDERR, invalid_val, fs);
-		return 0;
-	}
-	printf_f(STDERR, "fs: %i Hz\n", fs);
-	return 1;
-}
-
-int fc_setter (void * context, int fc) {
-	if (!set_fc(fc)) {
-		printf_f(STDERR, invalid_val, fc);
-		return 0;
-	}
-	printf_f(STDERR, "fc: %i Hz\n", fc);
-	return 1;
-}
-
-int dac1_setter (void * context, int aval) {
-	resource_t* resource = (resource_t*)context;
-	if (aval < 0 || aval >= dac_max()) {
-		printf_f(STDERR, invalid_val, aval);
-		return 0;
-	}
-	resource->value = aval;
-	dac1_outv((uint32_t)aval);
-	return 1;
-}
-*/
-
-
 int cmd_dacsink (cmd_context_s* ctxt) {
 	return dacsink_setup(ctxt->in);
 }

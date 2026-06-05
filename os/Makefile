@@ -3,12 +3,21 @@ SRCDIR = .
 INCLUDES = -I $(shell pwd)
 OUTDIR = .
 
+ifndef PLATFORM_CC
+$(error PLATFORM_CC undefined)
+endif
+ifndef PLATFORM_CFLAGS
+$(error PLATFORM_CFLAGS undefined)
+endif
+ifndef PLATFORM_AR
+$(error PLATFORM_AR undefined)
+endif
+
 ## General Flags
 PROGRAM = os
 
 ## Objects that must be built in order to link
 OBJECTS =                                               \
-                        $(OBJDIR)/bda4700.o             \
                         $(OBJDIR)/blockdevice.o         \
                         $(OBJDIR)/commands.o            \
                         $(OBJDIR)/dsp_maths.o           \
@@ -17,10 +26,7 @@ OBJECTS =                                               \
                         $(OBJDIR)/fs_broker.o           \
                         $(OBJDIR)/globals.o             \
                         $(OBJDIR)/keyword.o             \
-                        $(OBJDIR)/levelcal.o            \
-                        $(OBJDIR)/max2871.o             \
                         $(OBJDIR)/modem.o               \
-                        $(OBJDIR)/nmea0183.o            \
                         $(OBJDIR)/parser.o              \
                         $(OBJDIR)/pcmstream.o           \
                         $(OBJDIR)/program.o             \
