@@ -1,0 +1,130 @@
+
+#include <string.h> // memcpy
+#include <unistd.h> // sbrk
+#include <stdio.h> // sprintf
+#include "os/hal_plat.h" // HAL
+#include "os/commands.h"
+#include "os/globals.h"
+#include "os/resource.h"
+#include "os/parser.h"
+#include "os/fatsmall_fs.h"
+#include "instances.h"
+#include "os/terminal_input.h"
+
+
+
+
+char get_online_char (void) {
+    int rc = getc(stdin);
+    char c;
+    if (rc == EOF) {
+        c = 0x04; // Passing Ctrl + D down
+        clearerr(stdin); // Clearing EOF
+    } else {
+        c = (char)rc;
+    }
+    return c;
+}
+
+
+void put_online_char (char c) {
+	putchar(c);
+}
+
+
+int main(void)
+{
+
+
+
+  console_printf("");
+
+  scheduler = scheduler_create();
+  if (!scheduler) {
+	  console_printf("scheduler init error");
+	  cpu_halt();
+  }
+
+  fs = fs_broker_create();
+  if (!fs) {
+	  console_printf("FSbroker init error");
+	  cpu_halt();
+  }
+
+  program = program_create(20, 80); // 20 lines, 80 characters each -> 1.6k max program size
+  if (!program) {
+  	  console_printf("program init error");
+  	  cpu_halt();
+  }
+
+
+  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, 8); // line not used
+  if (!terminal) {
+        console_printf("terminal init error");
+        cpu_halt();
+  }
+
+  generic_fs_t *devfs = generic_fs_create();
+  if (!devfs) {
+	  console_printf("devfs init error");
+	  cpu_halt();
+  }
+
+  generic_file_t *nullfile = generic_file_create ("null", NULL,
+													  nullfile_open,
+													  nullfile_close,
+													  nullfile_read,
+													  nullfile_write);
+
+  if (generic_fs_register_file(devfs, nullfile) < 0) {
+	  console_printf("file reg error");
+	  cpu_halt();
+  }
+
+  generic_file_t *confile = generic_file_create ("con", terminal,
+													  nullfile_open,
+													  nullfile_close,
+													  consolefile_readline_raw,
+													  consolefile_write);
+
+  if (generic_fs_register_file(devfs, confile) < 0) {
+	  console_printf("file reg error");
+	  cpu_halt();
+  }
+
+  fs_broker_register_fs(fs,
+		  	  	  	    devfs,
+						'D',
+		  	  	  	    (int (*)(void*, char*, int)) generic_fs_open,
+						(void (*) (void*, int)) generic_fs_close,
+						(void (*) (void*, int)) generic_fs_rewind,
+						(int (*) (void*, int, char*, int)) generic_fs_read,
+						(int (*) (void*, int, char*, int)) generic_fs_write,
+						(int (*) (void*, char*)) generic_fs_delete,
+						(int (*) (void*)) generic_fs_opendir,
+						(int (*) (void*, char**, int*)) generic_fs_walkdir,
+						(int (*) (void*)) generic_fs_closedir);
+
+
+  setup_commands();
+  setup_persona_commands();
+
+
+  program_ip = 0;
+  program_run = 0;
+  subroutine_sp = 0;
+
+  int fcon = open_f(fs, "D:con", 0);
+  if (fcon < 0) {
+	  console_printf("conio file error");
+	  cpu_halt();
+  }
+
+  iostack = NULL;
+  stdiostack_push(&iostack, fcon, fcon, fcon);
+
+  command_line_loop();
+  console_printf("\nDone");
+
+}
+
