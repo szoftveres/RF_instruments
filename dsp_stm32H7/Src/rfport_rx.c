@@ -11,9 +11,6 @@ extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 
 
-#define RFPORTRX_FS (80000)
-
-
 typedef struct rfport_rx_sample_s {
 	int ref;
 	int meas;
@@ -35,10 +32,10 @@ void rfport_rx_daq_callback (void* ctxt) {
 }
 
 
-void rfport_rx_daq_on (void) {
+void rfport_rx_daq_on (int fs) {
 	rfport_rx_sample_stream = fifo_create(64, sizeof(rfport_rx_sample_t));
 
-	set_sampler_frequency(RFPORTRX_FS);
+	set_sampler_frequency(fs);
 
 	start_sampler(rfport_rx_daq_callback, NULL);
 }
@@ -51,17 +48,18 @@ void rfport_rx_daq_off (void) {
 }
 
 
-void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
+void rfport_rx_meas (int fs, int fc, int samples, rfport_rx_t* m, int window) {
 	dds_t* mixer;
 	rfport_rx_sample_t sample;
+	int mag = magnitude_const();
 	int min = INT_MAX;
 	int max = INT_MIN;
 
-	rfport_rx_daq_on();
+	rfport_rx_daq_on(fs);
 
 	memset(m, 0x00, sizeof(rfport_rx_t));
 
-	mixer = dds_create(RFPORTRX_FS, fc);
+	mixer = dds_create(fs, fc, sinewave);
 
 	// The first sample is garbage (leftover), discard it
 	fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
@@ -70,9 +68,6 @@ void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
 	for (int c = 0; c != samples; c += 1) {
 		int i;
 		int q;
-		int mag = magnitude_const();
-
-		//int window = raised_cos_window(c, samples);
 
 		dds_next_sample(mixer, &i, &q);
 
@@ -81,8 +76,11 @@ void rfport_rx_meas (int fc, int samples, rfport_rx_t* m) {
 		if (sample.ref < min) {min = sample.ref;}
 		if (sample.ref > max) {max = sample.ref;}
 
-		//sample.ref = sample.ref * window / mag;
-		//sample.meas = sample.meas * window / mag;
+		if (window) {
+			int w = raised_cos_window(c, samples);
+			sample.ref = sample.ref * w / mag;
+			sample.meas = sample.meas * w / mag;
+		}
 
 		m->ref_i += ((sample.ref * i) / mag);
 		m->ref_q += ((sample.ref * q) / mag);

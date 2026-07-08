@@ -1,10 +1,9 @@
 #ifndef __INSTANCES_H__
 #define __INSTANCES_H__
 
-#include "../os/bda4700.h"
-#include "../os/max2871.h"
+#include "../bda4700/bda4700.h"
+#include "../max2871/max2871.h"
 #include "config.h"
-#include "../os/levelcal.h"
 #include "../os/fatsmall_fs.h"
 
 extern config_t config;

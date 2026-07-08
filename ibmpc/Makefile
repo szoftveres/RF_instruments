@@ -27,6 +27,7 @@ OBJECTS =                                               \
                         $(OBJDIR)/main.o                \
                         $(OBJDIR)/instances.o           \
                         $(OBJDIR)/hal_plat.o            \
+                        $(OBJDIR)/strlib.o              \
 
 
 ## Build both compiler and program

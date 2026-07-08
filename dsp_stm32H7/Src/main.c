@@ -33,6 +33,7 @@
 #include "sdfatfs_wrapper.h"
 #include "adcdac.h"
 #include "../os/terminal_input.h"
+#include "../pcmstream/pcmstream.h"
 
 /* USER CODE END Includes */
 
@@ -477,27 +478,17 @@ int main(void)
   	  cpu_halt();
   }
 
-  generic_file_t *uartinfile = generic_file_create ("uartin", aux_uart,
+  generic_file_t *uartfile = generic_file_create ("uart", aux_uart,
 													  nullfile_open,
 													  nullfile_close,
 													  consolefile_read,
-													  nullfile_write);
-
-  if (generic_fs_register_file(devfs, uartinfile) < 0) {
-	  console_printf("file reg error");
-	  cpu_halt();
-  }
-
-  generic_file_t *uartoutfile = generic_file_create ("uartout", aux_uart,
-													  nullfile_open,
-													  nullfile_close,
-													  nullfile_read,
 													  consolefile_write);
 
-  if (generic_fs_register_file(devfs, uartoutfile) < 0) {
+  if (generic_fs_register_file(devfs, uartfile) < 0) {
 	  console_printf("file reg error");
 	  cpu_halt();
   }
+
 
 
   fs_broker_register_fs(fs,
@@ -515,6 +506,7 @@ int main(void)
 
 
   setup_commands();
+  pcmstream_cmds_setup();
   setup_persona_commands();
 
   ledflash(2);

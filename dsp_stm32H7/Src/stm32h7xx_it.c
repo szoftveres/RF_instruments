@@ -250,7 +250,7 @@ void UART7_IRQHandler(void)
   /* USER CODE END UART7_IRQn 0 */
   HAL_UART_IRQHandler(&huart7);
   /* USER CODE BEGIN UART7_IRQn 1 */
-  if (UART7->ISR & UART_IT_RXNE) {
+  if (__HAL_UART_GET_FLAG(&huart7, UART_FLAG_RXNE)) {
 	  uint8_t res;
 	  // Make sure this handler has the lowest priority (15)
 	  HAL_UART_Receive(&huart7, &res, 1, 500);

@@ -70,7 +70,7 @@ Done
 #### Number guessing game
 
 ```
-0 "rnd ticks()"
+0 "rnd(ticks())"
 1 "num = rnd() % 100"
 2 "ntry = 1"
 3 "gs = prompt(\"Guess [0-99]?\")"

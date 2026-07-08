@@ -1,8 +1,7 @@
 #include "nmea0183.h"
-#include "hal_plat.h" // t_malloc
+#include "../os/hal_plat.h" // t_malloc
 #include <string.h> // strcmp
-#include "globals.h"
-#include "lex/lex.h"  // This is somewhat annoying
+#include "../os/lex/lex.h"  // This is somewhat annoying
 
 
 // this is how the (portable) lex reads a new byte

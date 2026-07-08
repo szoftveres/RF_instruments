@@ -13,6 +13,18 @@ extern UART_HandleTypeDef huart5;
 
 extern TIM_HandleTypeDef htim2;
 
+int ticks_getter (void) {
+	return HAL_GetTick();
+}
+
+int rnd_setter (int rand_set) {
+	srand(rand_set);
+	return 1;
+}
+
+int rnd_getter (void) {
+	return rand();
+}
 
 void ledon (void) {
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);

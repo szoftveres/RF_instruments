@@ -11,7 +11,7 @@ typedef struct rfport_rx_s {
 } rfport_rx_t;
 
 
-void rfport_rx_meas (int fc, int samples, rfport_rx_t* m);
+void rfport_rx_meas (int fs, int fc, int samples, rfport_rx_t* m, int window);
 
 
 #endif /* INC_RFPORT_RX_H_ */

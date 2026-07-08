@@ -11,7 +11,7 @@
 #include "../os/modem.h"
 #include "stm32h7xx_hal.h"  // HAL get tick
 #include "rfport_rx.h"
-#include "../os/nmea0183.h"
+#include "../nmea0183/nmea0183.h"
 
 max2871_t* rf_pll;
 max2871_t* lo_pll;
@@ -23,19 +23,6 @@ static const char* invalid_val = "Invalid value \'%i\'\n";
 static const char* name_expected = "\"name\" expected\n";
 
 
-
-double set_rf_frequency (uint32_t khz) {
-	double actual_kHz;
-
-	get_cal_range_index((int)khz);
-	actual_kHz = max2871_freq(rf_pll, khz);
-	if (actual_kHz > 0) {
-		config.fields.khz = khz;
-	}
-	return actual_kHz;
-}
-
-
 void set_rf_output (int on) {
 	max2871_rfa_power(rf_pll, -1);
 	max2871_rfa_power(lo_pll, -1);
@@ -43,7 +30,6 @@ void set_rf_output (int on) {
 	max2871_rfa_out(rf_pll, on);
 	max2871_rfa_out(lo_pll, on);
 
-	config.fields.rfon = on;
 	if (on) {
 		ledon();
 	} else {
@@ -60,57 +46,17 @@ int set_rf_level (int dBm) {
 	if (!bda4700_set(attenuator, dBm * -1)) {
 		return 0;
 	}
-	config.fields.level = dBm;
 	return 1;
 }
 
-
-int set_fs (int fs) {
-	config.fields.fs = fs;
-	return 1;
-}
-
-
-int set_fc (int fc) {
-	config.fields.fc = fc;
-	return 1;
-}
-
-
-void global_cfg_override (void) {
-	cfg_override();
-	apply_cfg();
-	print_cfg();
-}
-
-
-void apply_cfg (void) {
-	set_rf_level(config.fields.level);
-	set_rf_frequency(config.fields.khz);
-	set_rf_output(config.fields.rfon);
-	set_fs(config.fields.fs);
-	set_fc(config.fields.fc);
-}
-
-
-void cfg_override (void) {
-	config.fields.rfon = 1; // always load with RF on
-	set_rf_output(config.fields.rfon);
-}
-
-
-
-void print_cfg (void) {
-	printf_f(STDERR, "RF: %i kHz, %i dBm, output %s\n", config.fields.khz, config.fields.level, config.fields.rfon ? "on" : "off");
-}
-
-
-int baud_to_samples (int baud) {
-	return config.fields.fs / baud;
-}
 
 
 /*-----------------------------------------*/
+
+int cmd_synth (cmd_context_s* ctxt) {
+	synth_play();
+	return 1;
+}
 
 #include <stdlib.h>
 
@@ -135,7 +81,7 @@ int rflevel_func (cmd_context_s* ctxt) {
 		rc = set_rf_level(ctxt->params->n);
 		obj_consume(&(ctxt->params));
 	} else {
-		obj_add_num(&(ctxt->ret), config.fields.level);
+//		obj_add_num(&(ctxt->ret), config.fields.level);
 	}
 	return rc;
 }
@@ -410,7 +356,7 @@ int cmd_vna (cmd_context_s* ctxt) {
 			return 0;
 		}
 	}
-	rfport_rx_meas(10000, 800, &rfmeas);
+	rfport_rx_meas(80000, 10000, 800, &rfmeas, 0);
 
 	/* Reference */
 	console_send_i32(rfmeas.ref_i);
@@ -427,21 +373,70 @@ int cmd_vna (cmd_context_s* ctxt) {
 }
 
 
+int cmd_rfinmeas (cmd_context_s* ctxt) {
+
+	int freq;
+	int lck = 0;
+	rfport_rx_t rfmeas;
+
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+		printf_f(STDERR, "Freq needed\n");
+		return 0;
+	}
+	freq = ctxt->params->n;
+	obj_consume(&(ctxt->params));
+
+	set_rf_output(1);
+
+	for (int i = 0; i != 2; i++) {
+		set_rf_level(i ? 0 : -30);
+		max2871_freq(rf_pll, (double)(freq + (i ? 0 : 10)));
+		max2871_rfa_out(rf_pll, i);
+		max2871_freq(lo_pll, (double)(freq + 10));
+
+		while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
+			HAL_Delay(10);
+			lck += 1;
+			if (lck > 20) {
+				printf_f(STDERR, "PLL lock error\n");
+				return 0;
+			}
+		}
+		rfport_rx_meas(80000, 10000, 800, &rfmeas, 1);
+
+		/* Reference */
+		printf_f(STDOUT, "ref_i: %i\n", rfmeas.ref_i);
+		printf_f(STDOUT, "ref_q: %i\n", rfmeas.ref_q);
+
+		/* Reference absolute amplitude */
+		printf_f(STDOUT, "ref ampl: %i\n", rfmeas.ref_ampl);
+
+		/* Receiver */
+		printf_f(STDOUT, "rx_i: %i\n", rfmeas.meas_i);
+		printf_f(STDOUT, "rx_q: %i\n", rfmeas.meas_q);
+	}
+
+	set_rf_output(0);
+
+	return 1;
+}
+
+
 int cmd_rfon (cmd_context_s* ctxt) {
 	set_rf_output(1);
-	print_cfg();
 	return 1;
 }
 
 
 int cmd_rfoff (cmd_context_s* ctxt) {
 	set_rf_output(0);
-	print_cfg();
 	return 1;
 }
 
 
 int setup_persona_commands (void) {
+
+	keyword_add("synth", "", cmd_synth);
 
 	keyword_add("asel", "0/1", cmd_asel);
 	keyword_add("level", "(dBm)", rflevel_func);
@@ -449,6 +444,7 @@ int setup_persona_commands (void) {
 	keyword_add("rfoff", "- RF off", cmd_rfoff);
 	keyword_add("rfon", "- RF on", cmd_rfon);
 
+	keyword_add("rfinmeas", "- test", cmd_rfinmeas);
 	keyword_add("vna", "- test", cmd_vna);
 
 	keyword_add("instctltest", "- test", cmd_instctl_test);

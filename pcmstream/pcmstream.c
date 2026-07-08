@@ -1,7 +1,8 @@
 #include "pcmstream.h"
-#include "globals.h"
-#include "keyword.h"
-#include "hal_plat.h" // t_malloc, t_free
+#include "../os/globals.h"
+#include "../os/dsp_maths.h"
+#include "../os/keyword.h"
+#include "../os/hal_plat.h" // t_malloc, t_free
 
 #include <string.h>
 

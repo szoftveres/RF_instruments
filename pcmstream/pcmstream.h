@@ -2,9 +2,9 @@
 #define INC_PCMSTREAM_H_
 
 
-#include "fs_broker.h" // fs
-#include "fifo.h" //fifo
-#include "taskscheduler.h" //task
+#include "../os/fs_broker.h" // fs
+#include "../os/fifo.h" //fifo
+#include "../os/taskscheduler.h" //task
 #include <stdint.h>
 
 typedef struct __attribute__((packed)) {
