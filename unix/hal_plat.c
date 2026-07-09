@@ -3,6 +3,7 @@
 #include <stdio.h> // vsprintf
 #include <stdlib.h> // malloc free
 #include <unistd.h> // unix write
+#include <sched.h> // sched_yield
 
 #include <pulse/error.h> // 'apt-get install libpulse-dev'
 #include <pulse/simple.h>
@@ -117,7 +118,7 @@ void *t_malloc (size_t size) {
 		chunks += 1;
 	} else {
 		console_printf("t_malloc fail size:%i chunks:%i", size, chunks);
-		while (1) {periodic_IT_off(); cpu_sleep();}
+		while (1) {cpu_halt();}
 	}
 	return p;
 }
@@ -128,7 +129,7 @@ char *t_strdup (const char *c) {
 		chunks += 1;
 	} else {
 		console_printf("t_strdup fail s:%s chunks:%i", c, chunks);
-		while (1) {periodic_IT_off(); cpu_sleep();}
+		while (1) {cpu_halt();}
 	}
 	return p;
 }
@@ -164,20 +165,16 @@ char level_to_color (int n, int range) {
 /* ================================ */
 
 void cpu_sleep (void) {
-	;
+    sched_yield();
 }
 
-void periodic_IT_off (void) {
-	;
-}
-
-void periodic_IT_on (void) {
-	;
+void cpu_yield (void) {
+    sched_yield();
 }
 
 void cpu_halt (void) {
 	console_printf("System halted");
-	while(1) {periodic_IT_off();cpu_sleep();}
+	while(1) {cpu_sleep();}
 }
 
 /* ================================ */

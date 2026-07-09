@@ -135,7 +135,7 @@ void *t_malloc (size_t size) {
 		chunks += 1;
 	} else {
 		console_printf("t_malloc fail size:%i chunks:%i", size, chunks);
-		while (1) {periodic_IT_off(); cpu_sleep();}
+		while (1) {cpu_halt();}
 	}
 	return p;
 }
@@ -146,7 +146,7 @@ char *t_strdup (const char *c) {
 		chunks += 1;
 	} else {
 		console_printf("t_strdup fail s:%s chunks:%i", c, chunks);
-		while (1) {periodic_IT_off(); cpu_sleep();}
+		while (1) {cpu_halt();}
 	}
 	return p;
 }
@@ -182,20 +182,18 @@ char level_to_color (int n, int range) {
 /* ================================ */
 
 void cpu_sleep (void) {
-	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-}
-
-void periodic_IT_off (void) {
 	HAL_SuspendTick();
+	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+	HAL_ResumeTick();
 }
 
-void periodic_IT_on (void) {
-	HAL_ResumeTick();
+void cpu_yield (void) {
+	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 }
 
 void cpu_halt (void) {
 	console_printf("System halted");
-	while(1) {periodic_IT_off();cpu_sleep();}
+	while(1) {HAL_SuspendTick(); cpu_sleep();}
 }
 
 /* ================================ */

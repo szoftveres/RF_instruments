@@ -69,11 +69,9 @@ int fifo_pop (fifo_t* instance, void *c) {
 
 
 void fifo_sleep (fifo_t* instance, void *c, int (*fifo_op) (fifo_t* , void *)) {
-	periodic_IT_off();
 	while (!fifo_op(instance, c)) {
 		cpu_sleep();
 	}
-	periodic_IT_on();
 }
 
 

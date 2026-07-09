@@ -149,7 +149,7 @@ void command_line_loop () {
 	int linelen = program->header.fields.linelen;
 
 	while (run) {
-		int rc;
+		int rc = 0;
 		int bytes;
 
 		int prompt_pidx = 0;
@@ -172,17 +172,14 @@ void command_line_loop () {
 	    bytes = read_f_line(fs, STDIN, buf, linelen-1);
 
         if (bytes < 1) {
-			run = 0;
-			break;
-		}
-        if (buf[bytes-1] != '\n') {
+			rc = -1;
+		} else if (buf[bytes-1] != '\n') {
             printf_f(STDERR, "line too long\n");
-            run = 0;
-            break;
+            rc = -1;
+        } else {
+            buf[bytes-1] = '\0';
+            rc = cmd_line_parser(online_parser, NULL, NULL);
         }
-        buf[bytes-1] = '\0';
-
-		rc = cmd_line_parser(online_parser, NULL, NULL);
 		parser_destroy(online_parser);
 
 		chunks -= t_chunks();

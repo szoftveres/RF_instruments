@@ -37,9 +37,8 @@ int t_chunks (void);
 char level_to_color (int n, int range);
 
 void cpu_sleep (void);
-void periodic_IT_off (void);
-void periodic_IT_on (void);
 void cpu_halt();
+void cpu_yield();
 
 
 extern void (*sampler_callback) (void*);

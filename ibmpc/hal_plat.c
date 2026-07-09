@@ -67,7 +67,7 @@ void *t_malloc (size_t size) {
 		chunks += 1;
 	} else {
 		console_printf("t_malloc fail size:%i chunks:%i", size, chunks);
-		while (1) {periodic_IT_off(); cpu_sleep();}
+		while (1) {cpu_halt();}
 	}
 	return p;
 }
@@ -78,7 +78,7 @@ char *t_strdup (const char *c) {
 		chunks += 1;
 	} else {
 		console_printf("t_strdup fail s:%s chunks:%i", c, chunks);
-		while (1) {periodic_IT_off(); cpu_sleep();}
+		while (1) {cpu_halt();}
 	}
 	return p;
 }
@@ -117,17 +117,13 @@ void cpu_sleep (void) {
 	;
 }
 
-void periodic_IT_off (void) {
-	;
-}
-
-void periodic_IT_on (void) {
+void cpu_yield (void) {
 	;
 }
 
 void cpu_halt (void) {
 	console_printf("System halted");
-	while(1) {periodic_IT_off();cpu_sleep();}
+	while(1) {/*CLI*/ cpu_sleep();}
 }
 
 
