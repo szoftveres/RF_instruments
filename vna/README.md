@@ -11,7 +11,7 @@ Specifications:
 
 Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any measurement on active small-signal devices, like LNAs, RFICs and active mixers. The RF output level of these basic VNAs is at around 0 dBm, which drives active devices into their non-linear / compression region. A passive attenuator placed after Port 1 also attenuates the reflected waves, which would result in a dramatic loss of (already limited) dynamic range of the S1,1 measurement.
 
-Being able to control the RF power level of the VNA internally with a programmable attenuator opens up many possibilities, like beinng able to carry out power sweeps, as well being able to measure small-signal devices accurately, which is the main target of this project.
+Being able to control the RF power level of the VNA internally with a programmable attenuator opens up many possibilities, like being able to carry out power sweeps, as well being able to measure small-signal devices accurately, which is the main target of this project.
 
 Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k, therefore DIY is a much more economical solution.
 
@@ -52,11 +52,9 @@ GNU Octave has some built-in functions and widgets that can be used to create a 
 
 ## Calibration and Performance
 
-Several great methods (like the 12-term error model) have been developed for 2-port VNA error correcion which (among other things) compensate for leakage and port impedance mismatch. These methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer. The difference between these two matching conditions can be decreased to some degree by using an attenuator (pad) on Port 2 (the PCB includes a 3 dB pad between Port 2 and the QPC6324 switch), however this comes at the expense of reduced S2,1 dynamic range. Therefore, the error correction process on this VNA is separated into through- and reflected cases.
+Several great methods (like the 12-term error model) have been developed for 2-port VNA error correcion which (among other things) compensate for leakage and port impedance mismatch. These methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer; therefore, the error correction process on this VNA is separated into through- and reflected cases.
 
-The reflected (S1,1) error correction is based on the well known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the VNA can be calibrated with high-quality standards, the cal-kit parameters can be supplied in a HP-Agilent-Keysight format. Most of the time however I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal, but works well, especially at sub-GHz.
-
-A limitation of the 3-term error correction is that it assumes perfect termintaion on every port of a multi-port multilateral network; So a precise S1,1 measurement of e.g. a passive bandpass filter requires the other port being terminated by a good quality load (e.g. the load cal standard), because Port 2 termination is not nearly as good. This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
+The reflected (S1,1) error correction is based on the well known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the VNA can be calibrated with high-quality standards, the cal-kit parameters can be supplied in a HP-Agilent-Keysight format. Most of the time however I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal, but works well, especially at sub-GHz. A limitation of the 3-term error correction is that it assumes perfect termintaion on every port of a multi-port multilateral network, so a precise S1,1 measurement of e.g. a passive bandpass filter requires the other port being terminated by a good quality load (e.g. the load cal standard), because Port 2 termination is not nearly as good. This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
 
 ![calkit](calkit.jpg)
 
@@ -67,6 +65,10 @@ On this VNA, S1,1 dynamic range is more than 40 dB across the full frequency spa
 The through (S2,1) error correction is based on through and isolation measurements. Technically only a through measurement would be sufficient as long as the isolation between the two ports was acceptable (isolation would ensure the dynamic range). The corrected S2,1 in this case is the quotient of the S2,1 of the DUT and the S2,1 of the through standard:
 
 ![eq1](eq1.png)
+
+This simple through error correction method assumes that the through standard is perfect, i.e. doesn't take delay and loss into account, but in practice this isn't really a problem or a limitation. A short, high quality SMA through has virtually zero loss (at least as long as laboratory-grade accuracy is not a requirement), and knowing its absolute delay or phase shift at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace functions as a through standard, thereby bringing the calibration plane right to the device pins, resulting in the ability to make accurate *absolute* phase and gain/loss measurements of the device. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift of a DUT due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
+
+![thru](thru.jpg)
 
 On this VNA, through-only correction results is a somewhat limited dynamic range, because of lack of proper isolation (leakage of the QPC6324 RF switch, as well as being built on a single PCB, with parts close to each other and not being shielded):
 
@@ -79,10 +81,6 @@ The dynamic range can be increased by measuring the signal leakage and including
 The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any further improvement can only be realistically expected by using proper shielding and ensuring adequate isolation.
 
 ![cal_iso_corrected](cal_iso_corrected.png)
-
-This simple through error correction method assumes that the through standard is perfect, i.e. doesn't take delay and loss into account, but this isn't really a problem or a practical limitation. A short, high quality SMA through has virtually zero loss (at least as long as laboratory-grade accuracy is not a requirement), and knowing its absolute delay or phase shift at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace functions as a through standard, thereby bringing the calibration plane right to the device pins, resulting in the ability to make accurate *absolute* phase and gain/loss measurements of the device. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift of a DUT due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
-
-![thru](thru.jpg)
 
 ## Measurements
 
@@ -126,7 +124,7 @@ From the datasheet:
 
 ![sawdata](sawdata.png)
 
-#### SMA cable phase stability measurement
+#### SMA cable phase stability measurement at 5.5 GHz
 
 A cheap RG316 SMA cable was included in the through calibration, then it was bent at a sharp curve to observe phase change at high frequency.
 
