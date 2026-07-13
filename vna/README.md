@@ -52,9 +52,9 @@ GNU Octave has some built-in functions and widgets that can be used to create a 
 
 ## Calibration and Performance
 
-Several great methods (like the 12-term error model) have been developed for 2-port VNA error correcion which (among other things) compensate for leakage and port impedance mismatch. These methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer; therefore, the error correction process on this VNA is separated into through- and reflected cases.
+Several error correction methods ara avilable (like the 12-term error model) for a 2-port VNA, these methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer; therefore, the error correction process on this VNA is separated into through- and reflected cases.
 
-The reflected (S1,1) error correction is based on the well known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the VNA can be calibrated with high-quality standards, the cal-kit parameters can be supplied in a HP-Agilent-Keysight format. Most of the time however I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which is far from ideal, but works well, especially at sub-GHz. A limitation of the 3-term error correction is that it assumes perfect termintaion on every port of a multi-port multilateral network, so a precise S1,1 measurement of e.g. a passive bandpass filter requires the other port being terminated by a good quality load (e.g. the load cal standard), because Port 2 termination is not nearly as good. This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
+The reflected (S1,1) error correction is based on the well known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the VNA can be calibrated with high-quality standards, the cal-kit parameters can be supplied in a HP-Agilent-Keysight format. Most of the time however I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies); the results aren't lab grade, but sufficient enough, especially at sub-GHz. A limitation of the 3-term error correction is that it assumes perfect termintaion on every port of a multi-port multilateral network, so a precise S1,1 measurement of e.g. a passive bandpass filter requires the other port to be terminated by a good quality load (e.g. the load cal standard), because Port 2 termination is not nearly as good. This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
 
 ![calkit](calkit.jpg)
 
@@ -66,7 +66,7 @@ The through (S2,1) error correction is based on through and isolation measuremen
 
 ![eq1](eq1.png)
 
-This simple through error correction method assumes that the through standard is perfect, i.e. doesn't take delay and loss into account, but in practice this isn't really a problem or a limitation. A short, high quality SMA through has virtually zero loss (at least as long as laboratory-grade accuracy is not a requirement), and knowing its absolute delay or phase shift at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace functions as a through standard, thereby bringing the calibration plane right to the device pins, resulting in the ability to make accurate *absolute* phase and gain/loss measurements of the device. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift of a DUT due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
+This simple through error correction method assumes that the through standard is perfect, i.e. doesn't take delay and loss into account, but in practice this isn't really a problem or a limitation. A short, high quality SMA through has virtually zero loss (at least as long as laboratory-grade accuracy is not a requirement), and knowing its absolute delay or phase shift at the SMA connector plane has little practical value. There are some cases where being able to measure the *absolute* S2,1 phase shift of a device is necessary (e.g. a phase shifter IC); these devices are usually mounted on a small coupon board, which also features a deembedding through trace. This deembedding trace functions as a through standard, thereby bringing the calibration plane right to the device pins. In most other practical cases, being able to make *comparative* measurement (e.g. phase shift of a DUT due to changing conditions, comparing the phase difference of two similar DUTs, etc..) is the only requirement.
 
 ![thru](thru.jpg)
 
@@ -88,7 +88,7 @@ The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any furth
 
 ![gaas_pic](gaas_pic.jpg)
 
-The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet). A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload and also to give the LNA a good termination. RF power level was set to about -25 dBm.
+The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet). RF power level was set to about -25 dBm. A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload and also to give the LNA a good termination.
 
 ![gaas_meas](gaas_meas.png)
 
@@ -142,7 +142,7 @@ Bent:
 
 The difference between straight and bent states at 5.5 GHz is approximately -2.7°, meaning that the delay slightly decreases with bending, presumably because the center conductor is squished and therefore the RF path is shortened. After straightening the cable out, the phase shift returned to near its original value.
 
-#### LNA power sweep
+#### LNA gain compression measurement, power sweep
 
 S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz, showing gain compression with increasing input power. The VNA can only provide about -5 dBm RF power at its maximum output setting, which is barely sufficient to overdrive the DUT LNA, hence a driver preamp was added, which brings up the maximum power level to about +5 dBm; this preamp as well as a 20 dB attenuator was included in the through calibration.
 
