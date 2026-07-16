@@ -33,6 +33,7 @@ void sdfatfswrapper_close (sdfatfs_wrapper_t* instance, int fd);
 void sdfatfswrapper_rewind (sdfatfs_wrapper_t* instance, int fd);
 int sdfatfswrapper_write (sdfatfs_wrapper_t* instance, int fd, void* buf, int count);
 int sdfatfswrapper_read (sdfatfs_wrapper_t* instance, int fd, void* buf, int count);
+int sdfatfswrapper_watch_read (sdfatfs_wrapper_t* instance, int fd, int ms);
 int sdfatfswrapper_delete (sdfatfs_wrapper_t* instance, char* name);
 
 int sdfatfswrapper_opendir (sdfatfs_wrapper_t* instance);

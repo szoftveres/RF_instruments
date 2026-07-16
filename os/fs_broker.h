@@ -21,6 +21,7 @@ typedef struct generic_file_s {
 	int (*open) (struct generic_file_s*, int);
 	void (*close) (struct generic_file_s*);
 	int (*read) (struct generic_file_s*, int, char*);
+	int (*watch_read) (struct generic_file_s*, int);
 	int (*write) (struct generic_file_s*, int, char*);
 } generic_file_t;
 
@@ -31,6 +32,7 @@ generic_file_t * generic_file_create (char* name,
 										int (*open) (struct generic_file_s*, int),
 										void (*close) (struct generic_file_s*),
 										int (*read) (struct generic_file_s*, int, char*),
+                                        int (*watch_read) (struct generic_file_s*, int),
 										int (*write) (struct generic_file_s*, int, char*) );
 
 typedef struct generic_fs_filp_s {
@@ -55,6 +57,7 @@ void generic_fs_close (generic_fs_t* instance, int fd);
 void generic_fs_rewind (generic_fs_t* instance, int fd);
 int generic_fs_write (generic_fs_t* instance, int fd, void* buf, int count);
 int generic_fs_read (generic_fs_t* instance, int fd, void* buf, int count);
+int generic_fs_watch_read (generic_fs_t* instance, int fd, int timeout);
 int generic_fs_delete (generic_fs_t* instance, char* name);
 
 int generic_fs_opendir (generic_fs_t* instance);
@@ -80,6 +83,7 @@ typedef struct fs_instance_s {
 	void (*close) (void*, int);
 	void (*rewind) (void*, int);
 	int (*read) (void*, int, char*, int);
+	int (*watch_read) (void*, int, int);
 	int (*write) (void*, int, char*, int);
 	int (*delete) (void*, char*);
     int (*opendir) (void*);
@@ -113,6 +117,7 @@ int fs_broker_register_fs (fs_broker_t* instance,
 						   void (*close) (void*, int),
 						   void (*rewind) (void*, int),
 						   int (*read) (void*, int, char*, int),
+						   int (*watch_read) (void*, int, int),
 						   int (*write) (void*, int, char*, int),
 						   int (*delete) (void*, char*),
 
@@ -131,6 +136,7 @@ int open_f (fs_broker_t* broker, char* name, int flags);
 void close_f (fs_broker_t* broker, int fd);
 void rewind_f (fs_broker_t* broker, int fd);
 int read_f (fs_broker_t* broker, int fd, char* buf, int count);
+int watch_read_f (fs_broker_t* broker, int fd, int timeout);
 int read_f_all (fs_broker_t* broker, int fd, char* buf, int count);
 int read_f_line (fs_broker_t* broker, int fd, char* buf, int count);
 int write_f (fs_broker_t* broker, int fd, char* buf, int count);

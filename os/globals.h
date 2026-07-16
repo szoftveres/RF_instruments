@@ -37,12 +37,13 @@ int execute_program (program_t *program, fifo_t* in, fifo_t* out);
 int cmd_fsinfo (void);
 
 int nullfile_read (struct generic_file_s *file, int count, char* buf);
+int nullfile_watch_read (struct generic_file_s *file, int timeout);
 int nullfile_write (struct generic_file_s *file, int count, char* buf);
 int nullfile_open (struct generic_file_s *file, int flags);
 void nullfile_close (struct generic_file_s *file);
 
-int streamfile_read (struct generic_file_s* context, int b, char* buf);
-int streamfile_write (struct generic_file_s* context, int b, char* buf);
+//int streamfile_read (struct generic_file_s* context, int b, char* buf);
+//int streamfile_write (struct generic_file_s* context, int b, char* buf);
 
 void command_line_loop ();
 

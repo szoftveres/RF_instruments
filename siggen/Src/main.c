@@ -181,6 +181,16 @@ char get_online_char (void) {
 	return c;
 }
 
+int wait_online_char (int timeout) {
+	while (fifo_isempty(console_usart_stream)) {
+		delay_ms(10);
+		timeout -= 10;
+		if (timeout <= 0) {
+			return 0;
+		}
+	}
+	return 1;
+}
 
 void put_online_char (char c) {
 	console_putchar(c);
@@ -310,6 +320,7 @@ int main(void)
 						(void (*) (void*, int)) fs_close,
 						(void (*) (void*, int)) fs_rewind,
 						(int (*) (void*, int, char*, int)) fs_read,
+						(int (*) (void*, int, int)) fs_watch_read,
 						(int (*) (void*, int, char*, int)) fs_write,
 						(int (*) (void*, char*)) fs_delete,
 						(int (*) (void*)) fs_opendir,
@@ -323,6 +334,7 @@ int main(void)
 						(void (*) (void*, int)) fs_close,
 						(void (*) (void*, int)) fs_rewind,
 						(int (*) (void*, int, char*, int)) fs_read,
+						(int (*) (void*, int, int)) fs_watch_read,
 						(int (*) (void*, int, char*, int)) fs_write,
 						(int (*) (void*, char*)) fs_delete,
 						(int (*) (void*)) fs_opendir,
@@ -337,7 +349,11 @@ int main(void)
   }
 
 
-  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, program->header.fields.linelen - 2);
+  terminal_input_t* terminal = terminal_input_create(get_online_char,
+		  	  	  	  	  	  	  	  	  	  	  	 wait_online_char,
+													 put_online_char,
+													 1,
+													 program->header.fields.linelen - 2);
   if (!terminal) {
   	  console_printf("terminal init error");
   	  cpu_halt();
@@ -353,6 +369,7 @@ int main(void)
 													  nullfile_open,
 													  nullfile_close,
 													  nullfile_read,
+													  nullfile_watch_read,
 													  nullfile_write);
 
   if (generic_fs_register_file(devfs, nullfile) < 0) {
@@ -364,6 +381,7 @@ int main(void)
 													  nullfile_open,
 													  nullfile_close,
 													  consolefile_readline_canonical,
+													  consolefile_watch_read,
 													  consolefile_write);
 
   if (generic_fs_register_file(devfs, confile) < 0) {
@@ -378,6 +396,7 @@ int main(void)
 						(void (*) (void*, int)) generic_fs_close,
 						(void (*) (void*, int)) generic_fs_rewind,
 						(int (*) (void*, int, char*, int)) generic_fs_read,
+						(int (*) (void*, int, int)) generic_fs_watch_read,
 						(int (*) (void*, int, char*, int)) generic_fs_write,
 						(int (*) (void*, char*)) generic_fs_delete,
 						(int (*) (void*)) generic_fs_opendir,

@@ -320,6 +320,22 @@ int cmd_try (cmd_context_s* ctxt) {
 }
 
 
+int cmd_watch (cmd_context_s* ctxt) {
+    int timeout_ms;
+
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+        //printf_f(STDERR, not_a_string);
+        return 0;
+    }
+    timeout_ms = ctxt->params->n;
+    obj_consume(&(ctxt->params));
+
+    obj_add_num(&(ctxt->ret), watch_read_f(fs, STDIN, timeout_ms));
+
+    return 1;
+}
+
+
 int parser_if (cmd_context_s* ctxt) {
 	int n;
     int rc = 1;
@@ -859,6 +875,7 @@ int setup_commands (void) {
 	keyword_add("exit", "- exit shell", cmd_exit);
 	keyword_add("prompt", "(\"text\")", cmd_prompt_expr);
 	keyword_add("try", "\"cmdline\" - catch error", cmd_try);
+	keyword_add("watch", "(timeout ms) - watch input for timeout", cmd_watch);
 	keyword_add("if", "[expr] \"cmdline\" - execute cmdline if expr is true", parser_if);
 	keyword_add("print", "[expr] \"str\"", cmd_print);
 	keyword_add("mem", "- mem info", cmd_mem);

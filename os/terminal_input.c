@@ -3,7 +3,9 @@
 #include "hal_plat.h" // t_malloc
 
 
-terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo, int linelen) {
+terminal_input_t* terminal_input_create (char (*getchar) (void),
+                                         int (*watch_getchar) (int),
+                                         void (*putchar) (char), int echo, int linelen) {
 	terminal_input_t* instance;
 
 	instance = (terminal_input_t*)t_malloc(sizeof(terminal_input_t));
@@ -19,6 +21,7 @@ terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar)
 	instance->linelen = linelen;
 
 	instance->getchar = getchar;
+	instance->watch_getchar = watch_getchar;
 	instance->putchar = putchar;
 	instance->echo = echo;
 	instance->pos = 0;
@@ -150,6 +153,15 @@ int consolefile_read (struct generic_file_s* thisfile, int b, char* buf) {
 	}
 	return bytes;
 }
+
+
+int consolefile_watch_read (struct generic_file_s* thisfile, int timeout) {
+
+    terminal_input_t *this = (terminal_input_t *)(thisfile->context);
+
+    return this->watch_getchar(timeout);
+}
+
 
 
 int consolefile_write (struct generic_file_s* thisfile, int count, char* buf) {

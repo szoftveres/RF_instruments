@@ -204,6 +204,10 @@ int sdfatfswrapper_read (sdfatfs_wrapper_t* instance, int fd, void* buf, int cou
 }
 
 
+int sdfatfswrapper_watch_read (sdfatfs_wrapper_t* instance, int fd, int ms) {
+    return 1;
+}
+
 int sdfatfswrapper_delete (sdfatfs_wrapper_t* instance, char* name) {
 	FRESULT fres;
 	fres = f_unlink(name);

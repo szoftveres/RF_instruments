@@ -53,6 +53,20 @@ char get_online_char (void) {
     return c;
 }
 
+#include <sys/select.h>
+
+int wait_online_char (int timeout) {
+    fd_set          rfds;
+    struct timeval  tv;
+
+    FD_ZERO(&rfds);
+    FD_SET(0, &rfds); // stdin
+
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+    return (select(1, &rfds, NULL, NULL, &tv) ? 1 : 0);
+}
+
 
 void put_online_char (char c) {
 	putchar(c);
@@ -112,6 +126,7 @@ int main(void)
 						(void (*) (void*, int)) fs_close,
 						(void (*) (void*, int)) fs_rewind,
 						(int (*) (void*, int, char*, int)) fs_read,
+						(int (*) (void*, int, int)) fs_watch_read,
 						(int (*) (void*, int, char*, int)) fs_write,
 						(int (*) (void*, char*)) fs_delete,
 						(int (*) (void*)) fs_opendir,
@@ -125,6 +140,7 @@ int main(void)
 						(void (*) (void*, int)) unixfswrapper_close,
 						(void (*) (void*, int)) unixfswrapper_rewind,
 						(int (*) (void*, int, char*, int)) unixfswrapper_read,
+						(int (*) (void*, int, int)) unixfswrapper_watch_read,
 						(int (*) (void*, int, char*, int)) unixfswrapper_write,
 						(int (*) (void*, char*)) unixfswrapper_delete,
 						(int (*) (void*)) unixfswrapper_opendir,
@@ -139,7 +155,11 @@ int main(void)
   }
 
 
-  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, 8); // line not used
+  terminal_input_t* terminal = terminal_input_create(get_online_char,
+                                                     wait_online_char,
+                                                     put_online_char,
+                                                     1,
+                                                     8); // line not used
   if (!terminal) {
         console_printf("terminal init error");
         cpu_halt();
@@ -155,6 +175,7 @@ int main(void)
 													  nullfile_open,
 													  nullfile_close,
 													  nullfile_read,
+													  nullfile_watch_read,
 													  nullfile_write);
 
   if (generic_fs_register_file(devfs, nullfile) < 0) {
@@ -166,6 +187,7 @@ int main(void)
 													  nullfile_open,
 													  nullfile_close,
 													  consolefile_readline_raw,
+													  consolefile_watch_read,
 													  consolefile_write);
 
   if (generic_fs_register_file(devfs, confile) < 0) {
@@ -180,6 +202,7 @@ int main(void)
 						(void (*) (void*, int)) generic_fs_close,
 						(void (*) (void*, int)) generic_fs_rewind,
 						(int (*) (void*, int, char*, int)) generic_fs_read,
+						(int (*) (void*, int, int)) generic_fs_watch_read,
 						(int (*) (void*, int, char*, int)) generic_fs_write,
 						(int (*) (void*, char*)) generic_fs_delete,
 						(int (*) (void*)) generic_fs_opendir,

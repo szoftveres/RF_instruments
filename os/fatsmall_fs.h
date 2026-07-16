@@ -100,6 +100,7 @@ int fs_closedir (fs_t* instance);
 
 void fs_rewind (fs_t* instance, int fd);
 int fs_read (fs_t* instance, int fd, char* buf, int count);
+int fs_watch_read (fs_t* instance, int fd, int timeout);
 int fs_write (fs_t* instance, int fd, char* buf, int count);
 int fs_stats (fs_t* instance);
 

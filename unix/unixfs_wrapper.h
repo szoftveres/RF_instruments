@@ -30,6 +30,7 @@ void unixfswrapper_close (unixfs_wrapper_t* instance, int fd);
 void unixfswrapper_rewind (unixfs_wrapper_t* instance, int fd);
 int unixfswrapper_write (unixfs_wrapper_t* instance, int fd, void* buf, int count);
 int unixfswrapper_read (unixfs_wrapper_t* instance, int fd, void* buf, int count);
+int unixfswrapper_watch_read (unixfs_wrapper_t* instance, int fd, int ms);
 int unixfswrapper_delete (unixfs_wrapper_t* instance, char* name);
 
 int unixfswrapper_opendir (unixfs_wrapper_t* instance);

@@ -4,6 +4,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/select.h>
 
 
 
@@ -111,6 +112,19 @@ int unixfswrapper_read (unixfs_wrapper_t* instance, int fd, void* buf, int count
 		return fd;
 	}
 	return read(instance->fp[fd].fd, buf, count);
+}
+
+
+int unixfswrapper_watch_read (unixfs_wrapper_t* instance, int fd, int ms) {
+    fd_set          rfds;
+    struct timeval  tv;
+
+    FD_ZERO(&rfds);
+    FD_SET(instance->fp[fd].fd, &rfds);
+
+    tv.tv_sec = ms / 1000;
+    tv.tv_usec = (ms % 1000) * 1000;
+    return (select(instance->fp[fd].fd + 1, &rfds, NULL, NULL, &tv) ? 1 : 0);
 }
 
 

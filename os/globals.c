@@ -111,10 +111,12 @@ int cmd_fsinfo (void) {
 
 
 int nullfile_read (struct generic_file_s *file, int count, char *buf) {return 0;}
+int nullfile_watch_read (struct generic_file_s *file, int timeout) {return 1;}
 int nullfile_write (struct generic_file_s *file, int count, char *buf) {return count;}
 int nullfile_open (struct generic_file_s *file, int flags) {return 1;}
 void nullfile_close (struct generic_file_s *file) {}
 
+/*
 int streamfile_read (struct generic_file_s* thisfile, int b, char* buf) {
 	fifo_t *fifo = (fifo_t *)(thisfile->context);
 	char c;
@@ -141,7 +143,7 @@ int streamfile_write (struct generic_file_s* thisfile, int b, char* buf) {
 	}
 	return idx;
 }
-
+*/
 
 void command_line_loop () {
 	int run = 1;

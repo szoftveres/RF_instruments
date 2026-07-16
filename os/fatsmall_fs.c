@@ -517,6 +517,10 @@ int fs_read (fs_t* instance, int fd, char* buf, int count) {
 }
 
 
+int fs_watch_read (fs_t* instance, int fd, int timeout) {
+    return 1;
+}
+
 int fs_write (fs_t* instance, int fd, char* buf, int count) {
 	block_t block;
 	int reserve = 0;

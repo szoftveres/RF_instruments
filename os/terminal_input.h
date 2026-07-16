@@ -4,6 +4,7 @@
 
 typedef struct terminal_input_s {
 	char (*getchar) (void);
+	int (*watch_getchar) (int);
 	void (*putchar) (char);
     int echo;
     int pos;
@@ -13,7 +14,11 @@ typedef struct terminal_input_s {
 } terminal_input_t;
 
 
-terminal_input_t* terminal_input_create (char (*getchar) (void), void (*putchar) (char), int echo, int linelen);
+terminal_input_t* terminal_input_create (char (*getchar) (void),
+                                         int (*watch_getchar) (int),
+                                         void (*putchar) (char),
+                                         int echo,
+                                         int linelen);
 void terminal_input_destroy (terminal_input_t *instance);
 
 
@@ -21,6 +26,7 @@ void terminal_input_destroy (terminal_input_t *instance);
 int consolefile_readline_canonical (struct generic_file_s* context, int b, char* buf);
 int consolefile_readline_raw (struct generic_file_s* thisfile, int b, char* buf);
 int consolefile_read (struct generic_file_s* thisfile, int b, char* buf);
+int consolefile_watch_read (struct generic_file_s* thisfile, int timeout);
 int consolefile_write (struct generic_file_s* thisfile, int count, char* buf);
 
 

@@ -184,8 +184,6 @@ at24c256_write_page (blockdevice_t* blockdevice, int pageaddress) {
 }
 
 
-
-
 #define RAMDRIVE_PAGE (64)
 #define RAMDRIVE_SIZE (32768)
 #define RAMDRIVE_MAX_PAGEADDRESS ((32768) / (RAMDRIVE_PAGE))
@@ -219,6 +217,18 @@ char get_online_char (void) {
 }
 
 
+int wait_online_char (int timeout) {
+	while (fifo_isempty(console_usart_stream)) {
+		delay_ms(10);
+		timeout -= 10;
+		if (timeout <= 0) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+
 void put_online_char (char c) {
 	console_putchar(c);
 }
@@ -227,6 +237,17 @@ char get_aux_uart_char (void) {
 	char c;
 	fifo_pop_or_sleep(aux_usart_stream, &c);
 	return c;
+}
+
+int wait_aux_uart_char (int timeout) {
+	while (fifo_isempty(aux_usart_stream)) {
+		delay_ms(10);
+		timeout -= 10;
+		if (timeout <= 0) {
+			return 0;
+		}
+	}
+	return 1;
 }
 
 void put_aux_uart_char (const char c) {
@@ -392,6 +413,7 @@ int main(void)
 						(void (*) (void*, int)) fs_close,
 						(void (*) (void*, int)) fs_rewind,
 						(int (*) (void*, int, char*, int)) fs_read,
+						(int (*) (void*, int, int)) fs_watch_read,
 						(int (*) (void*, int, char*, int)) fs_write,
 						(int (*) (void*, char*)) fs_delete,
 						(int (*) (void*)) fs_opendir,
@@ -405,6 +427,7 @@ int main(void)
 						(void (*) (void*, int)) fs_close,
 						(void (*) (void*, int)) fs_rewind,
 						(int (*) (void*, int, char*, int)) fs_read,
+						(int (*) (void*, int, int)) fs_watch_read,
 						(int (*) (void*, int, char*, int)) fs_write,
 						(int (*) (void*, char*)) fs_delete,
 						(int (*) (void*)) fs_opendir,
@@ -424,6 +447,7 @@ int main(void)
 							(void (*) (void* fs, int fd)) sdfatfswrapper_close,
 							(void (*) (void*, int)) sdfatfswrapper_rewind,
 							(int (*) (void* fs, int fd, char* buf, int count)) sdfatfswrapper_read,
+							(int (*) (void* fs, int fd, int ms)) sdfatfswrapper_watch_read,
 							(int (*) (void* fs, int fd, char* buf, int count)) sdfatfswrapper_write,
 							(int (*) (void*, char*)) sdfatfswrapper_delete,
 							(int (*) (void*)) sdfatfswrapper_opendir,
@@ -448,6 +472,7 @@ int main(void)
 													  nullfile_open,
 													  nullfile_close,
 													  nullfile_read,
+													  nullfile_watch_read,
 													  nullfile_write);
 
   if (generic_fs_register_file(devfs, nullfile) < 0) {
@@ -455,7 +480,11 @@ int main(void)
 	  cpu_halt();
   }
 
-  terminal_input_t* terminal = terminal_input_create(get_online_char, put_online_char, 1, program->header.fields.linelen - 2);
+  terminal_input_t* terminal = terminal_input_create(get_online_char,
+		  	  	  	  	  	  	  	  	  	  	     wait_online_char,
+													 put_online_char,
+													 1,
+													 program->header.fields.linelen - 2);
   if (!terminal) {
   	  console_printf("terminal init error");
   	  cpu_halt();
@@ -465,6 +494,7 @@ int main(void)
 													  nullfile_open,
 													  nullfile_close,
 													  consolefile_readline_canonical,
+													  consolefile_watch_read,
 													  consolefile_write);
 
   if (generic_fs_register_file(devfs, confile) < 0) {
@@ -472,7 +502,11 @@ int main(void)
 	  cpu_halt();
   }
 
-  terminal_input_t* aux_uart = terminal_input_create(get_aux_uart_char, put_aux_uart_char, 0, 8); // Line is not used
+  terminal_input_t* aux_uart = terminal_input_create(get_aux_uart_char,
+          	  	  	  	  	  	  	  	  	  	  	 wait_aux_uart_char,
+													 put_aux_uart_char,
+													 0,
+													 8); // Line is not used
   if (!aux_uart) {
   	  console_printf("terminal init error");
   	  cpu_halt();
@@ -482,6 +516,7 @@ int main(void)
 													  nullfile_open,
 													  nullfile_close,
 													  consolefile_read,
+													  consolefile_watch_read,
 													  consolefile_write);
 
   if (generic_fs_register_file(devfs, uartfile) < 0) {
@@ -498,6 +533,7 @@ int main(void)
 						(void (*) (void*, int)) generic_fs_close,
 						(void (*) (void*, int)) generic_fs_rewind,
 						(int (*) (void*, int, char*, int)) generic_fs_read,
+						(int (*) (void*, int, int)) generic_fs_watch_read,
 						(int (*) (void*, int, char*, int)) generic_fs_write,
 						(int (*) (void*, char*)) generic_fs_delete,
 						(int (*) (void*)) generic_fs_opendir,

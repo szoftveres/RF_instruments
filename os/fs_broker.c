@@ -25,6 +25,7 @@ generic_file_t * generic_file_create (char* name,
 										int (*open) (struct generic_file_s*, int),
 										void (*close) (struct generic_file_s*),
 										int (*read) (struct generic_file_s*, int, char*),
+										int (*watch_read) (struct generic_file_s*, int),
 										int (*write) (struct generic_file_s*, int, char*) ) {
 
 	generic_file_t *this = (generic_file_t *)t_malloc(sizeof(generic_file_t));
@@ -35,6 +36,7 @@ generic_file_t * generic_file_create (char* name,
 	this->open = open;
 	this->close = close;
 	this->read = read;
+	this->watch_read = watch_read;
 	this->write = write;
 	this->context = context;
 
@@ -149,9 +151,16 @@ int generic_fs_read (generic_fs_t* instance, int fd, void* buf, int count) {
 }
 
 
+int generic_fs_watch_read (generic_fs_t* instance, int fd, int timeout) {
+    if (fd < 0) {
+        return fd;
+    }
+    int file = instance->fp[fd].file;
+    return instance->file[file]->watch_read(instance->file[file], timeout);
+}
+
+
 int generic_fs_delete (generic_fs_t* instance, char* name) {return 0;}
-
-
 
 
 int generic_fs_opendir (generic_fs_t* instance) {
@@ -234,6 +243,7 @@ int fs_broker_register_fs (fs_broker_t* instance,
 						   void (*close) (void*, int),
 						   void (*rewind) (void*, int),
 						   int (*read) (void*, int, char*, int),
+						   int (*watch_read) (void*, int, int),
 						   int (*write) (void*, int, char*, int),
 						   int (*delete) (void*, char*),
 						   int (*opendir) (void*),
@@ -250,6 +260,7 @@ int fs_broker_register_fs (fs_broker_t* instance,
 	instance->fs_instance[idx].close = close;
 	instance->fs_instance[idx].rewind = rewind;
 	instance->fs_instance[idx].read = read;
+	instance->fs_instance[idx].watch_read = watch_read;
 	instance->fs_instance[idx].write = write;
 	instance->fs_instance[idx].delete = delete;
 	instance->fs_instance[idx].opendir = opendir;
@@ -344,6 +355,12 @@ void rewind_f (fs_broker_t* broker, int fd) {
 int read_f (fs_broker_t* broker, int fd, char* buf, int count) {
 	int fs = broker->fp[fd].fs_instance_idx;
 	return broker->fs_instance[fs].read(broker->fs_instance[fs].instance, broker->fp[fd].fs_instance_filp, buf, count);
+}
+
+
+int watch_read_f (fs_broker_t* broker, int fd, int timeout) {
+    int fs = broker->fp[fd].fs_instance_idx;
+    return broker->fs_instance[fs].watch_read(broker->fs_instance[fs].instance, broker->fp[fd].fs_instance_filp, timeout);
 }
 
 
