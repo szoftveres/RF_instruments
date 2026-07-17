@@ -133,6 +133,64 @@ data_obj_t* op_str_str (int op_type, data_obj_t *left, data_obj_t *right) {
 }
 
 
+data_obj_t* op_str_num (int op_type, data_obj_t *left, data_obj_t *right) {
+    int n;
+
+    if (right->n < 0) {
+        obj_destroy(left);
+        left = NULL;
+        printf_f(STDERR, illegal_operator);
+    } else switch (op_type) {
+      case T_MUL :
+      case T_RECURMUL :
+        {
+            char* buf = (char*)t_malloc((strlen(left->str) * right->n) + 1);
+            buf[0] = '\0';
+            for (int i = 0; i != right->n; i++) {
+                strcat(buf, left->str);
+            }
+            obj_destroy(left);
+            left = obj_add_str(NULL, buf);
+            t_free(buf);
+        }
+        break;
+      case T_SLEFT :
+        {
+            char* buf = (char*)t_malloc(strlen(left->str) + right->n + 1);
+            buf[0] = '\0';
+            strcat(buf, left->str);
+            for (int i = 0; i != right->n; i++) {
+                strcat(buf, " ");
+            }
+            obj_destroy(left);
+            left = obj_add_str(NULL, buf);
+            t_free(buf);
+        }
+        break;
+      case T_SRIGHT :
+        {
+            char* buf = (char*)t_malloc(strlen(left->str) + right->n + 1);
+            buf[0] = '\0';
+            for (int i = 0; i != right->n; i++) {
+                strcat(buf, " ");
+            }
+            strcat(buf, left->str);
+            obj_destroy(left);
+            left = obj_add_str(NULL, buf);
+            t_free(buf);
+        }
+        break;
+      default:
+        obj_destroy(left);
+        left = NULL;
+        printf_f(STDERR, illegal_operator);
+        break;
+    }
+    obj_destroy(right);
+    return left;
+}
+
+
 data_obj_t* op_num_num (int op_type, data_obj_t *left, data_obj_t *right) {
     switch (op_type) {
       case T_MUL :
@@ -280,6 +338,8 @@ data_obj_t* parser_binary_operation (lex_instance_t *lex, int min_prec, data_obj
         left = op_num_num(op, left, right);
     } else if ((left->type == OBJ_TYPE_STR) && (right->type == OBJ_TYPE_STR)) {
         left = op_str_str(op, left, right);
+    } else if ((left->type == OBJ_TYPE_STR) && (right->type == OBJ_TYPE_NUM)) {
+        left = op_str_num(op, left, right);
     } else {
         printf_f(STDERR, illegal_operator);
         obj_destroy(right);

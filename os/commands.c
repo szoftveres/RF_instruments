@@ -95,34 +95,6 @@ int cosine_func (cmd_context_s* ctxt) {
 }
 
 
-int spc_func (cmd_context_s* ctxt) {
-	int linelen = program->header.fields.linelen;
-	int n;
-
-	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
-		printf_f(STDERR, not_a_number);
-		return 0;
-	}
-	n = ctxt->params->n;
-	obj_consume(&(ctxt->params));
-	if (n >= (linelen -1)) {
-		printf_f(STDERR, "Too long\n");
-		return 0;
-	}
-
-	char *s = (char*)t_malloc(linelen);
-	int i;
-	for (i = 0; i != n; i++) {
-		s[i] = ' ';
-	}
-	s[i] = '\0';
-
-	obj_add_str(&(ctxt->ret), s);
-	t_free(s);
-	return 1;
-}
-
-
 static int
 fmt_putu (unsigned int num, int digits, char* output, int* op) {
     int n = 1;
@@ -846,7 +818,6 @@ int setup_commands (void) {
 	keyword_add("sqrt", "(n)", sqrt_func);
 	keyword_add("sin", "(n, cycles)", sine_func);
 	keyword_add("cos", "(n, cycles)", cosine_func);
-	keyword_add("spc", "(n)", spc_func);
 	keyword_add("fmt", "(\"fmt\", ...)", fmt_func);
 
 

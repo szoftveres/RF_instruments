@@ -36,7 +36,7 @@ M:> list
  0 "a = 0"
  1 "c = 24"
  2 "n = (2048 + sin(a, c)) / 128"
- 3 "print spc(n) \"*\""
+ 3 "print \"*\" >> n"
  4 "a += 1"
  5 "if a < c \"goto 2\""
 M:> run
