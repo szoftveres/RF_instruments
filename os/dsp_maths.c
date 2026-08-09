@@ -237,7 +237,7 @@ dds_t* dds_create (int fs, int fc, const int *wavetable) {
 	if (!instance) {
 		return NULL;
 	}
-	instance->phaseshift = (uint32_t)((268435456.0f / ((float)(fs / 16))) * (float)fc);
+    instance->phaseshift = (uint32_t)((((uint64_t)fc) << 32) / (uint64_t)fs);
 	instance->wavetable = wavetable;
 	dds_reset(instance);
 	return instance;
@@ -247,6 +247,10 @@ void dds_destroy (dds_t* instance) {
 	if (instance) {
 		t_free(instance);
 	}
+}
+
+void dds_set (dds_t* instance, uint8_t shift) {
+    instance->phaseaccumulator = ((uint32_t)shift) << 24;
 }
 
 void dds_reset (dds_t* instance) {

@@ -34,6 +34,7 @@ extern const int sinewave[];
 
 dds_t* dds_create (int fs, int fc, const int *wavetable);
 void dds_destroy (dds_t* instance);
+void dds_set (dds_t* instance, uint8_t shift);
 void dds_reset (dds_t* instance);
 void dds_next_sample (dds_t* instance, int *i, int *q);
 

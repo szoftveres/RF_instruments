@@ -336,6 +336,104 @@ int nullsink_setup (fifo_t* in_stream) {
 	return 1;
 }
 
+/* ====================*/
+/* Freq sink */
+
+typedef struct freqsink_context_s {
+	int samples;
+	int samples2;
+	int fc;
+	int i;
+	int q;
+	dds_t *mixer;
+	uint16_t samplerate;
+	fifo_t* in_stream;
+	uint16_t min;
+	uint16_t max;
+} freqsink_context_t;
+
+
+task_rc_t freqsink_task (void* context) {
+	uint16_t sample;
+	freqsink_context_t *c = (freqsink_context_t*)context;
+
+	if (!c->in_stream->writers) {
+		return TASK_RC_END;
+	}
+
+	if (c->samples <= 0) {
+		return TASK_RC_END;
+	}
+
+	if (fifo_pop(c->in_stream, &sample)) {
+		int i_a;
+		int q_a;
+
+		if (!c->samplerate) {
+			c->samplerate = sample;
+			c->mixer = dds_create((int)(c->samplerate), c->fc, sinewave);
+			return TASK_RC_YIELD;
+		}
+
+		c->samples -= 1;
+		if (sample < c->min) {
+			c->min = sample;
+		}
+		if (sample > c->max) {
+			c->max = sample;
+		}
+
+		dds_next_sample(c->mixer, &i_a, &q_a);
+
+		int wsample = (int)sample * raised_cos_window(c->samples, c->samples2) / magnitude_const();
+
+		c->i += wsample * i_a / magnitude_const();
+		c->q += wsample * q_a / magnitude_const();
+
+	}
+
+	return TASK_RC_YIELD;
+}
+
+
+void freqsink_celanup (void* context) {
+	freqsink_context_t *c = (freqsink_context_t*)context;
+	int magn;
+	if (c->mixer) {
+		dds_destroy(c->mixer);
+	}
+	c->in_stream->readers--;
+	c->i /= c->samples2;
+	c->q /= c->samples2;
+
+	magn = isqrt((c->i * c->i) + (c->q * c->q));
+	printf_f(STDERR, "fs:%i min:%i, max:%i, i:%d, q:%d, magn:%d\n", c->samplerate, c->min, c->max, c->i, c->q, magn);
+	t_free(context);
+}
+
+
+int freqsink_setup (fifo_t* in_stream, int fc, int samples) {
+	if (!in_stream) {
+		return 0;
+	}
+	freqsink_context_t* context = (freqsink_context_t*)t_malloc(sizeof(freqsink_context_t));
+	context->in_stream = in_stream;
+	context->in_stream->readers++;
+	context->samplerate = 0;
+	context->samples = samples;
+	context->samples2 = samples;
+	context->min = 65535;
+	context->max = 0;
+	context->mixer = NULL;
+	context->fc = fc;
+	context->i = 0;
+	context->q = 0;
+
+	scheduler_install_task(scheduler, freqsink_task, freqsink_celanup, context);
+
+	return 1;
+}
+
 
 /* ====================*/
 /*    RXMODEM sink     */
@@ -1213,6 +1311,28 @@ int cmd_wavfilesrc (cmd_context_s* ctxt) {
 }
 
 
+int cmd_freqsink (cmd_context_s* ctxt) {
+	int fc;
+	int samples;
+
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+		printf_f(STDERR, "fc needed\n");
+		return 0;
+	}
+	fc = ctxt->params->n;
+	obj_consume(&(ctxt->params));
+
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+		printf_f(STDERR, "samples needed\n");
+		return 0;
+	}
+	samples = ctxt->params->n;
+	obj_consume(&(ctxt->params));
+
+	return freqsink_setup(ctxt->in, fc, samples);
+}
+
+
 void pcmstream_cmds_setup (void) {
     // DSP chain ===============================
     keyword_add("rxmsg", "->rxmsg [fc]", cmd_rxmsg);
@@ -1221,6 +1341,7 @@ void pcmstream_cmds_setup (void) {
     keyword_add("noise", "[fs] [samples]->", cmd_noise);
     keyword_add("sine", "[fs] [freq] [samples]->", cmd_sine);
     keyword_add("nullsnk", "->NULL", cmd_nullsink);
+    keyword_add("freqsnk", "[fc] [samples]->NULL", cmd_freqsink);
     keyword_add("df", "->decimating filter [n] <[bf]>->", cmd_decfir);
     keyword_add("wavfilesnk", "\"file\" ->WAV", cmd_wavfilesnk);
     keyword_add("wavfilesrc", "\"file\" WAV->", cmd_wavfilesrc);
