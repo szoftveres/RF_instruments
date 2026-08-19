@@ -47,11 +47,11 @@ int fifo_isempty (fifo_t *instance) {
 }
 
 int fifo_push (fifo_t* instance, void *c) {
-	if (((instance->ip + 1) & (instance->length - 1)) == instance->op) {
+	if (((instance->ip + 1) % instance->length) == instance->op) {
 		return 0; // full
 	}
 	memcpy(&(instance->buf[instance->ip * instance->wordlength]), c, instance->wordlength);
-	instance->ip = (instance->ip + 1) & (instance->length - 1);
+	instance->ip = (instance->ip + 1)  % instance->length;
 	instance->data += 1;
 	return 1;
 }
@@ -63,7 +63,7 @@ int fifo_pop (fifo_t* instance, void *c) {
 	}
 	instance->data -= 1;
 	memcpy(c, &(instance->buf[instance->op * instance->wordlength]), instance->wordlength);
- 	instance->op = (instance->op + 1) & (instance->length - 1);
+ 	instance->op = (instance->op + 1)  % instance->length;
  	return 1;
 }
 

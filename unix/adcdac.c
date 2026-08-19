@@ -114,7 +114,7 @@ int adcsrc_setup (fifo_t* out_stream, int fs) {
     uint16_t u16samplerate = (uint16_t)fs;
     fifo_push(context->out_stream, &u16samplerate);
 
-    start_audio_in(fs);
+    start_audio_in(fs, 4096);
 
     scheduler_install_task(scheduler, adcsrc_task, adcdac_celanup, context);
 

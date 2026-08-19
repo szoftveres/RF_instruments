@@ -250,7 +250,7 @@ static int16_t out_samplebuf[UNIX_ADCDAC_SAMPLEBUF];
 static int out_wp = 0;
 static int out_fs;
 
-int start_audio_in (int fs) {
+int start_audio_in (int fs, int samplebuf) {
     pa_sample_spec ss = {
         .format = PA_SAMPLE_S16LE,
         .rate = fs,

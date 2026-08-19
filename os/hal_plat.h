@@ -50,7 +50,7 @@ void start_sampler (void(*cb)(void*), void* ctxt);
 void stop_sampler (void);
 
 
-int start_audio_in (int fs);
+int start_audio_in (int fs, int samplebuf);
 void stop_audio_in (void);
 int start_audio_out (int fs);
 void stop_audio_out (void);

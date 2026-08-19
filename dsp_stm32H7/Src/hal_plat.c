@@ -259,8 +259,8 @@ int set_TIM_reload_frequency (int fs) {
 static fifo_t *aout_fifo;
 static fifo_t *ain_fifo;
 
-int start_audio_in (int fs) {
-	ain_fifo = fifo_create(4096, sizeof(uint16_t));
+int start_audio_in (int fs, int samplebuf) {
+	ain_fifo = fifo_create(samplebuf, sizeof(uint16_t));
 	set_sampler_frequency(fs);
 	start_sampler(adc1_sample_stream_callback, ain_fifo);
 	return 1;

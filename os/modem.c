@@ -277,7 +277,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
     rx_on();
-    start_audio_in(fs);
+    start_audio_in(fs, fft_len * dec * 16); // 16 symbols
 
     dds_t *mixer = dds_create(fs, OFDM_FC, sinewave);
 
@@ -595,7 +595,7 @@ int bpsk_rxpkt (bpsk_pkt_t *p, int* level) {
     int running = 1;
 
     rx_on();
-    start_audio_in(fs);
+    start_audio_in(fs, 512);
 
     memset(&c, 0x00, sizeof(bpsk_context_t));
     c.scrambler_core = 0xFF;

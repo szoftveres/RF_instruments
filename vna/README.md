@@ -9,9 +9,9 @@ Specifications:
 
 ## Motivation
 
-Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any measurement on active small-signal devices, like LNAs, RFICs and active mixers. The RF output level of these basic VNAs is at around 0 dBm, which drives active devices into their non-linear / compression region. A passive attenuator placed after Port 1 also attenuates the reflected waves, which would result in a dramatic loss of (already limited) dynamic range of the S1,1 measurement.
+Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any meaningful measurement on active small-signal devices, like LNAs, RFICs and active mixers. The RF output level of these basic VNAs is at around 0 dBm, which drives active devices into their non-linear / compression region. Placing a passive attenuator after Port 1 attenuates the reflected waves too, resulting in a dramatic loss of (already limited) dynamic range of the S1,1 measurement.
 
-Being able to control the RF power level of the VNA internally with a programmable attenuator opens up many possibilities, like being able to carry out power sweeps, as well being able to measure small-signal devices accurately, which is the main target of this project.
+When a programmable attenuator is built into the VNA before the RF coupler, it opens up many possibilities, like being able to carry out power sweeps, as well being able to measure small-signal devices with plenty of dynamic range, which is the main target of this project.
 
 Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k, therefore DIY is a much more economical solution.
 
@@ -23,11 +23,11 @@ Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5
 
 #### RF Board
 
+**[-->> RF board schematics <<--](VNA_RF_schem.pdf)**
+
 ![rfboard1](rfboard1.jpg)
 
--->> **[RF board schematics](VNA_RF_schem.pdf)** <<--
-
-Two MAX2871 PLLs are utilized for generating the RF and LO, the RF signal is driven through a BDA4700 programmable RF attenuator before reaching the broadband coupler. The LO is fed directly into the main mixer, an ADL5802. One complete mixer & IF path is fuly dedicated to the RF reference measurement, while the other path is used for the measured signal; simultaneous acquisition of the reference and the measured signal is necessary to derive the phase relationship between the two. The mixer cores are Gilbert cells, so the differential output and high supply current is provided with center-tapped inductors, which are capacitively tuned and resonated at the IF frequency (10 kHz) and damped by resistors. Op-amps turn the differential mixer outputs into single-ended signal, which are then further amplified, filtered and fed directly into the ADCs of the microcontroller. A Qorvo QPC6324 high-isolation, non-reflective SPDT switch selects between reflected- or through RF signal paths.
+Two MAX2871 PLLs are utilized to generate the RF and LO, the RF signal is driven through a BDA4700 programmable RF attenuator before reaching the broadband coupler. The LO is fed directly into the main mixer, an ADL5802. One complete mixer & IF path is fuly dedicated to the RF reference measurement, simultaneous acquisition of the reference and the measured signal is necessary to derive the phase relationship between the two. The other mixer path is shared between the reflected- and through measurement paths, the active path is selected by a Qorvo QPC6324 high-isolation, non-reflective SPDT RF switch. The mixer cores are Gilbert cells, so the differential output and high supply current is provided with center-tapped inductors, which are capacitively tuned and resonated at the IF frequency (10 kHz) and damped by resistors. Op-amps turn the differential mixer outputs into single-ended signal, which are then further amplified, filtered and fed directly into the ADCs of the microcontroller.
 
 The most critical part of the VNA is the 16 dB broadband coaxial directional coupler, which is a custom design based on [1](http://www.ke5fx.com/Broadband_Coupler_Dunsmore.pdf), [2](https://ieeexplore.ieee.org/document/7345756) and [3](https://hforsten.com/improved-homemade-vna.html); the prototype version showed more than 12 dB directivity up to 6 GHz. At the lowest RF level settings the signal level at the coupled ports can be extremely low, therefore I added two TRF37A73 broadband LNAs to improve the dynamic range; at the highest RF power level setting (~ -5 dBm on VNA Port 1) the LNAs and the mixers still have approximately 10 dB headroom.
 
