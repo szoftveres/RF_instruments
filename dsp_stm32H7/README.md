@@ -11,7 +11,7 @@ As the main controller of a [vector network analyzer](https://github.com/szoftve
 ![vnaphoto](https://github.com/szoftveres/RF_instruments/blob/main/vna/photo1.jpg)
 
 
-With an active (amplified) audio in- and out interface:
+With an active (amplified) [audio in- and out interface](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/audio.pdf):
 
 ![photo](audio.jpg)
 
