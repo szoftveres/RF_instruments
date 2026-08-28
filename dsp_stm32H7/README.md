@@ -1,26 +1,13 @@
 ## STM32H7 analog / DSP / controller
 
-General purpose board with 480 MHz STM32H7 MCU, analog and digital in- outputs, SD card and EEPROM storage. Runs [this system software](https://github.com/szoftveres/RF_instruments/tree/main/os). It can be used as a building block / peripheral controller and DSP platform for analog / RF systems.
-
+This is a general purpose, high performace microcontroller board, designed to be able to handle various tasks, like main system control and digital signal processing. It's equipeed with a 480 MHz STM32H7 MCU, two 16-bit ADCs, a 12-bit buffered DAC, SPI bus, external UART, EEPROM storage and SD card slot. It can store, load and execute ([BASIC-like](https://github.com/szoftveres/RF_instruments/tree/main/os)) programs, drive peripherals, perform digital signal processing functions, handle file-system access, and communicate with the host via USB-UART (FT230). Other electronics can be connected to it with ribbon cables.
 
 -->> [Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf) <<--
 
-
 ![photo](photo.jpg)
  
-### Basic specs
- * Analog
-   * 3 x 16 bit ADC
-   * 1 x 12 bit buffered DAC
- * Digital
-   * SPI
-   * Auxiliary UART
-   * 2 x GPIO
- * Storage:
-   * SD card
-   * 32 kB EEPROM (programs, data and configuration)
- * Programming: scripting language with BASIC-like syntax (as provided by [this system software](https://github.com/szoftveres/RF_instruments/tree/main/os))
- * Communication interface: USB UART (FT230)
- * Power: +5V via USB, or DC +9 - +18V
+Used as the main controller of a [vector network analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna):
+
+![vnaphoto](https://github.com/szoftveres/RF_instruments/blob/main/vna/rfboard1.jpg)
 
 
