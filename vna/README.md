@@ -37,7 +37,7 @@ The most critical part of the VNA is the 16 dB broadband coaxial directional cou
 
 -->> **[Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf)** <<--
 
-This [board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) is made to be general-purpose; it has all the neessary features (16-bit ADCs, SPI bus control, high-performace DSP-capable CPU, RAM, USB UART comms with the host, etc..) to implement this VNA.
+This [board](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7) is made to be general-purpose; it has all the neessary features (16-bit ADCs, SPI bus control, high-performace DSP-capable CPU, RAM, USB UART comms with the host, regulated +5V and +3.3V power, etc..) needed by this VNA.
 
 The entire VNA is running from a common 20 MHz reference clock, which originates from the DSP / Controller board, so the RF PLLs and the STM32 microcontroller are always in sync. This results in a perfect phase coherence between the analog IF signal, the ADC clock and the DDS; this allows digital signal processing without windowing, the 10kHz IF during a full acquisition cycle is always perfectly cyclic. 
 
