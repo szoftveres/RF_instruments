@@ -23,13 +23,17 @@ Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5
 
 #### RF Board
 
-**[-->> RF board schematics <<--](VNA_RF_schem.pdf)**
-
 ![rfboard1](rfboard1.jpg)
 
-Two MAX2871 PLLs are utilized to generate the RF and LO, the RF signal is driven through a BDA4700 programmable RF attenuator before reaching the broadband coupler. The LO is fed directly into the main mixer, an ADL5802. One complete mixer & IF path is fuly dedicated to the RF reference measurement, simultaneous acquisition of the reference and the measured signal is necessary to derive the phase relationship between the two. The other mixer path is shared between the reflected- and through measurement paths, the active path is selected by a Qorvo QPC6324 high-isolation, non-reflective SPDT RF switch. The mixer cores are Gilbert cells, so the differential output and high supply current is provided with center-tapped inductors, which are capacitively tuned and resonated at the IF frequency (10 kHz) and damped by resistors. Op-amps turn the differential mixer outputs into single-ended signal, which are then further amplified, filtered and fed directly into the ADCs of the microcontroller.
+**[-->> RF board schematics <<--](VNA_RF_schem.pdf)**
 
 The most critical part of the VNA is the 16 dB broadband coaxial directional coupler, which is a custom design based on [1](http://www.ke5fx.com/Broadband_Coupler_Dunsmore.pdf), [2](https://ieeexplore.ieee.org/document/7345756) and [3](https://hforsten.com/improved-homemade-vna.html); the prototype version showed more than 12 dB directivity up to 6 GHz. At the lowest RF level settings the signal level at the coupled ports can be extremely low, therefore I added two TRF37A73 broadband LNAs to improve the dynamic range; at the highest RF power level setting (~ -5 dBm on VNA Port 1) the LNAs and the mixers still have approximately 10 dB headroom.
+
+Directional coupler prototype:
+
+![coupler](coupler.jpg)
+
+I mostly reused the design and layout work from my previous [RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) (MAX2871 PLL and BDA4700 attenuator), and extended it with the aforementioned directional coupler and LNAs, an ADL5802 mixer, a Qorvo QPC6324 high-isolation RF switch, and IF/baseband analog circuitry, to make it a functional vector network analyzer.
 
 #### DSP / Controller Board
 
@@ -56,7 +60,7 @@ GNU Octave has some built-in functions and widgets that can be used to create a 
 
 Several error correction methods ara avilable (like the 12-term error model) for a 2-port VNA, these methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer; therefore, the error correction process on this VNA is separated into through- and reflected cases.
 
-The reflected (S1,1) error correction is based on the well known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the VNA can be calibrated with high-quality standards, the cal-kit parameters can be supplied in a HP-Agilent-Keysight format. Most of the time however I'm using a simple DIY SMA cal kit and treating them as perfect standards (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies); the results aren't lab grade, but sufficient enough, especially at sub-GHz. A limitation of the 3-term error correction is that it assumes perfect termintaion on every port of a multi-port multilateral network, so a precise S1,1 measurement of e.g. a passive bandpass filter requires the other port to be terminated by a good quality load (e.g. the load cal standard), because Port 2 termination is not nearly as good. This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
+The reflected (S1,1) error correction is based on the well known 3-term error model (implementation [here](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib/p1cal.m)), the VNA can be calibrated with high-quality standards, the cal-kit parameters can be supplied in a HP-Agilent-Keysight format. Most of the time however I'm using a simple DIY SMA connector cal kit and assuming the standards to be "perfect" (reflection coefficients for the open- short and load are 1, -1 and 0 respectively, at all frequencies), which brings the calibration plane right to the board edge; this works out well enough, especially at sub-GHz. A limitation of the 3-term error correction is that it assumes perfect termintaion on every port of a multi-port multilateral network, so a precise S1,1 measurement of e.g. a passive bandpass filter requires the other port to be terminated by a good quality load (e.g. the load cal standard), because Port 2 termination is not nearly as good. This is not much of an issue with uni-lateral two-port networks where the reverse path from Port 2 is well isolated (e.g. amplifiers with good reverse isolation, or an output attenuator calibrated into S2,1) or not involved at all (e.g. S11 measurement of antennas).
 
 ![calkit](calkit.jpg)
 
