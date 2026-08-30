@@ -37,11 +37,13 @@ I mostly reused the design and layout work from my previous [RF signal generator
 
 #### DSP / Controller Board
 
+The design of the board is [covered here](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7).
+
 ![dspboard](https://github.com/szoftveres/RF_instruments/blob/main/dsp_stm32H7/photo.jpg)
 
 -->> **[Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf)** <<--
 
-The microcontroller takes 800 samples of both (reference and measurement) 10 kHz IF signals simultaneously at 80 ksps and calculates the baseband complex measurements by mixing the IFs with a DDS-based LO in software; the result (complex reference- and measured baseband values) is sent to the host PC for further processing. A benefit of doing all the sample acquisition and IF processing on the DSP / controller board is that only several bytes need to be transferred per each measurement point, hence the low baud rate of the USB UART is not a factor. The design of the board is [covered here](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7).
+The microcontroller takes 800 samples of both (reference and measurement) 10 kHz IF signals simultaneously at 80 ksps and calculates the baseband complex measurements by mixing the IFs with a DDS-based LO in software; the result (complex reference- and measured baseband values) is sent to the host PC for further processing. A benefit of doing all the sample acquisition and IF processing on the DSP / controller board is that only several bytes need to be transferred per each measurement point, hence the low baud rate of the USB UART is not a factor.
 
 The entire VNA is running from a common 20 MHz reference clock, which originates from the DSP / Controller board, so the RF PLLs and the STM32 microcontroller are always in sync. This results in a perfect phase coherence between the analog IF signal, the ADC clock and the DDS; this allows digital signal processing without windowing, the 10kHz IF during a full acquisition cycle is always perfectly cyclic. The DSP / controller board is also responsile for controlling the PLLs, attenuator and the RF switch on the RF board, via SPI bus and GPIO.
 
@@ -56,6 +58,8 @@ GNU Octave has some built-in functions and widgets that can be used to create a 
 ![gui](GUI.png)
 
 ## Calibration and Performance
+
+![boxed](boxed.jpg)
 
 Several error correction methods ara avilable (like the 12-term error model) for a 2-port VNA, these methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer; therefore, the error correction process on this VNA is separated into through- and reflected cases.
 
