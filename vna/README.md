@@ -1,11 +1,11 @@
 # 6 GHz Vector Network Analyzer
 
 Specifications:
- * Frequency range: 23.5 MHz - 6 GHz, resolution: 10 kHz
- * RF output level: min: - 35 dBm, max: - 5 dBm, resolution: 0.25 dB
- * IF bandwidth: 100 Hz
+ * Frequency range: 23.5 MHz - 6 GHz, in 10 kHz steps
+ * Output RF level range: min: - 35 dBm, max: - 5 dBm, in 0.25 dB steps
+ * IF bandwidth: fixed 100 Hz
  * S11 dynamic range: >40 dB
- * S21 dynamic range: >50 dB
+ * S21 dynamic range: >70 dB
 
 ## Motivation
 
@@ -43,11 +43,11 @@ The design of the board is [covered here](https://github.com/szoftveres/RF_instr
 
 -->> **[Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf)** <<--
 
-The microcontroller takes 800 samples of both (reference and measurement) 10 kHz IF signals simultaneously at 80 ksps and calculates the baseband complex measurements by mixing the IFs with a DDS-based LO in software; the result (complex reference- and measured baseband values) is sent to the host PC for further processing. A benefit of doing all the sample acquisition and IF processing on the DSP / controller board is that only several bytes need to be transferred per each measurement point, hence the low baud rate of the USB UART is not a factor.
+The microcontroller takes 800 samples of both (reference and measurement) 10 kHz IF signals simultaneously at 80 ksps and calculates the baseband complex measurements by mixing the IFs with a DDS-based LO in software; the result (complex reference- and measured baseband values) is sent to the host PC for further processing. A benefit of doing all the sample acquisition and IF processing on the microcontroller is that only several bytes need to be transferred to the host PC per each measurement point, hence the low baud rate of the USB UART is not a factor.
 
-The entire VNA is running from a common 20 MHz reference clock, which originates from the DSP / Controller board, so the RF PLLs and the STM32 microcontroller are always in sync. This results in a perfect phase coherence between the analog IF signal, the ADC clock and the DDS; this allows digital signal processing without windowing, the 10kHz IF during a full acquisition cycle is always perfectly cyclic. The DSP / controller board is also responsile for controlling the PLLs, attenuator and the RF switch on the RF board, via SPI bus and GPIO.
+The entire VNA is running from a common 20 MHz reference clock, which originates from the DSP / Controller board, so the RF PLLs and the STM32 microcontroller are always in sync. This results in a perfect phase coherence between the analog IF signal, the ADC clock and the DDS; this allows digital signal processing without windowing, the 10 kHz IF signal is always perfectly cyclic.
 
-The ribbon cables -that connect the DSP to the RF board- have a ground wire (or capacitively grounded power wire) going between each signal wire (G-S-G-S-G... topology) as well as all the digital lines are damped by 47 Ω resistors, for minimal crosstalk. The analog IF lines are also driven by 47 Ω source impedance and are capacitively filtered on both ends for higher frequencies - since the IF frequency is low (10 kHz), no further cable shielding is necessary.
+The DSP / controller board is also responsile for controlling the PLLs, attenuator and the RF switch on the RF board, via SPI bus and GPIO. The ribbon cables -that connect the DSP to the RF board- have a ground wire (or capacitively grounded power wire) going between each signal wire (G-S-G-S-G... topology) as well as all the digital lines are damped by 47 Ω resistors, for minimal crosstalk. The analog IF lines are also driven by 47 Ω source impedance and are capacitively filtered on both ends for higher frequencies - since the IF frequency is low (10 kHz), no further cable shielding is necessary.
 
 #### Host PC software
 
@@ -77,11 +77,11 @@ This simple through error correction method assumes that the through standard is
 
 ![thru](thru.jpg)
 
-On this VNA, through-only correction results is a somewhat limited dynamic range, because of lack of proper isolation (leakage of the QPC6324 RF switch, as well as being built on a single PCB, with parts close to each other and not being shielded):
+On this VNA, through-only correction results is a somewhat limited dynamic range, because of lack of proper isolation (leakage within the ADL5802 dual mixer as well as in the QPC6324 RF switch, plus being built on a single PCB, with parts close to each other and without using any kind of shielding):
 
 ![cal_iso_uncorrected](cal_iso_uncorrected.png)
 
-The dynamic range can be increased by measuring the signal leakage and including it into the equation. The assumption is that the leakage adds to the S2,1 of the through standard as well as to the S2,1 of the DUT, therefore once it is known ("isolation" calibration), it can be subtracted. The equation changes like this:
+The dynamic range can be increased by measuring the signal leakage and including it in the error correction calculations. The assumption is that the leakage adds to the S2,1 measurement of the through standard as well as of the DUT, therefore once it is known ("isolation" cal measurement), it can be subtracted from both. The equation changes like this:
 
 ![eq2](eq2.png)
 
