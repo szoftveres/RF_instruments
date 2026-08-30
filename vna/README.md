@@ -85,7 +85,7 @@ The dynamic range can be increased by measuring the signal leakage and including
 
 ![eq2](eq2.png)
 
-The result is some ~ 20 dB S2,1 dynamic range improvement on this VNA. Any further improvement can only be realistically expected by using proper shielding and ensuring adequate isolation.
+The result is a significant S2,1 dynamic range improvement on this VNA. Any further improvement can only be realistically expected by using proper shielding and ensuring adequate isolation.
 
 ![cal_iso_corrected](cal_iso_corrected.png)
 
@@ -151,23 +151,23 @@ The difference between straight and bent states at 5.5 GHz is approximately -2.7
 
 #### LNA gain compression measurement, power sweep
 
-S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz, showing gain compression with increasing input power. The VNA can only provide about -5 dBm RF power at its maximum output setting, which is barely sufficient to overdrive the DUT LNA, hence a driver preamp was added, which brings up the maximum power level to about +5 dBm; this preamp as well as a 20 dB attenuator was included in the through calibration.
+S2,1 power sweep of a [discrete BJT LNA](https://github.com/szoftveres/RF_microwave/tree/main/Amplifier/cascode) at 915 MHz, showing gain compression with increasing input power. The VNA can only provide about -5 dBm RF power at its maximum output setting, which is barely sufficient to overdrive the DUT LNA, therefore a driver preamp was added, which brings up the maximum power level to about +5 dBm; this preamp as well as a 20 dB attenuator was included in the through calibration.
 
 ![pwrsweepsetup](pwrsweepsetup.png)
+
+During power sweep the VNA reference path changes together with the measured path, so theoretically the VNA always stays in calibration even if it was calibrated only at a single power setting. This is not the case however; the mixer as well as the amplifiers aren't fully linear across their dynamic range, hence calibration for the full measurement range must be carried out for power sweeps.
 
 The DUT:
 
 ![cascode_photo](cascode_photo.jpg)
 
-Power sweep:
+Power sweep, showing gain compression:
 
 ![pwrsweep](pwrsweep.png)
 
 Linearity of the measurement system:
 
 The driver preamp is capable of producing more than +10 dBm on its output before saturation, therefore it is able to operate in its linear region up to the maximum required +5 dBm level (it has 10 dB gain and the VNA can produce -5 dBm at most). The combined insertion loss of the DUT (LNA with 18 dB gain) and the 20 dB attenuator is -2 dB, which could theretically bring the VNA Port 2 receiver into compression by exposing it to +3 dBm power level (which is more than what it's designed for). However the DUT starts compressing approximately 10 dB below that point, therefore the power level at the VNA receiver never reaches more than approximately -5 dBm, which is within its linear region. The output of the LNA is tuned, meaning that higher order harmonic products that could also reach high levels (inherent result of overdriving the DUT) are naturally attenuated.
-
-During power sweep the VNA reference path changes together with the measured path, so theoretically the VNA should stay in calibration even if it was calibrated only at a single power setting. This is not true however; the mixer as well as the amplifiers don't stay fully linear across their dynamic range, hence calibration for the full measurement range must be carried out for power sweeps as well.
 
 #### Time-Domain Reflectometry
 
