@@ -161,7 +161,7 @@ The DUT:
 
 ![cascode_photo](cascode_photo.jpg)
 
-Power sweep, showing gain compression:
+Power sweep, showing gain compression as well as adverse AM-PM conversion:
 
 ![pwrsweep](pwrsweep.png)
 
