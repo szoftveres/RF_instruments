@@ -15,7 +15,7 @@ When a programmable attenuator is built into the VNA before the RF coupler, it o
 
 Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k, therefore DIY is a much more economical solution.
 
-![photo1](photo1.jpg)
+![boxed](boxed.jpg)
 
 ## Description
 
@@ -58,8 +58,6 @@ GNU Octave has some built-in functions and widgets that can be used to create a 
 ![gui](GUI.png)
 
 ## Calibration and Performance
-
-![boxed](boxed.jpg)
 
 Several error correction methods ara avilable (like the 12-term error model) for a 2-port VNA, these methods assume that the non-perfect input impedance of Port 2 of the VNA is constant during the entire measurement process, and correct for it. This is not the case however with this VNA; during reflected measurement, the QPC6324 RF switch terminates Port 2, while during through measurement, the switch connects Port 2 to the input port of the mixer; therefore, the error correction process on this VNA is separated into through- and reflected cases.
 
