@@ -9,11 +9,11 @@ Specifications:
 
 ## Motivation
 
-Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any meaningful measurement on active small-signal devices, like LNAs, RFICs and active mixers. The RF output level of these basic VNAs is at around 0 dBm, which drives active devices into their non-linear / compression region. Placing a passive attenuator after Port 1 attenuates the reflected waves too, resulting in a dramatic loss of (already limited) dynamic range of the S1,1 measurement.
+Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of reaching higher frequencies, but the inability to decrease the RF power level precludes any meaningful measurement on active small-signal devices, like LNAs, RFICs and active mixers. The RF output level of these basic VNAs is set at around 0 dBm, which drives many small-signal devices into their non-linear / compression region. Placing a passive attenuator between Port 1 of the VNA and the DUT is not a solution, because it attenuates the reflected waves too, resulting in a dramatic loss of (already limited) dynamic range of the S1,1 measurement.
 
-When a programmable attenuator is built into the VNA before the RF coupler, it opens up many possibilities, like being able to carry out power sweeps, as well being able to measure small-signal devices with plenty of dynamic range, which is the main target of this project.
+Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k.
 
-Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k, therefore DIY is a much more economical solution.
+When a programmable attenuator is built into the VNA before the RF coupler, it opens up many possibilities, like being able to carry out power sweeps, as well being able to measure small-signal devices, well below compression with plenty of dynamic range, which is the main goal of this project.
 
 ![boxed](boxed.jpg)
 
@@ -27,7 +27,7 @@ Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5
 
 **[-->> RF board schematics <<--](VNA_RF_schem.pdf)**
 
-The most critical part of the VNA is the 16 dB broadband coaxial directional coupler, which is a custom design based on [1](http://www.ke5fx.com/Broadband_Coupler_Dunsmore.pdf), [2](https://ieeexplore.ieee.org/document/7345756) and [3](https://hforsten.com/improved-homemade-vna.html); the prototype version showed more than 12 dB directivity up to 6 GHz. At the lowest RF level settings the signal level at the coupled ports can be extremely low, therefore I added two TRF37A73 broadband LNAs to improve the dynamic range; at the highest RF power level setting (~ -5 dBm on VNA Port 1) the LNAs and the mixers still have approximately 10 dB headroom.
+The most critical part of the VNA is the 16 dB broadband coaxial directional coupler, which is a custom design based on [1](http://www.ke5fx.com/Broadband_Coupler_Dunsmore.pdf), [2](https://ieeexplore.ieee.org/document/7345756) and [3](https://hforsten.com/improved-homemade-vna.html); the prototype version showed more than 12 dB directivity up to 6 GHz. Due to the -16 dB coupling, at the lowest RF level settings the signal level at the coupled ports can be extremely low, therefore I added two TRF37A73 broadband LNAs (before the mixers) to improve the signal to noise ratio; at the highest RF power level setting (~ -5 dBm on VNA Port 1) the LNAs and the mixers still have approximately 10 dB headroom.
 
 Directional coupler prototype:
 
@@ -81,7 +81,7 @@ On this VNA, through-only correction results is a somewhat limited dynamic range
 
 ![cal_iso_uncorrected](cal_iso_uncorrected.png)
 
-The dynamic range can be increased by measuring the signal leakage and including it in the error correction calculations. The assumption is that the leakage adds to the S2,1 measurement of the through standard as well as of the DUT, therefore once it is known ("isolation" cal measurement), it can be subtracted from both. The equation changes like this:
+The dynamic range can be increased by measuring the signal leakage and including it in the error correction calculations. The assumption is that the (previously measured) leakage adds to the S2,1 measurement of the through standard as well as of the DUT, therefore once it is known ("isolation" cal measurement), it can be subtracted from both. The equation changes like this:
 
 ![eq2](eq2.png)
 
@@ -95,7 +95,7 @@ The result is a significant S2,1 dynamic range improvement on this VNA. Any furt
 
 ![gaas_pic](gaas_pic.jpg)
 
-The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet). RF power level was set to about -25 dBm. A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload and also to give the LNA a good termination.
+The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet). RF power level was set to about -25 dBm. A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload as well as to give the LNA a good termination.
 
 ![gaas_meas](gaas_meas.png)
 
