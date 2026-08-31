@@ -13,7 +13,7 @@ Hobby-level low-cost vector network analyzers (like the LiteVNA) are capable of 
 
 Adjustable RF output level is a premium VNA feature; a budget-class Siglent SNA5002A 4.5 GHz VNA costs somewhere near $10k.
 
-When a programmable attenuator is built into the VNA before the RF coupler, it opens up many possibilities, like being able to carry out power sweeps, as well being able to measure small-signal devices, well below compression with plenty of dynamic range, which is the main goal of this project.
+Level-adjustable RF source inside the VNA opens up many possibilities, like being able to carry out power sweeps, as well being able to measure small-signal devices, well below compression with plenty of dynamic range, which was the main goal of this project.
 
 ![boxed](boxed.jpg)
 
@@ -27,25 +27,25 @@ When a programmable attenuator is built into the VNA before the RF coupler, it o
 
 **[-->> RF board schematics <<--](VNA_RF_schem.pdf)**
 
-The most critical part of the VNA is the 16 dB broadband coaxial directional coupler, which is a custom design based on [1](http://www.ke5fx.com/Broadband_Coupler_Dunsmore.pdf), [2](https://ieeexplore.ieee.org/document/7345756) and [3](https://hforsten.com/improved-homemade-vna.html); the prototype version showed more than 12 dB directivity up to 6 GHz. Due to the -16 dB coupling, at the lowest RF level settings the signal level at the coupled ports can be extremely low, therefore I added two TRF37A73 broadband LNAs (before the mixers) to improve the signal to noise ratio; at the highest RF power level setting (~ -5 dBm on VNA Port 1) the LNAs and the mixers still have approximately 10 dB headroom.
+The most critical part of the VNA is the 16 dB broadband coaxial directional coupler, which is a custom design based on [1](http://www.ke5fx.com/Broadband_Coupler_Dunsmore.pdf), [2](https://ieeexplore.ieee.org/document/7345756) and [3](https://hforsten.com/improved-homemade-vna.html); the prototype version showed more than 12 dB directivity up to 6 GHz. Due to the -16 dB coupling, at the lowest RF level settings the signal level at the coupled ports can be extremely low, therefore I added two TRF37A73 broadband LNAs to improve the mixer SNR; at the highest RF power level setting (~ -5 dBm on VNA Port 1) the LNAs and the mixers still have approximately 10 dB headroom.
 
 Directional coupler prototype:
 
 ![coupler](coupler.jpg)
 
-I mostly reused the design and layout work from my previous [RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) (MAX2871 PLL and BDA4700 attenuator), and extended it with the aforementioned directional coupler and LNAs, an ADL5802 mixer, a Qorvo QPC6324 high-isolation RF switch, and IF/baseband analog circuitry, to make it a functional vector network analyzer.
+I based the RF source design on my previous [RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen) (MAX2871 PLL and BDA4700 attenuator), and appended it with the aforementioned directional coupler and LNAs, an ADL5802 mixer, a Qorvo QPC6324 high-isolation RF switch, and IF/baseband analog circuitry, to make it a functional vector network analyzer.
 
 #### DSP / Controller Board
 
-The design of the board is [covered here](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7).
-
-![dspboard](https://github.com/szoftveres/RF_instruments/blob/main/dsp_stm32H7/photo.jpg)
+The design is covered [here](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7).
 
 -->> **[Schematics](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7/schematics.pdf)** <<--
 
+![dspboard](https://github.com/szoftveres/RF_instruments/blob/main/dsp_stm32H7/photo.jpg)
+
 The microcontroller takes 800 samples of both (reference and measurement) 10 kHz IF signals simultaneously at 80 ksps and calculates the baseband complex measurements by mixing the IFs with a DDS-based LO in software; the result (complex reference- and measured baseband values) is sent to the host PC for further processing. A benefit of doing all the sample acquisition and IF processing on the microcontroller is that only several bytes need to be transferred to the host PC per each measurement point, hence the low baud rate of the USB UART is not a factor.
 
-The entire VNA is running from a common 20 MHz reference clock, which originates from the DSP / Controller board, so the RF PLLs and the STM32 microcontroller are always in sync. This results in a perfect phase coherence between the analog IF signal, the ADC clock and the DDS; this allows digital signal processing without windowing, the 10 kHz IF signal is always perfectly cyclic.
+The common 20 MHz reference clock for the entire VNA originates from the DSP / Controller board. The LO and RF source PLLs as well as the STM32 microcontroller are phase-coherent, which results in a perfectly cyclic 10 kHz IF signal, therefore no windowing is necessary during the digital signal processing.
 
 The DSP / controller board is also responsile for controlling the PLLs, attenuator and the RF switch on the RF board, via SPI bus and GPIO. The ribbon cables -that connect the DSP to the RF board- have a ground wire (or capacitively grounded power wire) going between each signal wire (G-S-G-S-G... topology) as well as all the digital lines are damped by 47 Ω resistors, for minimal crosstalk. The analog IF lines are also driven by 47 Ω source impedance and are capacitively filtered on both ends for higher frequencies - since the IF frequency is low (10 kHz), no further cable shielding is necessary.
 
@@ -93,9 +93,11 @@ The result is a significant S2,1 dynamic range improvement on this VNA. Any furt
 
 #### 440 MHz GaAs Low Noise Amplifier
 
+The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet).
+
 ![gaas_pic](gaas_pic.jpg)
 
-The design is [covered here](https://github.com/szoftveres/RF_Microwave/tree/main/Amplifier/gaas_mesfet). RF power level was set to about -25 dBm. A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload as well as to give the LNA a good termination.
+RF power level was set to about -25 dBm. A 20 dB attenuator was added before Port 2 (included in the through calibration), to protect the VNA receiver from overload as well as to give the LNA a good termination.
 
 ![gaas_meas](gaas_meas.png)
 
