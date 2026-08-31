@@ -51,9 +51,9 @@ The DSP / controller board is also responsile for controlling the PLLs, attenuat
 
 #### Host PC software
 
-The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna_gui.m) is built on top of GNU Octave, using my [RF toolkit library](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib) for error correction and plotting. It can save into file and reload configurations (including calibration info).
-
 GNU Octave has some built-in functions and widgets that can be used to create a simple GUI; the benefit is that (just like with Python) the resulting software can run on most major OS platforms (Linux, Windows, Mac); these UI toolkits are also available in Matlab.
+
+The [host software](https://github.com/szoftveres/RF_Microwave/tree/main/instrctl/vna_gui.m) is essentially a GNU Octave script, using the 'instrument-control' package for USB-UART communication, and my [RF toolkit library](https://github.com/szoftveres/RF_Microwave/tree/main/RFlib) for error correction and plotting. It can save into file and reload configurations (including calibration info).
 
 ![gui](GUI.png)
 
