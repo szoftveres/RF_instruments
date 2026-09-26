@@ -243,6 +243,18 @@ dds_t* dds_create (int fs, int fc, const int *wavetable) {
 	return instance;
 }
 
+dds_t* dds_create_f (float fs, float fc, const int *wavetable) {
+    dds_t *instance = (dds_t*) t_malloc(sizeof(dds_t));
+    if (!instance) {
+        return NULL;
+    }
+    instance->phaseshift = (uint32_t)((((double)fc) * 4294967296.0) / (double)fs);
+    instance->wavetable = wavetable;
+    dds_reset(instance);
+    return instance;
+}
+
+
 void dds_destroy (dds_t* instance) {
 	if (instance) {
 		t_free(instance);

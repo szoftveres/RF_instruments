@@ -331,7 +331,7 @@ int cmd_instctl_test (cmd_context_s* ctxt) {
 
 int cmd_vna (cmd_context_s* ctxt) {
 
-	int freq;
+	int meas_freq;
 	int lck = 0;
 	rfport_rx_t rfmeas;
 
@@ -339,11 +339,15 @@ int cmd_vna (cmd_context_s* ctxt) {
 		printf_f(STDERR, "Freq needed\n");
 		return 0;
 	}
-	freq = ctxt->params->n;
+	meas_freq = ctxt->params->n;
 	obj_consume(&(ctxt->params));
 
-	max2871_freq(rf_pll, (double)freq);
-	max2871_freq(lo_pll, (double)(freq + 10));
+	if (meas_freq > 5999990) {
+		printf_f(STDERR, "Out of range\n");
+		return 0;
+	}
+	max2871_freq(rf_pll, meas_freq);
+	max2871_freq(lo_pll, meas_freq + 10);
 
 	/* Syncword */
 	console_send_u32(0xB43355AA); // gives some time for the PLLs to stabilize
@@ -356,6 +360,7 @@ int cmd_vna (cmd_context_s* ctxt) {
 			return 0;
 		}
 	}
+
 	rfport_rx_meas(80000, 10000, 800, &rfmeas, 0);
 
 	/* Reference */
@@ -390,9 +395,9 @@ int cmd_rfinmeas (cmd_context_s* ctxt) {
 
 	for (int i = 0; i != 2; i++) {
 		set_rf_level(i ? 0 : -30);
-		max2871_freq(rf_pll, (double)(freq + (i ? 0 : 10)));
+		max2871_freq(rf_pll, (freq + (i ? 0 : 10)));
 		max2871_rfa_out(rf_pll, i);
-		max2871_freq(lo_pll, (double)(freq + 10));
+		max2871_freq(lo_pll, (freq + 10));
 
 		while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
 			HAL_Delay(10);

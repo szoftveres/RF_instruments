@@ -88,10 +88,6 @@ void rfport_rx_meas (int fs, int fc, int samples, rfport_rx_t* m, int window) {
 		m->meas_q += ((sample.meas * q) / mag);
 	}
 
-	m->ref_i /= samples;
-	m->ref_q /= samples;
-	m->meas_i /= samples;
-	m->meas_q /= samples;
 	m->ref_ampl = max - min;
 
 	dds_destroy(mixer);

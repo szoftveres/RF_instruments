@@ -19,7 +19,7 @@ int load_devicecfg (void);
 int save_devicecfg (void);
 
 
-double set_rf_frequency (uint32_t khz);
+int set_rf_frequency (int khz);
 void set_rf_output (int on);
 int set_rf_level (int dBm);
 int set_fs (int fs);

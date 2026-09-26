@@ -9,7 +9,7 @@ typedef struct config_s {
 	uint8_t		byte[0];  // This just helps with byte-level access
 	struct {
 		uint8_t		byte[0];  // This just helps with byte-level access
-		uint32_t 	khz;
+		int 		khz;
 		int			level;
 		int			rfon;
 

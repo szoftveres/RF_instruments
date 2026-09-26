@@ -396,46 +396,45 @@ void max2871_destroy (max2871_t* instance) {
 	t_free(instance);
 }
 
-double max2871_freq (max2871_t* instance, double khz) {
+int max2871_freq (max2871_t* instance, int khz) {
 
     int  diva = -1;
-    double div = 0.0;
+    unsigned int div = 0;
     double fPFD_khz = 40000.0; // 2x refosc
+
+    if (khz < 23500) {
+        return -1;
+    } else if (khz <   46875) {
+        diva = 7;
+        div = 128;
+    } else if (khz <   93750) {
+        diva = 6;
+        div = 64;
+    } else if (khz <  187500) {
+        diva = 5;
+        div = 32;
+    } else if (khz <  375000) {
+        diva = 4;
+        div = 16;
+    } else if (khz <  750000) {
+        diva = 3;
+        div = 8;
+    } else if (khz < 1500000) {
+        diva = 2;
+        div = 4;
+    } else if (khz < 3000000) {
+        diva = 1;
+        div = 2;
+    } else if (khz < 6000000) {
+        diva = 0;
+        div = 1;
+    } else {
+        return -1;
+    }
 
     uint32_t mod = 4000;  // 40.0MHz / mod = 10kHz steps
 
-
-    if (khz < 23500.0) {
-        return -1.0;
-    } else if (khz <   46875.0) {
-        diva = 7;
-        div = 128.0;
-    } else if (khz <   93750.0) {
-        diva = 6;
-        div = 64.0;
-    } else if (khz <  187500.0) {
-        diva = 5;
-        div = 32.0;
-    } else if (khz <  375000.0) {
-        diva = 4;
-        div = 16.0;
-    } else if (khz <  750000.0) {
-        diva = 3;
-        div = 8.0;
-    } else if (khz < 1500000.0) {
-        diva = 2;
-        div = 4.0;
-    } else if (khz < 3000000.0) {
-        diva = 1;
-        div = 2.0;
-    } else if (khz < 6000000.0) {
-        diva = 0;
-        div = 1.0;
-    } else {
-        return -1.0;
-    }
-
-    double n = khz * div / fPFD_khz;
+    double n = ((double)(khz * div)) / fPFD_khz;
     uint32_t N = (uint32_t) n;
     uint32_t F = round((n - N) * mod);
 

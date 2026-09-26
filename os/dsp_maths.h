@@ -33,6 +33,7 @@ int cplx_inv (int *i, int *q, int norm);
 extern const int sinewave[];
 
 dds_t* dds_create (int fs, int fc, const int *wavetable);
+dds_t* dds_create_f (float fs, float fc, const int *wavetable);
 void dds_destroy (dds_t* instance);
 void dds_set (dds_t* instance, uint8_t shift);
 void dds_reset (dds_t* instance);

@@ -64,8 +64,8 @@ int save_devicecfg (void) {
 }
 
 
-double set_rf_frequency (uint32_t khz) {
-	double actual_kHz;
+int set_rf_frequency (int khz) {
+	int actual_kHz;
 
 	actual_kHz = max2871_freq(rf_pll, khz);
 	while (!HAL_GPIO_ReadPin(PLL1_LOCK_DETECT_GPIO_Port, PLL1_LOCK_DETECT_Pin)); // Wait for LD

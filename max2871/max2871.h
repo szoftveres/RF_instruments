@@ -21,7 +21,7 @@ typedef struct {
 
 max2871_t* max2871_create (void (*register_write) (uint32_t), void (*idle_wait) (void));
 void max2871_destroy (max2871_t* instance);
-double max2871_freq (max2871_t* instance, double khz);
+int max2871_freq (max2871_t* instance, int khz);
 int max2871_rfa_power (max2871_t* instance, int dbm);
 void max2871_rfa_out (max2871_t* instance, int onoff);
 
