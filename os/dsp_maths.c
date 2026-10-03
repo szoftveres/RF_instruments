@@ -346,3 +346,36 @@ uint16_t crc16 (uint8_t byte[], int len) {
     }
     return crc;
 }
+
+/* =========== */
+
+moving_average_t* moving_average_create (int len) {
+	moving_average_t *instance = (moving_average_t*) t_malloc(sizeof(moving_average_t));
+	if (!instance) {
+		return NULL;
+	}
+    instance->queue = (int*)t_malloc(sizeof(int) * len);
+	memset(instance->queue, 0x00, sizeof(int) * len);
+
+	instance->len = len;
+	instance->p = 0;
+	instance->sum = 0;
+	return instance;
+}
+
+
+void moving_average_destroy (moving_average_t* instance) {
+	if (instance) {
+		t_free(instance->queue);
+		t_free(instance);
+	}
+}
+
+
+int moving_average (moving_average_t* instance, int val) {
+	instance->sum -= instance->queue[instance->p];
+	instance->queue[instance->p] = val;
+	instance->sum += val;
+	instance->p = (instance->p + 1) % instance->len;
+	return instance->sum / instance->len;
+}

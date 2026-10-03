@@ -207,7 +207,7 @@ void* sampler_context;
 int sampler_fs;
 
 int set_sampler_frequency (int fs) {
-	uint32_t TIM2Clock = 200000000;
+	uint32_t TIM2Clock = HAL_RCC_GetPCLK2Freq() * 2;   // Timer 2 clock = APB2 peripheral clock * 2
 	uint32_t ReloadValue = (TIM2Clock / (fs)) - 1;
 
 	htim2.Instance = TIM2;

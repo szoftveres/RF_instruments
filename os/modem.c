@@ -304,19 +304,10 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     memset(i_eq, 0x00, fft_len * sizeof(int));
     memset(q_eq, 0x00, fft_len * sizeof(int));
 
-    int *correlator_i = (int*)t_malloc(fft_len * sizeof(int));
-    memset(correlator_i, 0x00, fft_len * sizeof(int));
-    int acc_i = 0;
-    int *correlator_q = (int*)t_malloc(fft_len * sizeof(int));
-    memset(correlator_q, 0x00, fft_len * sizeof(int));
-    int acc_q = 0;
-    int *corravg = (int*)t_malloc(fft_len * sizeof(int));
-    memset(corravg, 0x00, fft_len * sizeof(int));
-    int corravg_acc = 0;
-
-    int *sigpwr = (int*)t_malloc(fft_len * sizeof(int));
-    memset(sigpwr, 0x00, fft_len * sizeof(int));
-    int sigpwr_acc = 0;
+    moving_average_t *correlator_i = moving_average_create(fft_len);
+    moving_average_t *correlator_q = moving_average_create(fft_len);
+    moving_average_t *corravg = moving_average_create(fft_len);
+    moving_average_t *sigpwr_line = moving_average_create(fft_len);
 
     // Setting up the decimating filter
     int taps = fir_ntaps(dec, 2);
@@ -362,22 +353,10 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
                 cplx_mul(&i_a, &q_a, delayline_i, -delayline_q, symbolampl);
 
                 // Preamble autocorrelator moving average
-                acc_i -= correlator_i[wp];
-                correlator_i[wp] = i_a;
-                acc_i += correlator_i[wp];
-
-                acc_q -= correlator_q[wp];
-                correlator_q[wp] = q_a;
-                acc_q += correlator_q[wp];
-
+                lcl_acc_i = moving_average(correlator_i, i_a);
+                lcl_acc_q = moving_average(correlator_q, q_a);
                 // Signal power meter moving average
-                sigpwr_acc -= sigpwr[wp];
-                sigpwr[wp] = (delayline_i * delayline_i / symbolampl) + (delayline_q * delayline_q / symbolampl);
-                sigpwr_acc += sigpwr[wp];
-
-                lcl_acc_i = acc_i / fft_len;
-                lcl_acc_q = acc_q / fft_len;
-                int sigpwr = sigpwr_acc / fft_len;
+                int sigpwr = moving_average(sigpwr_line, (delayline_i * delayline_i / symbolampl) + (delayline_q * delayline_q / symbolampl));
 
                 if (!sigpwr) { // This avoids division by zero
                     break;
@@ -388,10 +367,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
                 magn = (magn * 1024) / sigpwr;  // Normalizing to 1024
 
                 // Correlator magnitude delay line
-                corravg_acc -= corravg[wp];
-                corravg[wp] = magn;
-                corravg_acc += corravg[wp];
-                int lcl_corravg = corravg_acc / fft_len;
+                int lcl_corravg = moving_average(corravg, magn);
 
                 // A drop in correlation inndicates the end of the preamble
                 if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 2 / 3))) {
@@ -481,10 +457,10 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     t_free(buf_i);
     t_free(buf_q);
 
-    t_free(sigpwr);
-    t_free(corravg);
-    t_free(correlator_i);
-    t_free(correlator_q);
+    moving_average_destroy(sigpwr_line);
+    moving_average_destroy(corravg);
+    moving_average_destroy(correlator_i);
+    moving_average_destroy(correlator_q);
     t_free(i_eq);
     t_free(q_eq);
     t_free(i_symbol);

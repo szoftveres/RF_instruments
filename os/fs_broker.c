@@ -255,7 +255,7 @@ int fs_broker_register_fs (fs_broker_t* instance,
 		return idx;
 	}
 	instance->fs_instance[idx].instance = fs;
-	instance->fs_instance[idx].letter = letter;
+	instance->fs_instance[idx].letter = letter < 'a' ? letter : letter - ('a' - 'A'); // storing with capital
 	instance->fs_instance[idx].open = open;
 	instance->fs_instance[idx].close = close;
 	instance->fs_instance[idx].rewind = rewind;
@@ -277,6 +277,7 @@ char get_current_fs (fs_broker_t* broker) {
 
 
 int change_current_fs (fs_broker_t* broker, char letter) {
+	letter = letter < 'a' ? letter : letter - ('a' - 'A');
 	for (int idx = 0; idx != MAX_FS_BROKER_FS; idx++) {
 		if (broker->fs_instance[idx].instance) {
 			if (broker->fs_instance[idx].letter == letter) {
@@ -295,8 +296,10 @@ char* name_to_fs_instance (fs_broker_t* broker, char* name, int* idx) {
 		return name;
 	}
 	if (name[1] == ':') {
+		char letter = name[0];
+		letter = letter < 'a' ? letter : letter - ('a' - 'A');
 		for (int i = 0; i != MAX_FS_BROKER_FS; i++) {
-			if (broker->fs_instance[i].letter == name[0]) {
+			if (broker->fs_instance[i].letter == letter) {
 				*idx = i;
 				return &(name[2]);
 			}

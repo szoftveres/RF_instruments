@@ -12,8 +12,8 @@ extern ADC_HandleTypeDef hadc2;
 
 
 typedef struct rfport_rx_sample_s {
-	int ref;
-	int meas;
+	int ch1;
+	int ch2;
 } rfport_rx_sample_t;
 
 
@@ -23,11 +23,12 @@ static fifo_t* rfport_rx_sample_stream;
 void rfport_rx_daq_callback (void* ctxt) {
 	rfport_rx_sample_t sample;
 
-	sample.ref = ((int)hadc1.Instance->DR) - 32768;
-	sample.meas = ((int)hadc2.Instance->DR) - 32768;
+	sample.ch1 = ((int)hadc1.Instance->DR) - 32768;
+	sample.ch2 = ((int)hadc2.Instance->DR) - 32768;
 
-	HAL_ADC_Start(&hadc1);
-	HAL_ADC_Start(&hadc2);
+	HAL_ADC_Start(&hadc1);   //hadc1.Instance->CR |= (uint32_t)ADC_CR_ADSTART;
+	HAL_ADC_Start(&hadc2);   //hadc2.Instance->CR |= (uint32_t)ADC_CR_ADSTART;
+
 	fifo_push(rfport_rx_sample_stream, &sample);
 }
 
@@ -70,22 +71,21 @@ void rfport_rx_meas (int fs, int fc, int samples, rfport_rx_t* m, int window) {
 		int q;
 
 		dds_next_sample(mixer, &i, &q);
-
 		fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
 
-		if (sample.ref < min) {min = sample.ref;}
-		if (sample.ref > max) {max = sample.ref;}
+		if (sample.ch1 < min) {min = sample.ch1;}  // ref: ch1
+		if (sample.ch1 > max) {max = sample.ch1;}  // ref: ch1
 
 		if (window) {
 			int w = raised_cos_window(c, samples);
-			sample.ref = sample.ref * w / mag;
-			sample.meas = sample.meas * w / mag;
+			sample.ch1 = sample.ch1 * w / mag; // ref: ch1
+			sample.ch2 = sample.ch2 * w / mag; // meas: ch2
 		}
 
-		m->ref_i += ((sample.ref * i) / mag);
-		m->ref_q += ((sample.ref * q) / mag);
-		m->meas_i += ((sample.meas * i) / mag);
-		m->meas_q += ((sample.meas * q) / mag);
+		m->ref_i += ((sample.ch1 * i) / mag);  // ref: ch1
+		m->ref_q += ((sample.ch1 * q) / mag);  // ref: ch1
+		m->meas_i += ((sample.ch2 * i) / mag);  // meas: ch2
+		m->meas_q += ((sample.ch2 * q) / mag);  // meas: ch2
 	}
 
 	m->ref_ampl = max - min;
@@ -95,3 +95,63 @@ void rfport_rx_meas (int fs, int fc, int samples, rfport_rx_t* m, int window) {
 	rfport_rx_daq_off();
 }
 
+/* =================================================================== */
+
+typedef struct bpsk_rf_s {
+	int bitrate;
+	int fs;
+
+	moving_average_t *i_hpf;
+	moving_average_t *q_hpf;
+
+	const int *nco_wavetable;
+	uint8_t nco_phase;
+
+} bpsk_rf_t;
+
+
+bpsk_rf_t* bpsk_rf_create (int fs, int bitrate) {
+	int hpf_symbols = 20;
+	bpsk_rf_t *instance = (bpsk_rf_t*)t_malloc(sizeof(bpsk_rf_t));
+
+	instance->i_hpf = moving_average_create((fs / bitrate) * hpf_symbols);
+	instance->q_hpf = moving_average_create((fs / bitrate) * hpf_symbols);
+
+	instance->fs = fs;
+	instance->bitrate = bitrate;
+	instance->nco_wavetable = sinewave; // 256 long
+	return instance;
+}
+
+
+void bpsk_rf_destroy (bpsk_rf_t *instance) {
+	moving_average_destroy(instance->i_hpf);
+	moving_average_destroy(instance->q_hpf);
+	t_free(instance);
+
+}
+
+void rfport_rx_bpsk_smple (bpsk_rf_t *instance) {
+
+	rfport_rx_sample_t sample;
+	int mag = magnitude_const();
+
+	fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
+
+	int i = sample.ch1 - moving_average(instance->i_hpf, sample.ch1); // DC average level removal
+	int q = sample.ch2 - moving_average(instance->q_hpf, sample.ch2); // DC average level removal
+
+}
+
+void rfport_rx_bpsk (int fs) {
+	bpsk_rf_t* bpsk_rfmodem = bpsk_rf_create (fs, 1000);
+	rfport_rx_daq_on(fs);
+
+	for (int i = 0; i != 2000; i++) {
+		rfport_rx_bpsk_smple(bpsk_rfmodem);
+
+	}
+
+	rfport_rx_daq_off();
+	bpsk_rf_destroy(bpsk_rfmodem);
+}
