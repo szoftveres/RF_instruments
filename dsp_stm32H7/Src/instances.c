@@ -361,7 +361,7 @@ int cmd_vna (cmd_context_s* ctxt) {
 		}
 	}
 
-	rfport_rx_meas(80000, 10000, 800, &rfmeas, 0);
+	rfport_rx_meas(160000, 10000, 1600, &rfmeas, 0);
 
 	/* Reference */
 	console_send_i32(rfmeas.ref_i);

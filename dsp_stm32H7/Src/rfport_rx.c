@@ -98,56 +98,82 @@ void rfport_rx_meas (int fs, int fc, int samples, rfport_rx_t* m, int window) {
 /* =================================================================== */
 
 typedef struct bpsk_rf_s {
-	int bitrate;
+	int baudrate;
 	int fs;
+	int symbol_oversample_rate;
 
-	moving_average_t *i_hpf;
-	moving_average_t *q_hpf;
+	moving_sum_t *i_hpf;
+	moving_sum_t *q_hpf;
+
+	moving_sum_t *symbol_filter;
 
 	const int *nco_wavetable;
 	uint8_t nco_phase;
 
+	int sample_out;
+
 } bpsk_rf_t;
 
 
-bpsk_rf_t* bpsk_rf_create (int fs, int bitrate) {
-	int hpf_symbols = 20;
+bpsk_rf_t* bpsk_rf_create (int fs, int baudrate, int symbol_oversample_rate) {
+	int hpf_symbols = 24;
 	bpsk_rf_t *instance = (bpsk_rf_t*)t_malloc(sizeof(bpsk_rf_t));
 
-	instance->i_hpf = moving_average_create((fs / bitrate) * hpf_symbols);
-	instance->q_hpf = moving_average_create((fs / bitrate) * hpf_symbols);
+	instance->i_hpf = moving_sum_create((fs / baudrate) * hpf_symbols);
+	instance->q_hpf = moving_sum_create((fs / baudrate) * hpf_symbols);
+	instance->symbol_filter = moving_sum_create((fs / baudrate));
 
 	instance->fs = fs;
-	instance->bitrate = bitrate;
+	instance->baudrate = baudrate;
+	instance->symbol_oversample_rate = symbol_oversample_rate;
 	instance->nco_wavetable = sinewave; // 256 long
 	return instance;
 }
 
 
 void bpsk_rf_destroy (bpsk_rf_t *instance) {
-	moving_average_destroy(instance->i_hpf);
-	moving_average_destroy(instance->q_hpf);
+	moving_sum_destroy(instance->i_hpf);
+	moving_sum_destroy(instance->q_hpf);
+	moving_sum_destroy(instance->symbol_filter);
 	t_free(instance);
 
 }
 
-void rfport_rx_bpsk_smple (bpsk_rf_t *instance) {
 
+void rfport_rx_bpsk_smple (bpsk_rf_t *instance) {
 	rfport_rx_sample_t sample;
 	int mag = magnitude_const();
+	int dec = (instance->fs / instance->baudrate) / instance->symbol_oversample_rate; // 160000 / 2000 / 5
 
-	fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
+	while (dec) {
+		int nco_i = instance->nco_wavetable[(instance->nco_phase) & 0xFF];
+		int nco_q = instance->nco_wavetable[(instance->nco_phase + 0x40) & 0xFF];
 
-	int i = sample.ch1 - moving_average(instance->i_hpf, sample.ch1); // DC average level removal
-	int q = sample.ch2 - moving_average(instance->q_hpf, sample.ch2); // DC average level removal
+		fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
 
+		int i_rot = sample.ch1 - moving_average(instance->i_hpf, sample.ch1); // DC average level removal
+		int q_rot = sample.ch2 - moving_average(instance->q_hpf, sample.ch2); // DC average level removal
+
+		int i = ((i_rot * nco_i) + (q_rot * nco_q)) / mag;   // phase matrix
+		int q = ((i_rot * nco_q) + (q_rot * nco_i)) / mag;   // phase matrix
+
+		instance->nco_phase += (i * q) > 0 ? (uint8_t) 0x10 : (uint8_t) -0x10;  // NCO tuning, +16 or -16
+
+		instance->sample_out = moving_average(instance->symbol_filter, i);  // symbol matched filter
+		dec -= 1;
+	}
 }
 
-void rfport_rx_bpsk (int fs) {
-	bpsk_rf_t* bpsk_rfmodem = bpsk_rf_create (fs, 1000);
+
+void rfport_rx_bpsk (void) {
+	int fs = 160000;
+	int baudrate = 2000;
+	int oversample = 5;
+
+	bpsk_rf_t* bpsk_rfmodem = bpsk_rf_create (fs, baudrate, oversample);
 	rfport_rx_daq_on(fs);
 
-	for (int i = 0; i != 2000; i++) {
+	for (int i = 0; i != 10000; i++) {
 		rfport_rx_bpsk_smple(bpsk_rfmodem);
 
 	}

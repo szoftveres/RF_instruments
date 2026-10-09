@@ -25,12 +25,12 @@ typedef struct dds_s {
 	const int 	 *wavetable;
 } dds_t;
 
-typedef struct moving_average_s {
+typedef struct moving_sum_s {
 	int len;
 	int p;
 	int *queue;
 	int sum;
-} moving_average_t;
+} moving_sum_t;
 
 void cplx_mul (int *i, int *q, int i_b, int q_b, int norm);
 void cplx_div (int *i, int *q, int i_b, int q_b, int norm);
@@ -53,8 +53,9 @@ int* fir_create_taps (int n, int bf);
 uint8_t crc8 (uint8_t byte[], int len);
 uint16_t crc16 (uint8_t byte[], int len);
 
-moving_average_t* moving_average_create (int len);
-void moving_average_destroy (moving_average_t* instance);
-int moving_average (moving_average_t* instance, int val);
+moving_sum_t* moving_sum_create (int len);
+void moving_sum_destroy (moving_sum_t* instance);
+int moving_average (moving_sum_t* instance, int val);
+int moving_sum (moving_sum_t* instance, int val);
 
 #endif

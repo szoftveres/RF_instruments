@@ -304,10 +304,10 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     memset(i_eq, 0x00, fft_len * sizeof(int));
     memset(q_eq, 0x00, fft_len * sizeof(int));
 
-    moving_average_t *correlator_i = moving_average_create(fft_len);
-    moving_average_t *correlator_q = moving_average_create(fft_len);
-    moving_average_t *corravg = moving_average_create(fft_len);
-    moving_average_t *sigpwr_line = moving_average_create(fft_len);
+    moving_sum_t *correlator_i = moving_sum_create(fft_len);
+    moving_sum_t *correlator_q = moving_sum_create(fft_len);
+    moving_sum_t *corravg = moving_sum_create(fft_len);
+    moving_sum_t *sigpwr_line = moving_sum_create(fft_len);
 
     // Setting up the decimating filter
     int taps = fir_ntaps(dec, 2);
@@ -457,10 +457,10 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     t_free(buf_i);
     t_free(buf_q);
 
-    moving_average_destroy(sigpwr_line);
-    moving_average_destroy(corravg);
-    moving_average_destroy(correlator_i);
-    moving_average_destroy(correlator_q);
+    moving_sum_destroy(sigpwr_line);
+    moving_sum_destroy(corravg);
+    moving_sum_destroy(correlator_i);
+    moving_sum_destroy(correlator_q);
     t_free(i_eq);
     t_free(q_eq);
     t_free(i_symbol);

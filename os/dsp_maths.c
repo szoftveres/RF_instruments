@@ -349,8 +349,8 @@ uint16_t crc16 (uint8_t byte[], int len) {
 
 /* =========== */
 
-moving_average_t* moving_average_create (int len) {
-	moving_average_t *instance = (moving_average_t*) t_malloc(sizeof(moving_average_t));
+moving_sum_t* moving_sum_create (int len) {
+	moving_sum_t *instance = (moving_sum_t*) t_malloc(sizeof(moving_sum_t));
 	if (!instance) {
 		return NULL;
 	}
@@ -364,7 +364,7 @@ moving_average_t* moving_average_create (int len) {
 }
 
 
-void moving_average_destroy (moving_average_t* instance) {
+void moving_sum_destroy (moving_sum_t* instance) {
 	if (instance) {
 		t_free(instance->queue);
 		t_free(instance);
@@ -372,10 +372,18 @@ void moving_average_destroy (moving_average_t* instance) {
 }
 
 
-int moving_average (moving_average_t* instance, int val) {
+int moving_average (moving_sum_t* instance, int val) {
 	instance->sum -= instance->queue[instance->p];
 	instance->queue[instance->p] = val;
 	instance->sum += val;
 	instance->p = (instance->p + 1) % instance->len;
 	return instance->sum / instance->len;
+}
+
+int moving_sum (moving_sum_t* instance, int val) {
+	instance->sum -= instance->queue[instance->p];
+	instance->queue[instance->p] = val;
+	instance->sum += val;
+	instance->p = (instance->p + 1) % instance->len;
+	return instance->sum;
 }
