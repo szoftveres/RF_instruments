@@ -49,6 +49,29 @@ int sqrt_func (cmd_context_s* ctxt) {
 }
 
 
+int ampldb_func (cmd_context_s* ctxt) {
+    int lo;
+    int hi;
+
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+        printf_f(STDERR, not_a_number);
+        return 0;
+    }
+    lo = ctxt->params->n;
+    obj_consume(&(ctxt->params));
+
+    if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+        printf_f(STDERR, not_a_number);
+        return 0;
+    }
+    hi = ctxt->params->n;
+    obj_consume(&(ctxt->params));
+
+	obj_add_num(&(ctxt->ret), ampldb(lo, hi));
+    return 1;
+}
+
+
 int sine_func (cmd_context_s* ctxt) {
 	int n;
 	int samples;
@@ -816,6 +839,7 @@ int setup_commands (void) {
 	keyword_add("ticks", "", ticks_func);
 	keyword_add("rnd", "(<seed>)", rnd_func);
 	keyword_add("sqrt", "(n)", sqrt_func);
+	keyword_add("ampldb", "(lo, hi)", ampldb_func);
 	keyword_add("sin", "(n, cycles)", sine_func);
 	keyword_add("cos", "(n, cycles)", cosine_func);
 	keyword_add("fmt", "(\"fmt\", ...)", fmt_func);

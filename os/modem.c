@@ -10,7 +10,7 @@
 
 
 
-#define OFDM_FS (20000)
+#define OFDM_FS (16000)
 #define OFDM_FC (2000)
 
 int ofdm_carrier_to_idx (int n, int samples) {
@@ -20,8 +20,7 @@ int ofdm_carrier_to_idx (int n, int samples) {
 
 int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range) {
     const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
-    // 3/2 is an approximation for sqrt(2)
-    return (samples * dynamic_range) / (n_carriers * (3/2) * (magnitude_const() * 2));
+    return (samples * dynamic_range) / (n_carriers * 4 * (magnitude_const()) / 2);
 }
 
 
@@ -124,13 +123,10 @@ int ofdm_depacketize (ofdm_pkt_t* p, void **data) {
 }
 
 
-
-#define OFDM_TX_OVERSAMPLE_RATE (8)
-#define OFDM_RX_OVERSAMPLE_RATE (8)
 #define OFDM_MODEM_SPS (100)
 
 #define OFDM_TRAINING_FREQUENCY (4)
-#define PFXLEN (fft_len/4)
+#define PFXLEN (fft_len/3)
 
 void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband, int *q_baseband, int dec, int len, int pfx) {
     int wave;
@@ -140,16 +136,15 @@ void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband,
 
     ofdm_cplx_encode_symbol(i_symbol, q_symbol, i_baseband, q_baseband, len);
 
-    for (int f = 0; f != pfx; f += 1) {
-        int idx = len - (pfx - f);
+    for (int f = 0; f != len; f += 1) {
         for (int d = 0; d != dec; d += 1) {
             dds_next_sample(mixer, &i_a, &q_a);
-            wave = ((i_baseband[idx] * i_a) + (q_baseband[idx] * q_a)) / magnitude_const();
+            wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
             sample_out = (int16_t)wave;
             play_int16_sample(&sample_out);
         }
     }
-    for (int f = 0; f != len; f += 1) {
+    for (int f = 0; f != pfx; f += 1) {
         for (int d = 0; d != dec; d += 1) {
             dds_next_sample(mixer, &i_a, &q_a);
             wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
@@ -184,10 +179,10 @@ void generate_training_symbol (int *i_symbol, int *q_symbol, int len, int symbol
 
 
 int ofdm_txpkt (ofdm_pkt_t *p) {
-    int fs = OFDM_FS;
-    int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_TX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
-    int target_fs = fft_len * OFDM_MODEM_SPS;
-    int dec = fs / target_fs;
+    int fs = OFDM_FS * 2;
+    int baseband_fs = 4000; // This needs to fit the bandwidth.
+    int dec = fs / baseband_fs;
+    int fft_len = baseband_fs / OFDM_MODEM_SPS;
     int preambles = 4;
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
 
@@ -249,7 +244,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
 }
 
 
-int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int symbolampl, int len) {
+int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int symbolpwr, int len) {
     for (int n = -OFDM_CARRIER_PAIRS; n <= OFDM_CARRIER_PAIRS; n++) {
         int idx = ofdm_carrier_to_idx(n, len);
         int ii = i_symbol[idx];
@@ -257,7 +252,7 @@ int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int sy
 
         // Extracting the per-carrier equalization coefficients
         // https://www.youtube.com/watch?v=CJsmsBUhW3c
-        if (cplx_inv(&ii, &qq, symbolampl * 256)) { // This works with a broad amplitude range
+        if (cplx_inv(&ii, &qq, symbolpwr)) {
             return -1;
         }
 
@@ -270,19 +265,19 @@ int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int sy
 
 int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     int fs = OFDM_FS;
-    int rc;
-    int fft_len = ((OFDM_CARRIER_PAIRS * 2) + 1 ) * OFDM_RX_OVERSAMPLE_RATE; // carrier pairs * Nyquist * Oversample rate
-    int target_fs = fft_len * OFDM_MODEM_SPS;
-    int dec = fs / target_fs;
+    int baseband_fs = 4000; // This needs to fit the bandwidth.
+    int dec = fs / baseband_fs;
+    int fft_len = baseband_fs / OFDM_MODEM_SPS;
+    int rc = 0;
+
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
+    int symbolpwr = symbolampl * symbolampl;
 
     rx_on();
     start_audio_in(fs, fft_len * dec * 16); // 16 symbols
 
     dds_t *mixer = dds_create(fs, OFDM_FC, sinewave);
 
-    int min = 1024 * 1024;
-    int max = -min;
     int *i_symbol = (int*)t_malloc(fft_len * sizeof(int));
     int *q_symbol = (int*)t_malloc(fft_len * sizeof(int));
     int *i_eq = (int*)t_malloc(fft_len * sizeof(int));
@@ -310,26 +305,25 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     moving_sum_t *sigpwr_line = moving_sum_create(fft_len);
 
     // Setting up the decimating filter
-    int taps = fir_ntaps(dec, 2);
-    int *tap = fir_create_taps(dec, 2);
+    int taps = fir_ntaps(dec, 1);
+    int *tap = fir_create_taps(dec, 1);
     int norm = fir_normf(tap, taps);
+
     int *buf_i = (int*)t_malloc(taps * sizeof(int));
     int *buf_q = (int*)t_malloc(taps * sizeof(int));
     int bp = 0;
     int wp = 0;
     int statemachine = 0;
     int pfx;
+    int mc = magnitude_const();
 
     while (running) {
 
         dds_next_sample(mixer, &i_a, &q_a);
         record_int16_sample(&sample_in); wave = ((int)sample_in);
 
-        if (wave < min) {min = wave;}
-        if (wave > max) {max = wave;}
-
-        buf_i[bp] = wave * i_a / magnitude_const();
-        buf_q[bp] = wave * q_a / magnitude_const();
+        buf_i[bp] = wave * i_a / mc;
+        buf_q[bp] = wave * q_a / mc;
         bp++;
         if (bp < taps) {
             continue;
@@ -338,6 +332,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
         bp -= dec;  // due to memmove in fir_work
         i_a = fir_work(buf_i, tap, taps, dec) / norm / 2;
         q_a = fir_work(buf_q, tap, taps, dec) / norm / 2;
+
         switch (statemachine) {
         case 0: // Preamble detection
             {
@@ -350,28 +345,28 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
                 i_eq[wp] = i_a;
                 q_eq[wp] = q_a;
 
-                cplx_mul(&i_a, &q_a, delayline_i, -delayline_q, symbolampl);
+                cplx_mul(&i_a, &q_a, delayline_i, -delayline_q, symbolampl);  // Autocorrelation
 
                 // Preamble autocorrelator moving average
                 lcl_acc_i = moving_average(correlator_i, i_a);
                 lcl_acc_q = moving_average(correlator_q, q_a);
+
                 // Signal power meter moving average
-                int sigpwr = moving_average(sigpwr_line, (delayline_i * delayline_i / symbolampl) + (delayline_q * delayline_q / symbolampl));
+                int sigpwr = moving_average(sigpwr_line, ((delayline_i * delayline_i) + (delayline_q * delayline_q)) / symbolampl);
 
                 if (!sigpwr) { // This avoids division by zero
                     break;
                 }
 
                 // Forming the normalized absolute value
-                int magn = ((lcl_acc_i * lcl_acc_i / sigpwr) + (lcl_acc_q * lcl_acc_q / sigpwr));
+                int magn = ((lcl_acc_i * lcl_acc_i) + (lcl_acc_q * lcl_acc_q)) / sigpwr;
                 magn = (magn * 1024) / sigpwr;  // Normalizing to 1024
 
                 // Correlator magnitude delay line
-                int lcl_corravg = moving_average(corravg, magn);
+                int lcl_corravg = delayline(corravg, magn);
 
                 // A drop in correlation inndicates the end of the preamble
-                if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 2 / 3))) {
-                    //console_printf("sigpwr:%i (%i->%i)", sigpwr, lcl_corravg, magn);
+                if ((lcl_corravg > 768) && (lcl_corravg < 1280) && (magn < (lcl_corravg * 5 / 6))) {
                     if (level) {
                         *level = sigpwr;
                     }
@@ -379,9 +374,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
                     wp = 0;
                     pp = 0;
                     training_due = 0;
-                    // The trigger occurs somewhere in the early section of the cyclic prefix,
-                    // shooting for the middle
-                    pfx = 0; //PFXLEN * 1 / 4;
+                    pfx = 0;
                     p->h.len = MODEM_PKT_PAYLOAD_MAX;
                     p->h.antipreamble = OFDM_ANTIPREAMBLE;
                 } else {
@@ -405,7 +398,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
 			wp = 0;
 			ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
 			if (!training_due) {
-				save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl, fft_len);
+				save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolpwr, fft_len);
 				training_due = OFDM_TRAINING_FREQUENCY;
 				break;
 			}

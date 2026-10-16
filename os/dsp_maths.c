@@ -20,6 +20,38 @@ int isqrt (int y) {
 }
 
 
+int ampldb (int lo, int hi) {
+    int db = 0;
+
+    while ((lo * 10) <= hi) {
+        lo *= 10;
+        db += 20;
+    }
+    hi *= 10;
+    if (lo * 89 < hi) { db += 1;} // 19 dB
+    if (lo * 79 < hi) { db += 1;} // 18 dB
+    if (lo * 71 < hi) { db += 1;} // 17 dB
+    if (lo * 63 < hi) { db += 1;} // 16 dB
+    if (lo * 56 < hi) { db += 1;} // 15 dB
+    if (lo * 50 < hi) { db += 1;} // 14 dB
+    if (lo * 45 < hi) { db += 1;} // 13 dB
+    if (lo * 40 < hi) { db += 1;} // 12 dB
+    if (lo * 35 < hi) { db += 1;} // 11 dB
+    if (lo * 32 < hi) { db += 1;} // 10 dB
+    if (lo * 28 < hi) { db += 1;} //  9 dB
+    if (lo * 25 < hi) { db += 1;} //  8 dB
+    if (lo * 22 < hi) { db += 1;} //  7 dB
+    if (lo * 20 < hi) { db += 1;} //  6 dB
+    if (lo * 18 < hi) { db += 1;} //  5 dB
+    if (lo * 16 < hi) { db += 1;} //  4 dB
+    if (lo * 14 < hi) { db += 1;} //  3 dB
+    if (lo * 13 < hi) { db += 1;} //  2 dB
+    if (lo * 11 < hi) { db += 1;} //  1 dB
+
+    return db;
+}
+
+
 const int sinewave[] = {
           0,         50,        100,        151,
         201,        251,        300,        350,
@@ -195,10 +227,10 @@ int magnitude (int i, int q) {
 
 
 void cplx_mul (int *i, int *q, int i_b, int q_b, int norm) {
-    if ((*i > 45000) || (*q > 45000) || (*i < -45000) || (*q < -45000)) {
+    if ((*i > 49151) || (*q > 49151) || (*i < -49152) || (*q < -49152)) {
         console_printf("mul 1 overflow");
     }
-    if ((i_b > 45000) || (q_b > 45000) || (i_b < -45000) || (q_b < -45000)) {
+    if ((i_b > 49151) || (q_b > 49151) || (i_b < -49152) || (q_b < -49152)) {
         console_printf("mul 2 overflow");
     }
     int dst_i = (*i * i_b) - (*q * q_b);
@@ -216,7 +248,7 @@ void cplx_div (int *i, int *q, int i_b, int q_b, int norm) {
 
 int cplx_inv (int *i, int *q, int norm) {
 
-    if ((*i > 45000) || (*q > 45000) || (*i < -45000) || (*q < -45000)) {
+    if ((*i > 49151) || (*q > 49151) || (*i < -49152) || (*q < -49152)) {
         console_printf("inv overflow");
     }
 
@@ -293,9 +325,10 @@ int fir_ntaps (int n, int bf) {
 
 int* fir_create_taps (int n, int bf) {
     int* tap;
-    int centertap = (n * bf) -1;
-    tap = (int*)t_malloc(fir_ntaps(n, bf) * sizeof(int));
-    for (int i = 0; i != (n * bf); i++) {
+    int taps = fir_ntaps(n, bf);
+    int centertap = taps / 2;
+    tap = (int*)t_malloc(taps * sizeof(int));
+    for (int i = 0; i != centertap + 1; i++) {
         tap[centertap+i] = sinc_func(i, n*2);
         tap[centertap-i] = sinc_func(i, n*2);
     }
@@ -386,4 +419,11 @@ int moving_sum (moving_sum_t* instance, int val) {
 	instance->sum += val;
 	instance->p = (instance->p + 1) % instance->len;
 	return instance->sum;
+}
+
+int delayline (moving_sum_t* instance, int val) {
+	int tailv = instance->queue[instance->p];
+	instance->queue[instance->p] = val;
+	instance->p = (instance->p + 1) % instance->len;
+	return tailv;
 }

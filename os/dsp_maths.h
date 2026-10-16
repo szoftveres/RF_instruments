@@ -4,6 +4,7 @@
 #include <stdint.h> // uint32_t
 
 int isqrt (int y);
+int ampldb (int lo, int hi);
 
 int sin_func (int n, int samples);
 int cos_func (int n, int samples);
@@ -57,5 +58,6 @@ moving_sum_t* moving_sum_create (int len);
 void moving_sum_destroy (moving_sum_t* instance);
 int moving_average (moving_sum_t* instance, int val);
 int moving_sum (moving_sum_t* instance, int val);
+int delayline (moving_sum_t* instance, int val);
 
 #endif
