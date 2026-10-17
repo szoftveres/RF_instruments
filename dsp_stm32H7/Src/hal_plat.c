@@ -310,13 +310,13 @@ int play_silence_ms (int ms) {
 
 
 void tx_on (void) {
-	int16_t s = 0;
-	play_int16_sample(&s);
+	//int16_t s = 0;
+	//play_int16_sample(&s);
 }
 
 void tx_off (void) {
-	int16_t s = -32767;
-	play_int16_sample(&s);
+	//int16_t s = -32767;
+	//play_int16_sample(&s);
 }
 
 void rx_on (void) {}

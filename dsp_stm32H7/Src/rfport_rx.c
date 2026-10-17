@@ -26,18 +26,17 @@ void rfport_rx_daq_callback (void* ctxt) {
 	sample.ch1 = ((int)hadc1.Instance->DR) - 32768;
 	sample.ch2 = ((int)hadc2.Instance->DR) - 32768;
 
-	HAL_ADC_Start(&hadc1);   //hadc1.Instance->CR |= (uint32_t)ADC_CR_ADSTART;
-	HAL_ADC_Start(&hadc2);   //hadc2.Instance->CR |= (uint32_t)ADC_CR_ADSTART;
+	HAL_ADC_Start(&hadc1);
 
 	fifo_push(rfport_rx_sample_stream, &sample);
 }
 
 
-void rfport_rx_daq_on (int fs) {
-	rfport_rx_sample_stream = fifo_create(64, sizeof(rfport_rx_sample_t));
+void rfport_rx_daq_on (int fs, int bufdepth) {
+	rfport_rx_sample_stream = fifo_create(bufdepth, sizeof(rfport_rx_sample_t));
 
 	set_sampler_frequency(fs);
-
+	HAL_ADC_Start(&hadc2);
 	start_sampler(rfport_rx_daq_callback, NULL);
 }
 
@@ -56,7 +55,7 @@ void rfport_rx_meas (int fs, int fc, int samples, rfport_rx_t* m, int window) {
 	int min = INT_MAX;
 	int max = INT_MIN;
 
-	rfport_rx_daq_on(fs);
+	rfport_rx_daq_on(fs, 64);
 
 	memset(m, 0x00, sizeof(rfport_rx_t));
 
@@ -155,7 +154,7 @@ void rfport_rx_bpsk_smple (bpsk_rf_t *instance) {
 		int q_rot = sample.ch2 - moving_average(instance->q_hpf, sample.ch2); // DC average level removal
 
 		int i = ((i_rot * nco_i) + (q_rot * nco_q)) / mag;   // phase matrix
-		int q = ((i_rot * nco_q) + (q_rot * nco_i)) / mag;   // phase matrix
+		int q = ((i_rot * nco_q) - (q_rot * nco_i)) / mag;   // phase matrix
 
 		instance->nco_phase += (i * q) > 0 ? (uint8_t) 0x10 : (uint8_t) -0x10;  // NCO tuning, +16 or -16
 
@@ -171,7 +170,7 @@ void rfport_rx_bpsk (void) {
 	int oversample = 5;
 
 	bpsk_rf_t* bpsk_rfmodem = bpsk_rf_create (fs, baudrate, oversample);
-	rfport_rx_daq_on(fs);
+	rfport_rx_daq_on(fs, 64);
 
 	for (int i = 0; i != 10000; i++) {
 		rfport_rx_bpsk_smple(bpsk_rfmodem);

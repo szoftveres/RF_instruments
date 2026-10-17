@@ -9,6 +9,7 @@
 #include "../os/keyword.h" // command structure
 #include "../os/resource.h"
 #include "../os/modem.h"
+#include "../os/dsp_maths.h"
 #include "stm32h7xx_hal.h"  // HAL get tick
 #include "rfport_rx.h"
 #include "../nmea0183/nmea0183.h"
@@ -196,7 +197,7 @@ int cmd_ofdm_rx (cmd_context_s* ctxt) {
             continue;
         }
         if (ofdm_depacketize(&p, &data) >= 0) {
-        	printf_f(STDOUT, "%s, level:%i\n", data, level);
+        	printf_f(STDOUT, "%s, level: %idB, %i\n", data, -ampldb(level, 65536)/2, level);
             break;
         }
     }

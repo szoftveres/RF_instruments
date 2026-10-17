@@ -1,5 +1,4 @@
 # RF_instruments
-RF instruments
 
 * [6 GHz vector network analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna)
 * [6 GHz stored-program RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
