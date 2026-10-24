@@ -24,6 +24,8 @@ void max2871_destroy (max2871_t* instance);
 int max2871_freq (max2871_t* instance, int khz);
 int max2871_rfa_power (max2871_t* instance, int dbm);
 void max2871_rfa_out (max2871_t* instance, int onoff);
+int max2871_rfb_power (max2871_t* instance, int dbm);
+void max2871_rfb_out (max2871_t* instance, int onoff);
 
 
 #endif

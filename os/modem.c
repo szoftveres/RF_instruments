@@ -20,7 +20,7 @@ int ofdm_carrier_to_idx (int n, int samples) {
 
 int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range) {
     const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
-    return (samples * dynamic_range) / (n_carriers * 4 * (magnitude_const()) / 2);
+    return (samples * dynamic_range) / (n_carriers * 4 * MAGNITUDE_CONST / 2);
 }
 
 
@@ -139,7 +139,7 @@ void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband,
     for (int f = 0; f != len; f += 1) {
         for (int d = 0; d != dec; d += 1) {
             dds_next_sample(mixer, &i_a, &q_a);
-            wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
+            wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / MAGNITUDE_CONST;
             sample_out = (int16_t)wave;
             play_int16_sample(&sample_out);
         }
@@ -147,7 +147,7 @@ void ofdm_txsymbol (dds_t *mixer, int *i_symbol, int *q_symbol, int *i_baseband,
     for (int f = 0; f != pfx; f += 1) {
         for (int d = 0; d != dec; d += 1) {
             dds_next_sample(mixer, &i_a, &q_a);
-            wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / magnitude_const();
+            wave = ((i_baseband[f] * i_a) + (q_baseband[f] * q_a)) / MAGNITUDE_CONST;
             sample_out = (int16_t)wave;
             play_int16_sample(&sample_out);
         }
@@ -315,15 +315,14 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     int wp = 0;
     int statemachine = 0;
     int pfx;
-    int mc = magnitude_const();
 
     while (running) {
 
         dds_next_sample(mixer, &i_a, &q_a);
         record_int16_sample(&sample_in); wave = ((int)sample_in);
 
-        buf_i[bp] = wave * i_a / mc;
-        buf_q[bp] = wave * q_a / mc;
+        buf_i[bp] = wave * i_a / MAGNITUDE_CONST;
+        buf_q[bp] = wave * q_a / MAGNITUDE_CONST;
         bp++;
         if (bp < taps) {
             continue;
@@ -604,8 +603,8 @@ int bpsk_rxpkt (bpsk_pkt_t *p, int* level) {
         int q_a;
         dds_next_sample(c.mixer, &i_a, &q_a);
         record_int16_sample(&sample);
-        c.ds.buf_i[c.ds.bp] = ((int)sample) * i_a / magnitude_const();
-        c.ds.buf_q[c.ds.bp] = ((int)sample) * q_a / magnitude_const();
+        c.ds.buf_i[c.ds.bp] = ((int)sample) * i_a / MAGNITUDE_CONST;
+        c.ds.buf_q[c.ds.bp] = ((int)sample) * q_a / MAGNITUDE_CONST;
 
         if (c.pp == BPSK_PKT_TOTAL_LEN(p->h.len)) { // We're done
             rc = bpsk_depacketize(p, NULL);
@@ -629,7 +628,7 @@ int bpsk_rxpkt (bpsk_pkt_t *p, int* level) {
         c.q[c.wp] = fir_work(c.ds.buf_q, c.ds.tap, c.ds.taps, c.ds.dec) / c.ds.norm;
 
         // Polar discriminator
-        cplx_mul(&i_a, &q_a, c.i[c.wp], c.q[c.wp], magnitude_const());
+        cplx_mul(&i_a, &q_a, c.i[c.wp], c.q[c.wp], MAGNITUDE_CONST);
         c.bitval[c.wp] = i_a;
         //c.bitval[c.wp] = ((i_a * c.i[c.wp]) - (q_a * c.q[c.wp])) / magnitude_const();
         // We only care about the real part after the polar discriminator
@@ -752,7 +751,7 @@ int bpsk_txpkt (bpsk_pkt_t *p) {
             int i_mix;
             int q_mix;
             dds_next_sample(c.mixer, &i_mix, &q_mix);
-            sample = (int16_t)(((c.i[c.ds.bp] * i_mix) + (c.q[c.ds.bp] * q_mix)) / magnitude_const());
+            sample = (int16_t)(((c.i[c.ds.bp] * i_mix) + (c.q[c.ds.bp] * q_mix)) / MAGNITUDE_CONST);
 
             play_int16_sample(&sample);
             continue;

@@ -134,8 +134,6 @@ data_obj_t* op_str_str (int op_type, data_obj_t *left, data_obj_t *right) {
 
 
 data_obj_t* op_str_num (int op_type, data_obj_t *left, data_obj_t *right) {
-    int n;
-
     if (right->n < 0) {
         obj_destroy(left);
         left = NULL;

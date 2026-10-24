@@ -475,5 +475,24 @@ void max2871_rfa_out (max2871_t* instance, int onoff) {
 	max2871WriteRegisters(instance);
 }
 
+int max2871_rfb_power (max2871_t* instance, int dbm) {
+	uint8_t rfPower;
+	switch (dbm) {
+		case -4: rfPower = 0; break;
+		case -1: rfPower = 1; break;
+		case 2:  rfPower = 2; break;
+		case 5:  rfPower = 3; break;
+		default: return 0;
+	}
 
+	max2871Set_BPWR(instance, rfPower);
+	max2871WriteRegisters(instance);
+	return 1;
+}
+
+
+void max2871_rfb_out (max2871_t* instance, int onoff) {
+	max2871Set_RFB_EN(instance, (onoff & 0x01));
+	max2871WriteRegisters(instance);
+}
 

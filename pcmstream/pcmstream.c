@@ -385,10 +385,10 @@ task_rc_t freqsink_task (void* context) {
 
 		dds_next_sample(c->mixer, &i_a, &q_a);
 
-		int wsample = (int)sample * raised_cos_window(c->samples, c->samples2) / magnitude_const();
+		int wsample = (int)sample * raised_cos_window(c->samples, c->samples2) / MAGNITUDE_CONST;
 
-		c->i += wsample * i_a / magnitude_const();
-		c->q += wsample * q_a / magnitude_const();
+		c->i += wsample * i_a / MAGNITUDE_CONST;
+		c->q += wsample * q_a / MAGNITUDE_CONST;
 
 	}
 
@@ -586,8 +586,8 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 	int i_a;
 	int q_a;
 	dds_next_sample(c->mixer, &i_a, &q_a);
-	c->ds.buf_i[c->ds.bp] = (((int)sample) - 32768) * i_a / magnitude_const();
-	c->ds.buf_q[c->ds.bp] = (((int)sample) - 32768) * q_a / magnitude_const();
+	c->ds.buf_i[c->ds.bp] = (((int)sample) - 32768) * i_a / MAGNITUDE_CONST;
+	c->ds.buf_q[c->ds.bp] = (((int)sample) - 32768) * q_a / MAGNITUDE_CONST;
 
 
 	c->ds.bp++;
@@ -605,9 +605,9 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 	c->q[c->wp] = fir_work(c->ds.buf_q, c->ds.tap, c->ds.taps, c->ds.dec) / c->ds.norm;
 
     // Polar discriminator
-    cplx_mul(&i_a, &q_a, c->i[c->wp], c->q[c->wp], magnitude_const());
+    cplx_mul(&i_a, &q_a, c->i[c->wp], c->q[c->wp], MAGNITUDE_CONST);
     c->bitval[c->wp] = i_a;
-    //c->bitval[c->wp] = ((i_a * c->i[c->wp]) - (q_a * c->q[c->wp])) / magnitude_const();
+    //c->bitval[c->wp] = ((i_a * c->i[c->wp]) - (q_a * c->q[c->wp])) / MAGNITUDE_CONST;
     // We only care about the real part after the polar discriminator
 
     int bit = 0;
@@ -768,7 +768,7 @@ task_rc_t bpsk_txmodem_task (void* context) {
         int i_mix;
         int q_mix;
         dds_next_sample(c->mixer, &i_mix, &q_mix);
-        c->sample = (((c->i[c->ds.bp] * i_mix) + (c->q[c->ds.bp] * q_mix)) / magnitude_const()) + 32768;
+        c->sample = (((c->i[c->ds.bp] * i_mix) + (c->q[c->ds.bp] * q_mix)) / MAGNITUDE_CONST) + 32768;
 
         if (!c->out_stream->readers) {
             return TASK_RC_END;
@@ -1157,7 +1157,7 @@ task_rc_t sine_sample_producer (void* c, uint16_t* sample_out) {
 	}
 	lc->samples -= 1;
 	dds_next_sample(lc->dds, &i, &q);
-	i *= (32768 / magnitude_const());
+	i *= (32768 / MAGNITUDE_CONST);
 	i += 32768;
 	*sample_out = (uint16_t)i;
 	return TASK_RC_AGAIN;

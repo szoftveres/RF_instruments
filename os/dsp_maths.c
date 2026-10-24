@@ -1,6 +1,7 @@
 #include "dsp_maths.h"
 #include "hal_plat.h" // t_malloc
 #include <string.h> // memset
+#include <limits.h> //int max and int min
 
 
 // Searching for the square root by successive approximation
@@ -22,6 +23,10 @@ int isqrt (int y) {
 
 int ampldb (int lo, int hi) {
     int db = 0;
+
+    if ((!lo) || (lo > hi)) {
+    	return INT_MAX;
+    }
 
     while ((lo * 10) <= hi) {
         lo *= 10;
@@ -123,12 +128,6 @@ const int sinewave[] = {
 #define LOOKUP_LEN    (sizeof(sinewave)/sizeof(sinewave[0]))
 
 
-int magnitude_const (void) {
- //   return cos_func(0,1);
-	return 2048;
-}
-
-
 int sin_func (int n, int samples) {
     return sinewave[((n * LOOKUP_LEN) / samples) % LOOKUP_LEN];
 }
@@ -168,8 +167,8 @@ void dft_bucket (int *in, int *i_out, int *q_out, int bucket, int length) {
 	for (sample = 0; sample != length; sample++) {
 		 int s_idx = (bucket * sample) % length;
 
-		 *i_out += ((in[sample] * cos_func(s_idx, length)) / magnitude_const());
-		 *q_out -= ((in[sample] * sin_func(s_idx, length)) / magnitude_const());
+		 *i_out += ((in[sample] * cos_func(s_idx, length)) / MAGNITUDE_CONST);
+		 *q_out -= ((in[sample] * sin_func(s_idx, length)) / MAGNITUDE_CONST);
 	 }
 	 *i_out /= length;
 	 *q_out /= length;
@@ -179,7 +178,6 @@ void dft_bucket (int *in, int *i_out, int *q_out, int bucket, int length) {
 /* Complex Discrete Fourier Transform */
 void dft_bucket_iq (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, int length) {
     int sample;
-    int mag = magnitude_const();
 
 	*i_out = 0;
     *q_out = 0;
@@ -192,8 +190,8 @@ void dft_bucket_iq (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, in
 		 *q_out -= (in_i[sample] * sin_func(s_idx, length));
 		 *q_out += (in_q[sample] * cos_func(s_idx, length));
 	 }
-	 *i_out /= (length * mag);
-	 *q_out /= (length * mag);
+	 *i_out /= (length * MAGNITUDE_CONST);
+	 *q_out /= (length * MAGNITUDE_CONST);
 }
 
 
@@ -306,7 +304,6 @@ void dds_next_sample (dds_t* instance, int *i, int *q) {
 	*i = instance->wavetable[(instance->phaseaccumulator + 0x40000000) >> 24];
 	instance->phaseaccumulator += instance->phaseshift;
 }
-
 
 
 int fir_normf (int tap[], int taps) {

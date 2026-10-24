@@ -17,7 +17,7 @@ void dft_bucket_iq (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, in
 void ift_sample_iq (int *in_i, int *in_q, int *i_out, int *q_out, int sample, int length);
 
 int magnitude (int i, int q);
-int magnitude_const (void);
+#define MAGNITUDE_CONST (2048)
 
 
 typedef struct dds_s {
