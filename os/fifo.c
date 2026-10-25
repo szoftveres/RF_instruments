@@ -1,6 +1,7 @@
 #include "fifo.h"
 #include "hal_plat.h" // t_malloc, cpu_sleep
 #include <string.h> // memcpy
+#include "globals.h" // stdio
 
 
 
@@ -33,7 +34,7 @@ void fifo_destroy (fifo_t *instance) {
 		return;
 	}
 	if (instance->readers || instance->writers) {
-		console_printf("fifo still in use");
+		printf_f(STDERR, "fifo still in use");
 	}
 	if (instance->buf) {
 		t_free(instance->buf);

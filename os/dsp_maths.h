@@ -17,8 +17,6 @@ void dft_bucket_iq (int *in_i, int *in_q, int *i_out, int *q_out, int bucket, in
 void ift_sample_iq (int *in_i, int *in_q, int *i_out, int *q_out, int sample, int length);
 
 int magnitude (int i, int q);
-#define MAGNITUDE_CONST (2048)
-
 
 typedef struct dds_s {
 	uint32_t phaseshift;
@@ -38,6 +36,7 @@ void cplx_div (int *i, int *q, int i_b, int q_b, int norm);
 int cplx_inv (int *i, int *q, int norm);
 
 extern const int sinewave[];
+#define MAGNITUDE_CONST (256)
 
 dds_t* dds_create (int fs, int fc, const int *wavetable);
 dds_t* dds_create_f (float fs, float fc, const int *wavetable);

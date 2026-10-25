@@ -314,7 +314,10 @@ task_rc_t nullsink_task (void* context) {
 void nullsink_celanup (void* context) {
 	nullsink_context_t *c = (nullsink_context_t*)context;
 	c->in_stream->readers--;
-	printf_f(STDERR, "fs:%i samples:%i, min:%i, max:%i\n", c->samplerate, c->samples, c->min, c->max);
+	int ampl = (c->max - c->min) / 10;
+	int pwr = ampl * ampl;
+	printf_f(STDERR, "fs:%i samples:%i, min:%i, max:%i, peak:-%idB\n",
+			         c->samplerate, c->samples, c->min, c->max, ampldb(pwr, 42949673) / 2);
 	t_free(context);
 }
 
@@ -398,7 +401,7 @@ task_rc_t freqsink_task (void* context) {
 
 void freqsink_celanup (void* context) {
 	freqsink_context_t *c = (freqsink_context_t*)context;
-	int magn;
+	int pwr;
 	if (c->mixer) {
 		dds_destroy(c->mixer);
 	}
@@ -406,8 +409,9 @@ void freqsink_celanup (void* context) {
 	c->i /= c->samples2;
 	c->q /= c->samples2;
 
-	magn = isqrt((c->i * c->i) + (c->q * c->q));
-	printf_f(STDERR, "fs:%i min:%i, max:%i, i:%d, q:%d, magn:%d\n", c->samplerate, c->min, c->max, c->i, c->q, magn);
+	pwr = ((c->i * c->i) + (c->q * c->q)) / 100;
+	printf_f(STDERR, "fs:%i min:%i, max:%i, i:%d, q:%d, -%ddB\n",
+			         c->samplerate, c->min, c->max, c->i, c->q, ampldb(pwr, 1073741824/100) / 2);
 	t_free(context);
 }
 
@@ -623,7 +627,6 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 	switch (c->pp) {
 		case -1: { // trying to sync to the preamble
 			if (c->byte[c->wp] == PKT_PREAMBLE1) {
-                //console_printf("sync start, rss:%i", rss);
 				c->sync = 0;
 				c->cm = rss;
 				c->cmi = c->sync;
@@ -635,15 +638,12 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 		case 0: { // Found a valid preamble, let's find the max
 			c->sync += 1;
 			if ((c->byte[c->wp] == PKT_PREAMBLE1) && (rss > c->cm)) { // Found a better peak
-                //console_printf("sync        rss:%i", rss);
 				c->cm = rss;
 				c->cmi = c->sync;
 			}
 			if (c->sync > (c->fft_len - 2)) {
-                //console_printf("sync end    sync:%i", c->sync);
 				c->sync = (c->fft_len - c->sync) + c->cmi; // Samples to skip for best sync to the next symbol
                 c->bitcounter = 0;
-                //console_printf("sync end best sync:%i", c->sync);
 				c->pp += 1; // Advance to the next state
 			}
 			return TASK_RC_YIELD;
@@ -667,7 +667,6 @@ task_rc_t bpsk_rxmodem_task (void* context) {
 	c->sync = c->fft_len;
 	if (((c->pp == 1) && (c->packet.byte[c->pp] != PKT_PREAMBLE2)) ||
         (c->packet.len > PACKET_PAYLOAD_MAX)) {
-        //console_printf("lost it: :0x%02X, rss:%i", c->packet.byte[c->pp], rss);
 		c->pp = -1; // We lost it
 		c->wp = 0;
 		return TASK_RC_YIELD;
@@ -1168,7 +1167,7 @@ void sine_producer_cleanup (void* c)  {
 	dds_destroy(lc->dds);
 }
 
-int cmd_sine (cmd_context_s* ctxt) {
+int cmd_cwsrc (cmd_context_s* ctxt) {
 	int fs;
 	int fc;
 	int samples;
@@ -1339,7 +1338,7 @@ void pcmstream_cmds_setup (void) {
     keyword_add("txmsg", "[fs] [fc]->", cmd_txmsg);
 
     keyword_add("noise", "[fs] [samples]->", cmd_noise);
-    keyword_add("sine", "[fs] [freq] [samples]->", cmd_sine);
+    keyword_add("cwsrc", "[fs] [freq] [samples]->", cmd_cwsrc);
     keyword_add("nullsnk", "->NULL", cmd_nullsink);
     keyword_add("freqsnk", "[fc] [samples]->NULL", cmd_freqsink);
     keyword_add("df", "->decimating filter [n] <[bf]>->", cmd_decfir);

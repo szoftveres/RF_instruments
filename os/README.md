@@ -35,37 +35,40 @@ More examples [here](https://github.com/szoftveres/RF_instruments/tree/main/sigg
 M:> list
  0 "a = 0"
  1 "c = 24"
- 2 "n = (2048 + sin(a, c)) / 128"
- 3 "print \"*\" >> n"
+ 2 "n = (256 + sin(a, c)) / 16"
+ 3 "print fmt(\"[a = %2i] %s\", a, (\"*\" >> n))"
  4 "a += 1"
  5 "if a < c \"goto 2\""
 M:> run
-                *
-                   *
-                       *
-                           *
-                             *
-                               *
-                               *
-                               *
-                             *
-                           *
-                        *
-                    *
-                *
-            *
-        *
-    *
-  *
-*
-*
-*
-  *
-    *
-       *
-           *
+[a =  0]                 *
+[a =  1]                    *
+[a =  2]                        *
+[a =  3]                            *
+[a =  4]                              *
+[a =  5]                                *
+[a =  6]                                *
+[a =  7]                                *
+[a =  8]                              *
+[a =  9]                            *
+[a = 10]                         *
+[a = 11]                     *
+[a = 12]                 *
+[a = 13]             *
+[a = 14]         *
+[a = 15]     *
+[a = 16]   *
+[a = 17] *
+[a = 18] *
+[a = 19] *
+[a = 20]   *
+[a = 21]     *
+[a = 22]        *
+[a = 23]            *
 Done
 ```
+
+The `fmt("fmt string", ...)` function returns a formatted string (its use is similar to `sprintf`). Some arithmetic operations are allowed on strings, e.g. `"str" >> n` results in a string, in which `"str"` is preceded by `n` number of spaces.
+
 
 #### Number guessing game
 

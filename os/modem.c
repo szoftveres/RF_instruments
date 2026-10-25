@@ -2,6 +2,7 @@
 #include "hal_plat.h"
 #include "dsp_maths.h"
 #include <string.h>
+#include "globals.h" // stdio
 
 
 #define OFDM_BITS_PER_CARRIER (2)
@@ -20,7 +21,7 @@ int ofdm_carrier_to_idx (int n, int samples) {
 
 int ofdm_cplx_u8_symbolampl (int samples, int dynamic_range) {
     const int n_carriers = (OFDM_CARRIER_PAIRS * 2) + 1; // 4 + pilot
-    return (samples * dynamic_range) / (n_carriers * 4 * MAGNITUDE_CONST / 2);
+    return (samples * dynamic_range) / (n_carriers * MAGNITUDE_CONST * 3 / 2);
 }
 
 
@@ -244,7 +245,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
 }
 
 
-int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int symbolpwr, int len) {
+int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int ref, int len) {
     for (int n = -OFDM_CARRIER_PAIRS; n <= OFDM_CARRIER_PAIRS; n++) {
         int idx = ofdm_carrier_to_idx(n, len);
         int ii = i_symbol[idx];
@@ -252,7 +253,7 @@ int save_training_eq (int *i_symbol, int *q_symbol, int *i_eq, int *q_eq, int sy
 
         // Extracting the per-carrier equalization coefficients
         // https://www.youtube.com/watch?v=CJsmsBUhW3c
-        if (cplx_inv(&ii, &qq, symbolpwr)) {
+        if (cplx_inv(&ii, &qq, ref)) {
             return -1;
         }
 
@@ -271,7 +272,6 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
     int rc = 0;
 
     int symbolampl = ofdm_cplx_u8_symbolampl(fft_len, 32768);
-    int symbolpwr = symbolampl * symbolampl;
 
     rx_on();
     start_audio_in(fs, fft_len * dec * 16); // 16 symbols
@@ -397,7 +397,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
 			wp = 0;
 			ofdm_cplx_decode_symbol(i_baseband, q_baseband, i_symbol, q_symbol, fft_len);
 			if (!training_due) {
-				save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolpwr, fft_len);
+				save_training_eq(i_symbol, q_symbol, i_eq, q_eq, symbolampl * 4, fft_len);
 				training_due = OFDM_TRAINING_FREQUENCY;
 				break;
 			}
@@ -646,7 +646,6 @@ int bpsk_rxpkt (bpsk_pkt_t *p, int* level) {
         switch (c.pp) {
             case -1: { // trying to sync to the preamble
                 if (c.byte[c.wp] == BPSK_PKT_PREAMBLE1) {
-                    //console_printf("sync start, rss:%i", rss);
                     c.sync = 0;
                     c.cm = rss;
                     c.cmi = c.sync;
@@ -658,15 +657,12 @@ int bpsk_rxpkt (bpsk_pkt_t *p, int* level) {
             case 0: { // Found a valid preamble, let's find the max
                 c.sync += 1;
                 if ((c.byte[c.wp] == BPSK_PKT_PREAMBLE1) && (rss > c.cm)) { // Found a better peak
-                    //console_printf("sync        rss:%i", rss);
                     c.cm = rss;
                     c.cmi = c.sync;
                 }
                 if (c.sync > (c.fft_len - 2)) {
-                    //console_printf("sync end    sync:%i", c.sync);
                     c.sync = (c.fft_len - c.sync) + c.cmi; // Samples to skip for best sync to the next symbol
                     c.bitcounter = 0;
-                    //console_printf("sync end best sync:%i", c.sync);
                     c.pp += 1; // Advance to the next state
                 }
                 continue;
