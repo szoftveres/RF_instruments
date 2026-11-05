@@ -77,15 +77,6 @@ void ofdm_cplx_decode_symbol (int *i_in, int *q_in, int* i_symbol, int* q_symbol
 }
 
 
-uint8_t scrambler (uint8_t *core, uint8_t c) {
-    int cycles = 8;
-    while (cycles--) {
-        *core = ((*core) << 1) + ((((*core) >> 3) ^ ((*core) >> 6)) & 0x01);
-    }
-    return (c ^ (*core));
-}
-
-
 #define OFDM_ANTIPREAMBLE (0x55)
 
 #define OFDM_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(ofdm_pkt_header_t)))
@@ -222,7 +213,7 @@ int ofdm_txpkt (ofdm_pkt_t *p) {
             generate_training_symbol(i_symbol, q_symbol, fft_len, symbolampl);
         } else {
             training_due -= 1;
-            ofdm_u8_to_symbol(scrambler(&scrambler_core, p->byte[pp++]), pilot, 0, i_symbol, q_symbol, fft_len, symbolampl);
+            ofdm_u8_to_symbol(scrambler8(&scrambler_core, p->byte[pp++]), pilot, 0, i_symbol, q_symbol, fft_len, symbolampl);
             pilot *= -1; // Alternating the pilot, to discourage the Rx autocorrelator of syncing mid-packet
         }
         ofdm_txsymbol(mixer, i_symbol, q_symbol, i_baseband, q_baseband, dec, fft_len, PFXLEN);
@@ -416,7 +407,7 @@ int ofdm_rxpkt (ofdm_pkt_t *p, int* level) {
 			}
 			uint8_t c = ofdm_symbol_to_u8(i_symbol, q_symbol, NULL, NULL, fft_len);
 
-			p->byte[pp++] = scrambler(&scrambler_core, c);
+			p->byte[pp++] = scrambler8(&scrambler_core, c);
 
 			if (p->h.len > MODEM_PKT_PAYLOAD_MAX) {
 				statemachine = 0; // lost it due to garbage length

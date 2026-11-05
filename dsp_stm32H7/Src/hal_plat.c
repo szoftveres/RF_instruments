@@ -265,9 +265,10 @@ int start_audio_in (int fs, int samplebuf) {
 	start_sampler(adc1_sample_stream_callback, ain_fifo);
 	return 1;
 }
-
+extern ADC_HandleTypeDef hadc1;
 void stop_audio_in (void) {
 	stop_sampler();
+	HAL_ADC_Stop(&hadc1);
 	fifo_destroy(ain_fifo);
 }
 

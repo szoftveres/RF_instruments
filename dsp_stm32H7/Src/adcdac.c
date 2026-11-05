@@ -156,6 +156,7 @@ void adcsrc_celanup (void* context) {
 	c->out_stream->writers--;
 	stop_sampler();
 	fifo_destroy(c->adc_stream);
+	HAL_ADC_Stop(&hadc1);
 	t_free(context);
 }
 

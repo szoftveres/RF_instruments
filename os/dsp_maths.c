@@ -383,6 +383,15 @@ uint16_t crc16 (uint8_t byte[], int len) {
     return crc;
 }
 
+
+uint8_t scrambler8 (uint8_t *core, uint8_t c) {
+    int cycles = 8;
+    while (cycles--) {
+        *core = ((*core) << 1) + ((((*core) >> 3) ^ ((*core) >> 6)) & 0x01);
+    }
+    return (c ^ (*core));
+}
+
 /* =========== */
 
 moving_sum_t* moving_sum_create (int len) {

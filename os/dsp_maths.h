@@ -53,6 +53,8 @@ int* fir_create_taps (int n, int bf);
 uint8_t crc8 (uint8_t byte[], int len);
 uint16_t crc16 (uint8_t byte[], int len);
 
+uint8_t scrambler8 (uint8_t *core, uint8_t c);
+
 moving_sum_t* moving_sum_create (int len);
 void moving_sum_destroy (moving_sum_t* instance);
 int moving_average (moving_sum_t* instance, int val);

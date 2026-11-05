@@ -27,9 +27,11 @@ static const char* name_expected = "\"name\" expected\n";
 void set_rf_output (int on) {
 	max2871_rfa_power(rf_pll, -1);
 	max2871_rfa_power(lo_pll, -1);
+	max2871_rfb_power(lo_pll, -1);
 
 	max2871_rfa_out(rf_pll, on);
 	max2871_rfa_out(lo_pll, on);
+	max2871_rfb_out(lo_pll, on);
 
 	if (on) {
 		ledon();
@@ -379,6 +381,72 @@ int cmd_vna (cmd_context_s* ctxt) {
 }
 
 
+
+
+int setuprf (cmd_context_s* ctxt, int tx) {
+	int freq;
+	int lck = 0;
+
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_NUM) {
+		printf_f(STDERR, "Freq needed\n");
+		return 0;
+	}
+	freq = ctxt->params->n;
+	obj_consume(&(ctxt->params));
+
+	if (freq > 5999990) {
+		printf_f(STDERR, "Out of range\n");
+		return 0;
+	}
+
+	max2871_freq(rf_pll, freq);
+
+	max2871_rfa_power(rf_pll, 2);
+	max2871_rfb_power(rf_pll, 2);
+	max2871_rfa_out(rf_pll, tx ? 1 : 0);
+	max2871_rfb_out(rf_pll, tx ? 0 : 1);
+
+	HAL_GPIO_WritePin(SPI_CS2_GPIO_Port, SPI_CS2_Pin, tx ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+	while (!HAL_GPIO_ReadPin(MISO_INPUT_GPIO_Port, MISO_INPUT_Pin)) {
+		HAL_Delay(10);
+		lck += 1;
+		if (lck > 20) {
+			printf_f(STDERR, "PLL lock error\n");
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int cmd_tx_test (cmd_context_s* ctxt) {
+	int rc;
+
+	if (!setuprf(ctxt, 1)) {
+		return 0;
+	}
+
+	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
+		printf_f(STDERR, "Payload needed\n");
+		return 0;
+	}
+	rc = rfport_tx_bpsk(ctxt->params->str, strlen(ctxt->params->str) + 1);
+	obj_consume(&(ctxt->params));
+	return rc;
+}
+
+
+int cmd_rx_test (cmd_context_s* ctxt) {
+
+	if (!setuprf(ctxt, 0)) {
+		return 0;
+	}
+	rfport_rx_bpsk();
+	return 1;
+}
+
+
+
 int cmd_rfinmeas (cmd_context_s* ctxt) {
 
 	int freq;
@@ -441,6 +509,12 @@ int cmd_rfoff (cmd_context_s* ctxt) {
 
 
 int setup_persona_commands (void) {
+
+
+	keyword_add("txtest", "", cmd_tx_test);
+	keyword_add("rxtest", "", cmd_rx_test);
+
+	keyword_add("test", "", cmd_test);
 
 	keyword_add("synth", "", cmd_synth);
 
