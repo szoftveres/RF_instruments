@@ -14,8 +14,6 @@ Since the received signal has an inevitable carrier offset (Tx and Rx clock crys
 
 In this receiver, the Costas-loop can track +/- 10 kHz carrier offset; the IF stages have a low cutoff frequency of ~200 Hz and a max. bandwidth of 1 MHz, allowing very quick transitions. The total IF gain is ~40 dB.
 
-**[-->> RF board schematics <<--](schem.pdf)**
-
-Functional Block Diagram ([DSP code](https://github.com/szoftveres/RF_instruments/blob/main/dsp_stm32H7/Src/bpsk_transceiver.c)):
+Receiver Block Diagram ([DSP code](https://github.com/szoftveres/RF_instruments/blob/main/dsp_stm32H7/Src/bpsk_transceiver.c)):
 
 ![block_diagram](BPSK_Rx_block_diagram.png)
