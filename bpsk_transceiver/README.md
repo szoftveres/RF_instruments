@@ -4,13 +4,13 @@
 
 **[-->> RF board schematics <<--](schem.pdf)**
 
-## BPSK Transmitter
+## Transmitter
 
-The MAX2871 PLL has differential, individually driven outputs, meaning that each output line can be used in single-ended mode. Two (180° out of phase) lines of a differential pair is connected to the inputs of a SPDT RF switch, and the MCU is selecting between the two inputs, thereby creating a BPSK modulated RF signal at the output of the switch. For good I/Q balance at the highest carrier frequencies, the two RF PCB traces must be length-matched between the PLL and the SPDT RF switch.
+The MAX2871 PLL has two differential outputs, but any line can drive single-ended loads as well. A Qorvo QPC6324 SPDT RF switch (operated by the MCU) is connected to one of the differential pairs of the PLL, and selects which (in-phase or out-of-phase) version of the signal to be present at the Tx output. For good I/Q balance at the highest carrier frequencies, the differential pair RF PCB traces must be length-matched between the PLL and the SPDT RF switch. This primitive BPSK modulation method was chosen because of its simplicity and availability of cheap parts, as well as due to lack of a suitable broadband and low-power- or low LO level upconverting mixer.
 
 ![rfclose](rfclose.jpg)
 
-## Zero-IF BPSK receiver
+## Zero-IF receiver
 
 One of the most common problem with zero-IF receivers is the mixer DC offset and the theoretical necessity of DC coupling the baseband signal all the way from the mixer to the ADC through high-gain IF stages, which results in an inherent DC overload of the IF amplifier chain and the ADCs. [This very inspirational artcle](https://s53mv.s56g.net/archive/p024.pdf) describes a zero-IF receiver that has AC-coupled IF stages and subsequent AC-coupled digitizer. The main idea is that the transmitter makes sure that the received I and Q signals never linger at DC levels longer than just several symbols, by the means of scrambling (whitening) the transmitted signal, thereby enabling AC coupling in the receiver. Only the low cutoff frequency of the AC coupling must be chosen carefully.
 
