@@ -2,6 +2,7 @@
 
 * [6 GHz vector network analyzer](https://github.com/szoftveres/RF_instruments/tree/main/vna)
 * [6 GHz stored-program RF signal generator](https://github.com/szoftveres/RF_instruments/tree/main/siggen)
+* [400 MHz - 6 GHz BPSK Transceiver](https://github.com/szoftveres/RF_instruments/tree/main/bpsk_transceiver):
 * [STM32H7 DSP/controller](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7)
 * [System control software and library](https://github.com/szoftveres/RF_instruments/tree/main/os)
 

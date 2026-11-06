@@ -1,10 +1,14 @@
 # General Coverage BPSK Transceiver, 400 MHz - 6 GHz
 
+![sys](sys.jpg)
+
 **[-->> RF board schematics <<--](schem.pdf)**
 
 ## BPSK Transmitter
 
 The MAX2871 PLL has differential, individually driven outputs, meaning that each output line can be used in single-ended mode. Two (180° out of phase) lines of a differential pair is connected to the inputs of a SPDT RF switch, and the MCU is selecting between the two inputs, thereby creating a BPSK modulated RF signal at the output of the switch. For good I/Q balance at the highest carrier frequencies, the two RF PCB traces must be length-matched between the PLL and the SPDT RF switch.
+
+![rfclose](rfclose.jpg)
 
 ## Zero-IF BPSK receiver
 
@@ -17,3 +21,6 @@ In this receiver, the Costas-loop can track +/- 10 kHz carrier offset; the IF st
 Receiver Block Diagram ([DSP code](https://github.com/szoftveres/RF_instruments/blob/main/dsp_stm32H7/Src/bpsk_transceiver.c)):
 
 ![block_diagram](BPSK_Rx_block_diagram.png)
+
+The design of the DSP/MCU board is covered [here](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7).
+
