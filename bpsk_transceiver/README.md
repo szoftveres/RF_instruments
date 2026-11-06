@@ -24,3 +24,6 @@ Receiver Block Diagram ([DSP code](https://github.com/szoftveres/RF_instruments/
 
 The design of the DSP/MCU board is covered [here](https://github.com/szoftveres/RF_instruments/tree/main/dsp_stm32H7).
 
+![dspboard](https://github.com/szoftveres/RF_instruments/blob/main/dsp_stm32H7/photo.jpg)
+
+
