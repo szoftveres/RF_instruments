@@ -22,6 +22,11 @@ int isqrt (int y) {
 }
 
 
+// Amplitude dB ratio; ret = 20 * log10(hi / lo)
+// For power, divide retval by 2
+
+static int db_lookup[] = {89, 79, 71, 63, 56, 50, 45, 40, 35, 32, 28, 25, 22, 20, 18, 16, 14, 13, 11};
+
 int ampldb (int lo, int hi) {
     int db = 0;
 
@@ -29,35 +34,23 @@ int ampldb (int lo, int hi) {
     	return INT_MAX;
     }
 
+    // Bringing 'lo' within 20 dB of 'hi'
     while ((lo * 10) <= hi) {
         lo *= 10;
         db += 20;
     }
+
+    // Normalizing
     while (hi > (INT_MAX / 100)) {
-    	hi /= 10;
-    	lo /= 10;
+    	hi /= 2;
+    	lo /= 2;
     }
 
     hi *= 10;
-    if (lo * 89 < hi) { db += 1;} // 19 dB
-    if (lo * 79 < hi) { db += 1;} // 18 dB
-    if (lo * 71 < hi) { db += 1;} // 17 dB
-    if (lo * 63 < hi) { db += 1;} // 16 dB
-    if (lo * 56 < hi) { db += 1;} // 15 dB
-    if (lo * 50 < hi) { db += 1;} // 14 dB
-    if (lo * 45 < hi) { db += 1;} // 13 dB
-    if (lo * 40 < hi) { db += 1;} // 12 dB
-    if (lo * 35 < hi) { db += 1;} // 11 dB
-    if (lo * 32 < hi) { db += 1;} // 10 dB
-    if (lo * 28 < hi) { db += 1;} //  9 dB
-    if (lo * 25 < hi) { db += 1;} //  8 dB
-    if (lo * 22 < hi) { db += 1;} //  7 dB
-    if (lo * 20 < hi) { db += 1;} //  6 dB
-    if (lo * 18 < hi) { db += 1;} //  5 dB
-    if (lo * 16 < hi) { db += 1;} //  4 dB
-    if (lo * 14 < hi) { db += 1;} //  3 dB
-    if (lo * 13 < hi) { db += 1;} //  2 dB
-    if (lo * 11 < hi) { db += 1;} //  1 dB
+
+    for (int i = 0; i != sizeof(db_lookup)/sizeof(db_lookup[0]); i++) {
+    	if (lo * db_lookup[i] < hi) { db += 1;}
+    }
 
     return db;
 }
@@ -253,7 +246,7 @@ void cplx_div (int *i, int *q, int i_b, int q_b, int norm) {
 int cplx_inv (int *i, int *q, int norm) {
 
     if ((*i > 49151) || (*q > 49151) || (*i < -49152) || (*q < -49152)) {
-        printf_f(STDERR, "inv overflow");
+    	printf_f(STDERR, "inv overflow");
     }
 
     int d = ((*i * *i) + (*q * *q));

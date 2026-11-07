@@ -9,6 +9,7 @@
 #include "stm32h7xx_hal.h"
 #include "bpsk_transceiver.h"
 
+/*-----------------------------------------------------*/
 
 static fifo_t* bpsk_rf_tx_bit_stream;
 
@@ -33,14 +34,14 @@ void bpsk_rf_tx_stream_off (void) {
 	fifo_destroy(bpsk_rf_tx_bit_stream);
 }
 
+/*-----------------------------------------------------*/
 
 #define BPSK_RF_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(bpsk_rf_pkt_header_t)))
 #define BPSK_RF_PREAMBLE (0xD9C2)
 
 
-
 bpsk_rx_t* bpsk_rf_create (int fs, int baudrate, int oversample) {
-	int hpf_symbols = 24;
+	int hpf_symbols = 96;
 	bpsk_rx_t *instance = (bpsk_rx_t*)t_malloc(sizeof(bpsk_rx_t));
 
 	instance->i_hpf = moving_sum_create((fs / baudrate) * hpf_symbols);
@@ -75,7 +76,9 @@ void bpsk_rf_destroy (bpsk_rx_t *instance) {
 }
 
 
-void rfport_rx_bpsk_smple (bpsk_rx_t *instance) {
+// Receiving one slice of an oversampled symbol
+int rx_bpsk_sample (bpsk_rx_t *instance) {
+	int sample_out;
 	rfport_rx_sample_t sample;
 	int dec = (instance->fs / instance->baudrate) / instance->oversample; // 160000 / 2000 / 5 = 16
 
@@ -85,25 +88,35 @@ void rfport_rx_bpsk_smple (bpsk_rx_t *instance) {
 
 		fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
 
-		int i_rot = sample.ch1 - moving_average(instance->i_hpf, sample.ch1); // DC average level removal
-		int q_rot = sample.ch2 - moving_average(instance->q_hpf, sample.ch2); // DC average level removal
+		// DC average level removal
+		int i_rot = sample.ch1 - moving_average(instance->i_hpf, sample.ch1);
+		int q_rot = sample.ch2 - moving_average(instance->q_hpf, sample.ch2);
 
-		int i = ((i_rot * nco_i) - (q_rot * nco_q)) / MAGNITUDE_CONST;   // complex multiplication
-		int q = ((i_rot * nco_q) + (q_rot * nco_i)) / MAGNITUDE_CONST;   // complex multiplication
+		// complex multiplication
+		int i = ((i_rot * nco_i) - (q_rot * nco_q)) / MAGNITUDE_CONST;
+		int q = ((i_rot * nco_q) + (q_rot * nco_i)) / MAGNITUDE_CONST;
 
-		instance->nco_phase += (i * q) > 0 ? (uint8_t) 0x10 : (uint8_t) -0x10;  // NCO tuning, +16 or -16
+		// Costas-loop NCO tuning, +16 or -16
+		instance->nco_phase += (i * q) > 0 ? ((uint8_t) 0x10) : ((uint8_t) -0x10);
 
-		instance->sample_out = moving_average(instance->symbol_filter, i);  // symbol matched filter
+		// symbol matched filter
+		sample_out = moving_average(instance->symbol_filter, i);
 		dec -= 1;
 	}
+	return sample_out;
 }
 
 
-int rfport_rx_bpsk (void) {
+
+#define BPSK_RF_BAUDRATE (2000)
+#define BPSK_RF_OVERSAMPLE (5)
+
+
+int rf_bpsk_rx (char *payload, int *len, int* pwr) {
 	int fs = 160000;
 	uint8_t scrambler_core = 0xFF;
-	int baudrate = 2000;
-	int oversample = 5;
+	int baudrate = BPSK_RF_BAUDRATE;
+	int oversample = BPSK_RF_OVERSAMPLE;
 	int ampl;
 	int sign;
 	int rc = 1;
@@ -123,24 +136,27 @@ int rfport_rx_bpsk (void) {
 	int max_ampl;
 	int max_idx;
 
-	while (acquire) { /* Acquiring the preamble */
+	uint16_t curr_preamble = 0;
+
+	// Acquiring and locking onto the preamble, determining the absolute sign
+	while (acquire) {
+		bpsk_rfmodem->preamble[oversampl_idx] = curr_preamble;
 		oversampl_idx = (oversampl_idx + 1) % oversample;
-		bpsk_rfmodem->preamble[oversampl_idx] <<= 1;
+		curr_preamble = bpsk_rfmodem->preamble[oversampl_idx] << 1;
 
-		rfport_rx_bpsk_smple(bpsk_rfmodem);
-		int sample = bpsk_rfmodem->sample_out;
+		int sample = rx_bpsk_sample(bpsk_rfmodem);
 
-		bpsk_rfmodem->preamble[oversampl_idx] |= ((sample > 0) ? 1 : 0);
+		curr_preamble |= ((sample > 0) ? 1 : 0);
 		ampl = moving_average(bpsk_rfmodem->preamble_ampl[oversampl_idx], ((sample > 0) ? sample : -sample));
 
 		switch (statemachine) {
 		case 1:
-			if (bpsk_rfmodem->preamble[oversampl_idx] == BPSK_RF_PREAMBLE) {
+			if (curr_preamble == (uint16_t)BPSK_RF_PREAMBLE) {
 				max_ampl = ampl;
 				max_idx = oversampl_idx;
 				statemachine += 1;
 				sign = 1;
-			} else if (bpsk_rfmodem->preamble[oversampl_idx] == (~(BPSK_RF_PREAMBLE))) {
+			} else if (curr_preamble == (uint16_t)(~(BPSK_RF_PREAMBLE))) {
 				max_ampl = ampl;
 				max_idx = oversampl_idx;
 				statemachine += 1;
@@ -149,7 +165,7 @@ int rfport_rx_bpsk (void) {
 			break;
 
 		case 2:
-			if (bpsk_rfmodem->preamble[oversampl_idx] != (sign ? BPSK_RF_PREAMBLE : (~(BPSK_RF_PREAMBLE)))) {
+			if (curr_preamble != (sign ? (uint16_t)BPSK_RF_PREAMBLE : (uint16_t)(~(BPSK_RF_PREAMBLE)))) {
 				acquire = 0;
 				break;
 			}
@@ -170,17 +186,16 @@ int rfport_rx_bpsk (void) {
 	int bitn = 0;
 	uint8_t byte;
 
-	while (bytep < (BPSK_RF_PKT_TOTAL_LEN(pkt.h.len))) {  /* Receiving the packet */
-
-		oversampl_idx = (oversampl_idx + 1) % oversample;
-		rfport_rx_bpsk_smple(bpsk_rfmodem);
-
-		if (oversampl_idx != max_idx) {
-			continue;
-		}
+	// Receiving the packet
+	while (bytep < (BPSK_RF_PKT_TOTAL_LEN(pkt.h.len))) {
+		int sample;
+		do {
+			oversampl_idx = (oversampl_idx + 1) % oversample;
+			sample = rx_bpsk_sample(bpsk_rfmodem);
+		} while (oversampl_idx != max_idx);
 
 		byte <<= 1;
-		byte |= ((bpsk_rfmodem->sample_out > 0) ? 1 : 0);
+		byte |= ((sample > 0) ? 1 : 0);
 
         bitn += 1;
         if (bitn == 8) {
@@ -207,14 +222,15 @@ int rfport_rx_bpsk (void) {
 		}
 	}
 	if (rc) {
-		console_printf_e("[-%i dB, %i, %c], ", ampldb(max_ampl, 32768), pkt.h.len, sign?'+':'-');
-		console_printf("%s", pkt.payload);
+		memcpy(payload, pkt.payload, pkt.h.len);
+		*len = (int)pkt.h.len;
+		*pwr = ampldb(max_ampl, 65536);
 	}
 	return rc;
 }
 
 
-int rfport_tx_bpsk (char* payload, int len) {
+int rf_bpsk_tx (char* payload, int len) {
 	uint8_t scrambler_core = 0xFF;
 
 	if ((len < 0) || (len > BPSK_RF_PKT_PAYLOAD_MAX)) {
@@ -227,10 +243,10 @@ int rfport_tx_bpsk (char* payload, int len) {
 	pkt.h.crc16 = 0;
 	pkt.h.crc16 = crc16(pkt.byte, BPSK_RF_PKT_TOTAL_LEN(pkt.h.len));
 
-	bpsk_rf_tx_stream_on(2000, 24);
+	bpsk_rf_tx_stream_on(BPSK_RF_BAUDRATE, 24);
 
 	/* Sending some symbols, to give the Rx Costas loop something to lock onto */
-	for (int i = 0; i != 24; i++) {
+	for (int i = 0; i != 48; i++) {
 		int bit = (i % 2);
 		fifo_push_or_sleep(bpsk_rf_tx_bit_stream, &bit);
 	}

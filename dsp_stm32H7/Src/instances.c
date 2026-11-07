@@ -12,7 +12,10 @@
 #include "../os/dsp_maths.h"
 #include "stm32h7xx_hal.h"  // HAL get tick
 #include "rfport_rx.h"
+#include "bpsk_transceiver.h"
 #include "../nmea0183/nmea0183.h"
+
+
 
 max2871_t* rf_pll;
 max2871_t* lo_pll;
@@ -430,19 +433,33 @@ int cmd_tx_test (cmd_context_s* ctxt) {
 		printf_f(STDERR, "Payload needed\n");
 		return 0;
 	}
-	rc = rfport_tx_bpsk(ctxt->params->str, strlen(ctxt->params->str) + 1);
+	rc = rf_bpsk_tx(ctxt->params->str, strlen(ctxt->params->str) + 1);
 	obj_consume(&(ctxt->params));
+	max2871_rfa_out(rf_pll, 0);
+	max2871_rfb_out(rf_pll, 0);
 	return rc;
 }
 
 
 int cmd_rx_test (cmd_context_s* ctxt) {
+	char buf[BPSK_RF_PKT_PAYLOAD_MAX];
+	int len;
+	int pwr;
+	int rc = 0;
 
 	if (!setuprf(ctxt, 0)) {
 		return 0;
 	}
-	rfport_rx_bpsk();
-	return 1;
+
+	while (!rc) {
+		if (rf_bpsk_rx(buf, &len, &pwr)) {
+			printf_f(STDOUT, "[-%idB] \"%s\"\n", pwr, buf);
+			rc = 1;
+		}
+	}
+	max2871_rfa_out(rf_pll, 0);
+	max2871_rfb_out(rf_pll, 0);
+	return rc;
 }
 
 

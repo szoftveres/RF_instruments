@@ -37,7 +37,6 @@ typedef struct bpsk_rx_s {
 	const int *nco_wavetable;
 	uint8_t nco_phase;
 
-	int sample_out;
 	uint16_t *preamble;
 	moving_sum_t **preamble_ampl;
 	bpsk_rf_pkt_t pkt;
@@ -48,6 +47,7 @@ typedef struct bpsk_rx_s {
 bpsk_rx_t* bpsk_rf_create (int fs, int baudrate, int oversample);
 void bpsk_rf_destroy (bpsk_rx_t *instance);
 
-int rfport_tx_bpsk (char* payload, int len);
+int rf_bpsk_tx (char* payload, int len);
+int rf_bpsk_rx (char *payload, int *len, int* pwr);
 
 #endif /* INC_BPSK_TRANSCEIVER_H_ */
