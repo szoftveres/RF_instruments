@@ -37,8 +37,8 @@ typedef struct bpsk_rx_s {
 	const int *nco_wavetable;
 	uint8_t nco_phase;
 
-	uint16_t *preamble;
-	moving_sum_t **preamble_ampl;
+	uint16_t *syncword;
+	moving_sum_t **syncword_ampl;
 	bpsk_rf_pkt_t pkt;
 
 } bpsk_rx_t;

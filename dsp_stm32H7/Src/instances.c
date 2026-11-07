@@ -271,8 +271,6 @@ int cmd_gps (cmd_context_s* ctxt) {
 	char msg[64];
 	gps_context_t gps_ctxt;
 	int fdin;
-	int fdout;
-	int len;
 
     if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
     	printf_f(STDERR, name_expected);
@@ -287,30 +285,15 @@ int cmd_gps (cmd_context_s* ctxt) {
 	}
 	gps_ctxt.in_fd = fdin;
 
-	if (get_data_obj_type(ctxt->params) != OBJ_TYPE_STR) {
-		printf_f(STDERR, name_expected);
-		close_f(fs, fdin);
-		return 0;
-	}
-
-	fdout = open_f(fs, ctxt->params->str, FS_O_CREAT | FS_O_TRUNC);
-	obj_consume(&(ctxt->params));
-
-	if (fdout < 0) {
-		printf_f(STDERR, "dst open fail\n");
-		close_f(fs, fdin);
-		return 0;
-	}
-
-	nmea0183_t *gps = nmea0183_create (get_gps_char, &gps_ctxt);
+	nmea0183_t *gps = nmea0183_create(get_gps_char, &gps_ctxt);
 
 	nmea0183_update(gps);
-	len = sprintf(msg, "%i.%i,%i.%i,%i:%02i:%02i\n", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
-	write_f_all(fs, fdout, msg, len);
+	sprintf(msg, "%i.%i,%i.%i,%i:%02i:%02i", gps->lat_i, gps->lat_f, gps->lon_i, gps->lon_f, gps->hour, gps->min, gps->sec);
 
 	nmea0183_destroy(gps);
 	close_f(fs, fdin);
-	close_f(fs, fdout);
+
+	obj_add_str(&(ctxt->ret), msg);
 
 	return 1;
 }
@@ -422,6 +405,7 @@ int setuprf (cmd_context_s* ctxt, int tx) {
 	return 1;
 }
 
+
 int cmd_tx_test (cmd_context_s* ctxt) {
 	int rc;
 
@@ -433,7 +417,10 @@ int cmd_tx_test (cmd_context_s* ctxt) {
 		printf_f(STDERR, "Payload needed\n");
 		return 0;
 	}
+
+	ledon();
 	rc = rf_bpsk_tx(ctxt->params->str, strlen(ctxt->params->str) + 1);
+	ledoff();
 	obj_consume(&(ctxt->params));
 	max2871_rfa_out(rf_pll, 0);
 	max2871_rfb_out(rf_pll, 0);
@@ -546,7 +533,7 @@ int setup_persona_commands (void) {
 
 	keyword_add("instctltest", "- test", cmd_instctl_test);
 
-	keyword_add("gps", "\"src\" \"dst\"", cmd_gps);
+	keyword_add("gps", "(\"src\")", cmd_gps);
 
 	keyword_add("otx", "- test", cmd_ofdm_tx);
 	keyword_add("orx", "- test", cmd_ofdm_rx);

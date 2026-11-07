@@ -36,22 +36,20 @@ void bpsk_rf_tx_stream_off (void) {
 
 /*-----------------------------------------------------*/
 
-#define BPSK_RF_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(bpsk_rf_pkt_header_t)))
-#define BPSK_RF_PREAMBLE (0xD9C2)
-
+#define HPF_SYMBOLS (96)
 
 bpsk_rx_t* bpsk_rf_create (int fs, int baudrate, int oversample) {
-	int hpf_symbols = 96;
 	bpsk_rx_t *instance = (bpsk_rx_t*)t_malloc(sizeof(bpsk_rx_t));
 
-	instance->i_hpf = moving_sum_create((fs / baudrate) * hpf_symbols);
-	instance->q_hpf = moving_sum_create((fs / baudrate) * hpf_symbols);
+	int hpf_samples = ((fs / baudrate) * HPF_SYMBOLS) - (fs / 3 / baudrate);
+	instance->i_hpf = moving_sum_create(hpf_samples);
+	instance->q_hpf = moving_sum_create(hpf_samples);
 	instance->symbol_filter = moving_sum_create((fs / baudrate));
 
-	instance->preamble = (uint16_t*)t_malloc(sizeof(uint16_t) * oversample);
-	instance->preamble_ampl = (moving_sum_t**)t_malloc(sizeof(moving_sum_t*) * oversample);
+	instance->syncword = (uint16_t*)t_malloc(sizeof(uint16_t) * oversample);
+	instance->syncword_ampl = (moving_sum_t**)t_malloc(sizeof(moving_sum_t*) * oversample);
 	for (int i = 0; i != oversample; i++) {
-		instance->preamble_ampl[i] = moving_sum_create(16); // preamble is 16 bits long
+		instance->syncword_ampl[i] = moving_sum_create(16); // preamble is 16 bits long
 	}
 
 	instance->fs = fs;
@@ -67,10 +65,10 @@ void bpsk_rf_destroy (bpsk_rx_t *instance) {
 	moving_sum_destroy(instance->q_hpf);
 	moving_sum_destroy(instance->symbol_filter);
 	for (int i = 0; i != instance->oversample; i++) {
-		moving_sum_destroy(instance->preamble_ampl[i]);
+		moving_sum_destroy(instance->syncword_ampl[i]);
 	}
-	t_free(instance->preamble_ampl);
-	t_free(instance->preamble);
+	t_free(instance->syncword_ampl);
+	t_free(instance->syncword);
 	t_free(instance);
 
 }
@@ -107,7 +105,8 @@ int rx_bpsk_sample (bpsk_rx_t *instance) {
 }
 
 
-
+#define BPSK_RF_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(bpsk_rf_pkt_header_t)))
+#define BPSK_RF_SYNCWORD (0xD9C2)
 #define BPSK_RF_BAUDRATE (2000)
 #define BPSK_RF_OVERSAMPLE (5)
 
@@ -125,7 +124,7 @@ int rf_bpsk_rx (char *payload, int *len, int* pwr) {
 	bpsk_rx_t* bpsk_rfmodem = bpsk_rf_create(fs, baudrate, oversample);
 
 	for (int i = 0; i != bpsk_rfmodem->oversample; i++) {
-		bpsk_rfmodem->preamble[i] = 0;
+		bpsk_rfmodem->syncword[i] = 0;
 	}
 
 	rfport_rx_daq_on(fs, 160000 / baudrate);
@@ -136,27 +135,27 @@ int rf_bpsk_rx (char *payload, int *len, int* pwr) {
 	int max_ampl;
 	int max_idx;
 
-	uint16_t curr_preamble = 0;
+	uint16_t curr_syncword = 0;
 
-	// Acquiring and locking onto the preamble, determining the absolute sign
+	// Acquiring and locking onto the sync word, determining the absolute sign
 	while (acquire) {
-		bpsk_rfmodem->preamble[oversampl_idx] = curr_preamble;
+		bpsk_rfmodem->syncword[oversampl_idx] = curr_syncword;
 		oversampl_idx = (oversampl_idx + 1) % oversample;
-		curr_preamble = bpsk_rfmodem->preamble[oversampl_idx] << 1;
+		curr_syncword = bpsk_rfmodem->syncword[oversampl_idx] << 1;
 
 		int sample = rx_bpsk_sample(bpsk_rfmodem);
 
-		curr_preamble |= ((sample > 0) ? 1 : 0);
-		ampl = moving_average(bpsk_rfmodem->preamble_ampl[oversampl_idx], ((sample > 0) ? sample : -sample));
+		curr_syncword |= ((sample > 0) ? 1 : 0);
+		ampl = moving_average(bpsk_rfmodem->syncword_ampl[oversampl_idx], ((sample > 0) ? sample : -sample));
 
 		switch (statemachine) {
 		case 1:
-			if (curr_preamble == (uint16_t)BPSK_RF_PREAMBLE) {
+			if (curr_syncword == (uint16_t)BPSK_RF_SYNCWORD) {
 				max_ampl = ampl;
 				max_idx = oversampl_idx;
 				statemachine += 1;
 				sign = 1;
-			} else if (curr_preamble == (uint16_t)(~(BPSK_RF_PREAMBLE))) {
+			} else if (curr_syncword == (uint16_t)(~(BPSK_RF_SYNCWORD))) {
 				max_ampl = ampl;
 				max_idx = oversampl_idx;
 				statemachine += 1;
@@ -165,7 +164,7 @@ int rf_bpsk_rx (char *payload, int *len, int* pwr) {
 			break;
 
 		case 2:
-			if (curr_preamble != (sign ? (uint16_t)BPSK_RF_PREAMBLE : (uint16_t)(~(BPSK_RF_PREAMBLE)))) {
+			if (curr_syncword != (sign ? (uint16_t)BPSK_RF_SYNCWORD : (uint16_t)(~(BPSK_RF_SYNCWORD)))) {
 				acquire = 0;
 				break;
 			}
@@ -245,18 +244,18 @@ int rf_bpsk_tx (char* payload, int len) {
 
 	bpsk_rf_tx_stream_on(BPSK_RF_BAUDRATE, 24);
 
-	/* Sending some symbols, to give the Rx Costas loop something to lock onto */
+	// Symbols for the Rx Costas loop to lock onto, before the sync word
 	for (int i = 0; i != 48; i++) {
 		int bit = (i % 2);
 		fifo_push_or_sleep(bpsk_rf_tx_bit_stream, &bit);
 	}
 
-	// Sending preamble
-	uint16_t preamble = BPSK_RF_PREAMBLE;
+	// Sending the sync word
+	uint16_t sync_word = BPSK_RF_SYNCWORD;
 	for (int i = 0; i != 16; i++) {
-		int bit = (preamble & 0x8000) ? 1 : 0;
+		int bit = (sync_word & 0x8000) ? 1 : 0;
 		fifo_push_or_sleep(bpsk_rf_tx_bit_stream, &bit);
-		preamble <<= 1;
+		sync_word <<= 1;
 	}
 
 	int bytep = 0;
