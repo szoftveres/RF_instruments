@@ -432,6 +432,7 @@ int cmd_rx_test (cmd_context_s* ctxt) {
 	char buf[BPSK_RF_PKT_PAYLOAD_MAX];
 	int len;
 	int pwr;
+	int offs;
 	int rc = 0;
 
 	if (!setuprf(ctxt, 0)) {
@@ -439,8 +440,8 @@ int cmd_rx_test (cmd_context_s* ctxt) {
 	}
 
 	while (!rc) {
-		if (rf_bpsk_rx(buf, &len, &pwr)) {
-			printf_f(STDOUT, "[-%idB] \"%s\"\n", pwr, buf);
+		if (rf_bpsk_rx(buf, &len, &pwr, &offs)) {
+			printf_f(STDOUT, "[-%idB, %s%i Hz] \"%s\"\n", pwr, offs>0?"+":"", offs, buf);
 			rc = 1;
 		}
 	}

@@ -1,12 +1,9 @@
 #ifndef INC_BPSK_TRANSCEIVER_H_
 #define INC_BPSK_TRANSCEIVER_H_
 
-
 #include "../os/dsp_maths.h"  // moving_sum
 
 #define BPSK_RF_PKT_PAYLOAD_MAX (64)
-
-
 
 
 typedef struct __attribute__((packed)) {

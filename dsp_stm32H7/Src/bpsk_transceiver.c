@@ -37,11 +37,14 @@ void bpsk_rf_tx_stream_off (void) {
 /*-----------------------------------------------------*/
 
 #define HPF_SYMBOLS (96)
+#define BPSK_RF_SYNCWORD (0xD9C2)
+#define BPSK_RF_SYNCWORD_BITLEN (16)
+
 
 bpsk_rx_t* bpsk_rf_create (int fs, int baudrate, int oversample) {
 	bpsk_rx_t *instance = (bpsk_rx_t*)t_malloc(sizeof(bpsk_rx_t));
 
-	int hpf_samples = ((fs / baudrate) * HPF_SYMBOLS) - (fs / 3 / baudrate);
+	int hpf_samples = ((fs / baudrate) * HPF_SYMBOLS) - ((fs / baudrate) / 2);
 	instance->i_hpf = moving_sum_create(hpf_samples);
 	instance->q_hpf = moving_sum_create(hpf_samples);
 	instance->symbol_filter = moving_sum_create((fs / baudrate));
@@ -49,7 +52,7 @@ bpsk_rx_t* bpsk_rf_create (int fs, int baudrate, int oversample) {
 	instance->syncword = (uint16_t*)t_malloc(sizeof(uint16_t) * oversample);
 	instance->syncword_ampl = (moving_sum_t**)t_malloc(sizeof(moving_sum_t*) * oversample);
 	for (int i = 0; i != oversample; i++) {
-		instance->syncword_ampl[i] = moving_sum_create(16); // preamble is 16 bits long
+		instance->syncword_ampl[i] = moving_sum_create(BPSK_RF_SYNCWORD_BITLEN);
 	}
 
 	instance->fs = fs;
@@ -75,14 +78,17 @@ void bpsk_rf_destroy (bpsk_rx_t *instance) {
 
 
 // Receiving one slice of an oversampled symbol
-int rx_bpsk_sample (bpsk_rx_t *instance) {
+int rx_bpsk_slice (bpsk_rx_t *instance) {
 	int sample_out;
 	rfport_rx_sample_t sample;
 	int dec = (instance->fs / instance->baudrate) / instance->oversample; // 160000 / 2000 / 5 = 16
 
+	int nco = instance->nco_phase;
+	int rot = instance->rot_acc;
+
 	while (dec) {
-		int nco_i = instance->nco_wavetable[(instance->nco_phase) & 0xFF];
-		int nco_q = instance->nco_wavetable[(instance->nco_phase + 0x40) & 0xFF];
+		int nco_i = instance->nco_wavetable[nco & 0xFF];
+		int nco_q = instance->nco_wavetable[(nco + 0x40) & 0xFF];
 
 		fifo_pop_or_sleep(rfport_rx_sample_stream, &sample);
 
@@ -95,31 +101,37 @@ int rx_bpsk_sample (bpsk_rx_t *instance) {
 		int q = ((i_rot * nco_q) + (q_rot * nco_i)) / MAGNITUDE_CONST;
 
 		// Costas-loop NCO tuning, +16 or -16
-		instance->nco_phase += (i * q) > 0 ? ((uint8_t) 0x10) : ((uint8_t) -0x10);
+		int r = (((i * q) > 0) * 2) - 1;
+		rot += r;
+		nco += (r * 16);
 
 		// symbol matched filter
 		sample_out = moving_average(instance->symbol_filter, i);
 		dec -= 1;
 	}
+
+	instance->nco_phase = nco;
+	instance->rot_acc = rot;
+
 	return sample_out;
 }
 
 
 #define BPSK_RF_PKT_TOTAL_LEN(l) (((int)(l)) + ((int)sizeof(bpsk_rf_pkt_header_t)))
-#define BPSK_RF_SYNCWORD (0xD9C2)
 #define BPSK_RF_BAUDRATE (2000)
 #define BPSK_RF_OVERSAMPLE (5)
 
 
-int rf_bpsk_rx (char *payload, int *len, int* pwr) {
+int rf_bpsk_rx (char *payload, int *len, int* pwr, int* rx_offset_hz) {
 	int fs = 160000;
-	uint8_t scrambler_core = 0xFF;
 	int baudrate = BPSK_RF_BAUDRATE;
 	int oversample = BPSK_RF_OVERSAMPLE;
+
+	int halfbit = oversample / 2 + 1;
+	int slice = 0;
+
 	int ampl;
 	int sign;
-	int rc = 1;
-	int acquire = 1;
 
 	bpsk_rx_t* bpsk_rfmodem = bpsk_rf_create(fs, baudrate, oversample);
 
@@ -127,71 +139,74 @@ int rf_bpsk_rx (char *payload, int *len, int* pwr) {
 		bpsk_rfmodem->syncword[i] = 0;
 	}
 
-	rfport_rx_daq_on(fs, 160000 / baudrate);
+	rfport_rx_daq_on(fs, fs / baudrate); // one symbol buffer
 
-	int statemachine = 1;
 	int oversampl_idx = 0;
 
-	int max_ampl;
+	int max_ampl = 0;
 	int max_idx;
-
-	uint16_t curr_syncword = 0;
+	int sample;
 
 	// Acquiring and locking onto the sync word, determining the absolute sign
-	while (acquire) {
-		bpsk_rfmodem->syncword[oversampl_idx] = curr_syncword;
+	while (slice != halfbit) {
+		uint16_t syncword;
 		oversampl_idx = (oversampl_idx + 1) % oversample;
-		curr_syncword = bpsk_rfmodem->syncword[oversampl_idx] << 1;
+		syncword = bpsk_rfmodem->syncword[oversampl_idx] << 1;
 
-		int sample = rx_bpsk_sample(bpsk_rfmodem);
+		sample = rx_bpsk_slice(bpsk_rfmodem);
 
-		curr_syncword |= ((sample > 0) ? 1 : 0);
+		syncword |= ((sample > 0) ? 1 : 0);
+		bpsk_rfmodem->syncword[oversampl_idx] = syncword;
+
 		ampl = moving_average(bpsk_rfmodem->syncword_ampl[oversampl_idx], ((sample > 0) ? sample : -sample));
 
-		switch (statemachine) {
-		case 1:
-			if (curr_syncword == (uint16_t)BPSK_RF_SYNCWORD) {
+		switch (slice) {
+		  case 0:
+			if (syncword == (uint16_t)BPSK_RF_SYNCWORD) {
+				// In phase
 				max_ampl = ampl;
 				max_idx = oversampl_idx;
-				statemachine += 1;
+				slice += 1;
 				sign = 1;
-			} else if (curr_syncword == (uint16_t)(~(BPSK_RF_SYNCWORD))) {
+			} else if (syncword == (uint16_t)(~(BPSK_RF_SYNCWORD))) {
+				// Out of phase
 				max_ampl = ampl;
 				max_idx = oversampl_idx;
-				statemachine += 1;
+				slice += 1;
 				sign = 0;
 			}
 			break;
 
-		case 2:
-			if (curr_syncword != (sign ? (uint16_t)BPSK_RF_SYNCWORD : (uint16_t)(~(BPSK_RF_SYNCWORD)))) {
-				acquire = 0;
-				break;
-			}
+		  default:
 			if (ampl > max_ampl) {
-				max_ampl = ampl;
-				max_idx = oversampl_idx;
-			} else {
-				acquire = 0;
+				if (syncword == (sign ? (uint16_t)BPSK_RF_SYNCWORD : (uint16_t)(~(BPSK_RF_SYNCWORD)))) {
+					max_ampl = ampl;
+					max_idx = oversampl_idx;
+				}
 			}
+			slice += 1;
 			break;
 		}
 	}
 
 	bpsk_rf_pkt_t pkt;
 	pkt.h.len = BPSK_RF_PKT_PAYLOAD_MAX;
-
+	uint8_t scrambler_core = 0xFF;
 	int bytep = 0;
 	int bitn = 0;
 	uint8_t byte;
+	int rc = 1;
+
+	bpsk_rfmodem->rot_acc = 0;
+	int slicecounter = 0;
 
 	// Receiving the packet
 	while (bytep < (BPSK_RF_PKT_TOTAL_LEN(pkt.h.len))) {
-		int sample;
 		do {
 			oversampl_idx = (oversampl_idx + 1) % oversample;
-			sample = rx_bpsk_sample(bpsk_rfmodem);
-		} while (oversampl_idx != max_idx);
+			sample = rx_bpsk_slice(bpsk_rfmodem);
+			slicecounter += 1;
+		} while (oversampl_idx != max_idx);;
 
 		byte <<= 1;
 		byte |= ((sample > 0) ? 1 : 0);
@@ -221,9 +236,18 @@ int rf_bpsk_rx (char *payload, int *len, int* pwr) {
 		}
 	}
 	if (rc) {
-		memcpy(payload, pkt.payload, pkt.h.len);
-		*len = (int)pkt.h.len;
-		*pwr = ampldb(max_ampl, 65536);
+		if (payload) {
+			memcpy(payload, pkt.payload, pkt.h.len);
+		}
+		if (len) {
+			*len = (int)pkt.h.len;
+		}
+		if (pwr) {
+			*pwr = ampldb(max_ampl, 32768);
+		}
+		if (rx_offset_hz) {
+			*rx_offset_hz = fs / (((slicecounter * (fs / baudrate) / oversample) * 16) / bpsk_rfmodem->rot_acc);
+		}
 	}
 	return rc;
 }
