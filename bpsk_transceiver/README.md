@@ -4,9 +4,9 @@
 
 **[-->> RF board schematics <<--](schem.pdf)**
 
-## Transmitter
+## BPSK Transmitter
 
-The MAX2871 PLL has two differential outputs, but any line can drive single-ended loads as well. A Qorvo QPC6324 SPDT RF switch (operated by the MCU) is connected to one of the differential pairs of the PLL, and selects which (in-phase or out-of-phase) version of the RF signal to be present at the Tx output. For good I/Q balance at the highest carrier frequencies, the differential pair RF PCB traces must be length-matched between the PLL and the SPDT RF switch. This primitive BPSK modulation method was chosen because of its simplicity and availability of cheap parts, as well as due to lack of a suitable broadband and low-power- or low LO level upconverting mixer.
+Instead of using a conventional mixer, a Qorvo QPC6324 SPDT RF switch (toggled by the MCU) is connected to one of the differential pair outputs of the main RF signal source (MAX2871 PLL), and selects between the in-phase or out-of-phase version of the RF signal, depending on the modulation bit (1 or 0). This primitive BPSK modulation method was chosen because of its simplicity and availability of cheap parts, as well as due to general unavailability of broadband, low-power- or low LO level upconverting mixers. For good I/Q balance at the highest carrier frequencies, the differential pair RF PCB traces must be length-matched between the RF source and the two inputs of the RF switch.
 
 ![rfclose](rfclose.jpg)
 
